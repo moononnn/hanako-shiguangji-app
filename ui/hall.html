@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拾光记 · 门厅</title>
+<style>
+  :root {
+    --bg: #faf6ec;
+    --card: #fffdf8;
+    --ink: #4a463e;
+    --muted: #948b7a;
+    --primary: #7fb8a0;
+    --primary-deep: #4d8a70;
+    --primary-soft: #e7f1eb;
+    --accent: #e89bb0;
+    --accent-deep: #c96f87;
+    --accent-soft: #f9e9ee;
+    --warm-soft: #f9ecdf;
+    --warm: #dd9f6f;
+    --line: #efe7d8;
+    --shadow: 0 8px 22px rgba(96, 74, 40, 0.07);
+    --radius: 18px;
+    --radius-sm: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "LXGW WenKai", "霞鹜文楷", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 14px 12px 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: #c9dfd3; border-radius: 99px; border: 2px solid var(--bg); }
+  *::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+  * { scrollbar-width: thin; scrollbar-color: #c9dfd3 transparent; }
+
+  .hall { display: flex; flex-direction: column; gap: 12px; }
+
+  .brand-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .brand { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
+  .state { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .today {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 14px 16px 13px;
+  }
+  .date {
+    font-size: 26px; line-height: 1.2; color: var(--primary-deep);
+    font-family: "Poppins", "Segoe UI", sans-serif; letter-spacing: 1px;
+  }
+  .week { margin-top: 2px; font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .fests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .fest {
+    font-size: 11px; padding: 2px 9px; border-radius: 99px;
+    background: var(--accent-soft); color: var(--accent-deep);
+  }
+  .fest.legal { background: var(--warm-soft); color: #a96f3f; }
+
+  .section { display: flex; flex-direction: column; gap: 8px; }
+  .section-title { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .section-title b { color: var(--primary-deep); font-size: 14px; font-family: "Poppins", "Segoe UI", sans-serif; }
+
+  .todos {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 4px 12px;
+  }
+  .todo-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 9px 0; font-size: 13px; line-height: 1.6;
+    border-top: 1px solid var(--line);
+  }
+  .todo-item:first-child { border-top: none; }
+  .todo-dot {
+    flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 99px;
+    border: 2px solid #d8c9b4;
+  }
+  .todo-item.overdue .todo-dot { border-color: var(--accent); }
+  .todo-text { min-width: 0; overflow-wrap: anywhere; }
+  .todo-time { color: var(--muted); font-size: 11px; margin-left: 4px; white-space: nowrap; }
+  .todo-item.overdue .todo-text { color: var(--accent-deep); }
+  .todo-item.due .todo-text { color: var(--accent-deep); font-weight: 600; }
+  .todo-due { color: var(--accent-deep); font-size: 11px; margin-left: 4px; white-space: nowrap; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tile {
+    font-family: inherit; font-size: 13px; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius-sm); padding: 11px 8px; cursor: pointer;
+    transition: all .15s; box-shadow: var(--shadow);
+  }
+  .tile:hover { border-color: var(--primary); color: var(--primary-deep); transform: translateY(-1px); }
+  .tile:active { transform: translateY(0); }
+  .tile:disabled { opacity: .55; cursor: default; transform: none; }
+
+  .wide {
+    width: 100%; font-family: inherit; font-size: 13px;
+    background: var(--primary-soft); color: var(--primary-deep);
+    border: 1px solid #d5e8dd; border-radius: var(--radius-sm);
+    padding: 11px 12px; cursor: pointer; transition: all .15s;
+  }
+  .wide:hover { background: #dcece3; }
+  .wide:active { transform: translateY(1px); }
+
+  .foot { font-size: 11px; color: var(--muted); line-height: 1.7; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="hall">
+  <div class="brand-line">
+    <span class="brand">拾光记</span>
+    <span class="state" id="state">正在看今天…</span>
+  </div>
+
+  <div class="today">
+    <div class="date" id="date">—</div>
+    <div class="week" id="week"></div>
+    <div class="fests hidden" id="fests"></div>
+  </div>
+
+  <div class="section hidden" id="todo-section">
+    <div class="section-title">今天还有 <b id="todo-count">0</b> 件事</div>
+    <div class="todos" id="todos"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">去别处看看</div>
+    <div class="grid" id="shortcuts">
+      <button class="tile" data-action="calendar">日历</button>
+      <button class="tile" data-action="summary">时光册</button>
+      <button class="tile" data-action="moodline">心情线</button>
+      <button class="tile" data-action="period">生理期</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <button class="wide" data-action="settings">设置</button>
+  </div>
+
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+  var BASE = '/api/apps/shiguangji-app/routes';
+  var WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+  var REFRESH_MS = 60000;
+
+  function appSurfaceSession() {
+    try {
+      var m = /[?&]appSurfaceSession=([^&]+)/.exec(window.location.search || '');
+      return m ? decodeURIComponent(m[1]) : '';
+    } catch (e) { return ''; }
+  }
+
+  function api(path, opts) {
+    var options = Object.assign({}, opts || {});
+    var headers = Object.assign({}, options.headers || {});
+    var surface = appSurfaceSession();
+    if (surface) headers['X-Hana-App-Surface-Session'] = surface;
+    options.headers = headers;
+    return fetch(BASE + '/' + String(path || '').replace(/^\/+/, ''), options)
+      .then(function (r) { return r.json().catch(function () { return { ok: false }; }); });
+  }
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  function todayKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function setState(text) {
+    document.getElementById('state').textContent = text || '';
+  }
+
+  function renderDate() {
+    var d = new Date();
+    document.getElementById('date').textContent = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    document.getElementById('week').textContent = '星期' + WEEK[d.getDay()];
+  }
+
+  function renderFests(builtin) {
+    var box = document.getElementById('fests');
+    var rows = Array.isArray(builtin) ? builtin : [];
+    if (!rows.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.classList.remove('hidden');
+    box.innerHTML = rows.map(function (f) {
+      var cls = 'fest' + (f && f.kind === 'legal' ? ' legal' : '');
+      var head = (f && f.emoji ? esc(f.emoji) + ' ' : '');
+      return '<span class="' + cls + '">' + head + esc(f && f.name) + '</span>';
+    }).join('');
+  }
+
+  function todoTimeText(item) {
+    var start = String(item && item.reminderStart || '');
+    var end = String(item && item.reminderEnd || '');
+    if (!start) return '';
+    if (!end || start === end) return start + ' 准点';
+    return start + '–' + end;
+  }
+
+  // 今天这一条到点了、又还没勾掉：值得在门厅里显一眼，不用再点进去看
+  function isDueNow(item, now) {
+    if (!item || item.done) return false;
+    if (String(item.date || '') !== todayKey()) return false;
+    var start = String(item.reminderStart || '');
+    var parts = start.split(':');
+    if (parts.length !== 2) return false;
+    var minutes = Number(parts[0]) * 60 + Number(parts[1]);
+    if (!Number.isFinite(minutes)) return false;
+    return (now.getHours() * 60 + now.getMinutes()) >= minutes;
+  }
+
+  function renderTodos(day, overdue) {
+    var section = document.getElementById('todo-section');
+    var box = document.getElementById('todos');
+    var today = (day.userEvents || []).filter(function (e) {
+      return e && e.type === 'todo' && !e.done;
+    });
+    var late = Array.isArray(overdue) ? overdue.filter(function (e) { return e && !e.done; }) : [];
+    var rows = today.concat(late);
+    if (!rows.length) {
+      section.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+    section.classList.remove('hidden');
+    document.getElementById('todo-count').textContent = String(rows.length);
+    var nowDate = new Date();
+    box.innerHTML = rows.map(function (e) {
+      var isLate = late.indexOf(e) >= 0;
+      var isDue = !isLate && isDueNow(e, nowDate);
+      var time = todoTimeText(e);
+      // 逾期项自带 date 字段，标一下哪天欠下的，免得跟今天的混在一起
+      var meta = isLate && e.date ? '<span class="todo-time">' + esc(e.date.slice(5).replace('-', '/')) + ' 欠着</span>'
+        : (time ? '<span class="todo-time">' + esc(time) + '</span>' : '');
+      if (isDue) meta += '<span class="todo-due">到点了</span>';
+      var cls = 'todo-item' + (isLate ? ' overdue' : '') + (isDue ? ' due' : '');
+      return '<div class="' + cls + '">' +
+        '<span class="todo-dot"></span>' +
+        '<span class="todo-text">' + esc(e.title) + meta + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderWeather(weather) {
+    var el = document.getElementById('foot');
+    if (!weather || !weather.line) { el.textContent = ''; return; }
+    var temp = Number.isFinite(Number(weather.temp)) ? '（' + Number(weather.temp) + '°C）' : '';
+    el.textContent = '窗外：' + weather.line + temp;
+  }
+
+  function load() {
+    renderDate();
+    var date = todayKey();
+    return api('api/events/' + date).then(function (res) {
+      if (!res || !res.ok || !res.day) {
+        setState('没读到');
+        return;
+      }
+      var day = res.day;
+      renderFests(day.builtin);
+      renderTodos(day, day.overdueTodos);
+      renderWeather(day.weather);
+      var now = new Date();
+      setState(pad(now.getHours()) + ':' + pad(now.getMinutes()) + ' 看过');
+    }).catch(function () { setState('没读到'); });
+  }
+
+  // 左侧栏没有直接操作右边页面的口子，两个页面也不共享脚本对象，
+  // 所以点位走 App 自己的后端：这边写入，主页那边轮询取走再执行。
+  function ping(action) {
+    var tiles = document.querySelectorAll('[data-action]');
+    var current = document.querySelector('[data-action="' + action + '"]');
+    if (current) current.disabled = true;
+    setState('正在过去…');
+    api('api/fp-signal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action }),
+    }).then(function (res) {
+      setState(res && res.ok ? '已经告诉日历页了' : '没送出去，待会再试');
+    }).catch(function () { setState('没送出去，待会再试'); }).then(function () {
+      setTimeout(function () {
+        if (current) current.disabled = false;
+        load();
+      }, 1200);
+    });
+  }
+
+  document.getElementById('shortcuts').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('[data-action]');
+    if (btn) ping(btn.getAttribute('data-action'));
+  });
+  document.querySelectorAll('.wide[data-action]').forEach(function (btn) {
+    btn.addEventListener('click', function () { ping(btn.getAttribute('data-action')); });
+  });
+
+  // 告诉宿主这边页面就绪（宿主不需要时忽略，无害）
+  try { window.parent.postMessage({ protocol: 'hana.plugin.ui', version: 1, kind: 'event', type: 'hana.ready' }, '*'); } catch (e) {}
+
+  load();
+  setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>

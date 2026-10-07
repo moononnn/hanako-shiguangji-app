@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 300" width="480" height="300" role="img" aria-label="拾光记">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffdf8"/>
+      <stop offset="1" stop-color="#f3ece0"/>
+    </linearGradient>
+  </defs>
+  <rect width="480" height="300" fill="#e7f1eb"/>
+  <rect x="26" y="24" width="428" height="252" rx="18" fill="url(#paper)" stroke="#b9d6c8" stroke-width="2"/>
+  <rect x="26" y="24" width="428" height="56" rx="18" fill="#7fb8a0"/>
+  <rect x="26" y="62" width="428" height="18" fill="#7fb8a0"/>
+  <circle cx="62" cy="52" r="7" fill="#fffdf8" opacity="0.9"/>
+  <circle cx="86" cy="52" r="7" fill="#fffdf8" opacity="0.55"/>
+  <rect x="128" y="44" width="150" height="14" rx="7" fill="#fffdf8" opacity="0.85"/>
+  <g fill="#b9d6c8">
+    <rect x="62" y="106" width="52" height="42" rx="8"/>
+    <rect x="128" y="106" width="52" height="42" rx="8"/>
+    <rect x="194" y="106" width="52" height="42" rx="8"/>
+  </g>
+  <g fill="#e7f1eb">
+    <rect x="260" y="106" width="52" height="42" rx="8"/>
+    <rect x="326" y="106" width="52" height="42" rx="8"/>
+    <rect x="62" y="160" width="52" height="42" rx="8"/>
+    <rect x="128" y="160" width="52" height="42" rx="8"/>
+    <rect x="194" y="160" width="52" height="42" rx="8"/>
+    <rect x="260" y="160" width="52" height="42" rx="8"/>
+    <rect x="326" y="160" width="52" height="42" rx="8"/>
+  </g>
+  <circle cx="220" cy="127" r="11" fill="#fffdf8"/>
+  <path d="M214 127l4 4 8-8" stroke="#4d8a70" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="260" y="160" width="52" height="42" rx="8" fill="#d9b382"/>
+  <path d="M286 172c7 0 12 5 12 12s-5 12-12 12-12-5-12-12 5-12 12-12z" fill="#fffdf8" opacity="0.75"/>
+  <rect x="62" y="216" width="140" height="10" rx="5" fill="#dcd3c4"/>
+  <rect x="62" y="238" width="220" height="10" rx="5" fill="#e7e0d4"/>
+</svg>

@@ -1,0 +1,19 @@
+# 本地开发用的东西，不进公开仓库
+
+PENDING_CHANGES.md
+PUBLISHING.md
+PROJECT_LOG.md
+_tmp*/
+
+# 运行产物
+data/
+data.json
+*.log
+*.dat
+*.corrupt-*
+
+# 临时与备份
+node_modules/
+_backups/
+*.zip
+*.bak

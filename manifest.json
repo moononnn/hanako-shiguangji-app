@@ -1,0 +1,64 @@
+{
+  "manifestVersion": 2,
+  "id": "shiguangji-app",
+  "name": "拾光记",
+  "version": "0.0.40",
+  "entry": "index.js",
+  "description": "日子账本：日历、情境关照、心情与时光册。",
+  "icon": "assets/icon.png",
+  "contributes": {
+    "cards": [
+      {
+        "id": "calendar",
+        "title": "拾光记",
+        "description": "日子账本：日历、节假日、纪念日、待办、时光册",
+        "route": "/panel.html",
+        "realization": "page",
+        "siteNavEntry": true,
+        "fpFullPanel": true,
+        "functionPanel": { "id": "hall", "label": "拾光记", "route": "/hall.html" },
+        "face": { "image": "assets/panel-cover.png" },
+        "pageIcon": "assets/page-icon.png"
+      }
+    ]
+  },
+  "capabilities": [
+    "app/hooks.agent-before-start",
+    "app/hooks.messages-post-assistant",
+    "app/models.read",
+    "app/models.infer",
+    "app/agents.read",
+    "app/resources.read",
+    "app/sessions.read",
+    "app/notifications.show",
+    "app/tools.expose-to-model",
+    "app/services.provide",
+    "app/public-data.publish",
+    "app/tasks.manage"
+  ],
+  "minAppVersion": "0.1059.0",
+  "network": {
+    "allowedHosts": [
+      "api.open-meteo.com",
+      "geocoding-api.open-meteo.com",
+      "api.deepseek.com",
+      "api.openai.com",
+      "api.anthropic.com",
+      "openrouter.ai",
+      "api.moonshot.cn",
+      "open.bigmodel.cn",
+      "dashscope.aliyuncs.com",
+      "ark.cn-beijing.volces.com",
+      "api.siliconflow.cn",
+      "api.z.ai",
+      "api.minimax.chat",
+      "api.minimaxi.com",
+      "api.x.ai",
+      "api.groq.com",
+      "api.mistral.ai"
+    ],
+    "methods": ["GET", "POST"],
+    "defaultTimeoutMs": 30000,
+    "maxResponseBytes": 1048576
+  }
+}
