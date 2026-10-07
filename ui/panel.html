@@ -2671,17 +2671,23 @@ function toast(msg) {
 // 探测与执行都只在看得见的交互里发生（页面打开后探一次 / 她点按钮时执行）。
 var legacyProbeState = null;
 
+function legacyFailedTail(probe) {
+  var failed = Number(probe && probe.failedCount) || 0;
+  if (!failed) return '';
+  return '上次还有 ' + failed + ' 项没搬成，再点一次可以补搬。';
+}
+
 function legacyProbeText(probe) {
   var advice = probe && probe.advice;
   if (advice === 'migrate') {
-    return '发现插件版留下的数据，可以搬进这一版。只读旧的，不删不改；这边已经有的文件一个都不覆盖。';
+    return '发现插件版留下的数据，可以搬进这一版。只读旧的，不删不改；这边已经有的文件一个都不覆盖。' + legacyFailedTail(probe);
   }
   if (advice === 'already-migrated') {
     var moved = (probe.report && probe.report.migratedCount) || 0;
-    return '上次已经从插件版搬过 ' + moved + ' 项数据。想再补搬一次也可以，已经搬过来的一样不会重复。';
+    return '上次已经从插件版搬过 ' + moved + ' 项数据。想再补搬一次也可以，已经搬过来的一样不会重复。' + legacyFailedTail(probe);
   }
   if (advice === 'target-has-data') {
-    return '这一版里已经有你自己记下的东西了，所以没有自动搬。想补搬插件版里这边还没有的那些，点下面就行，已经有的一个都不会动。';
+    return '这一版里已经有你自己记下的东西了，所以没有自动搬。想补搬插件版里这边还没有的那些，点下面就行，已经有的一个都不会动。' + legacyFailedTail(probe);
   }
   if (advice === 'blocked') {
     return '读不到插件版的数据目录：' + (probe.detail || '宿主没给资源读取权限') + '。可以到「设置 → 安全 → 应用能力」里确认拾光记的读取权限已经打开。';
@@ -2738,9 +2744,13 @@ function runLegacyMigrationNow() {
       return;
     }
     var moved = (res.migrated || []).length;
+    var missed = (res.failed || []).length;
     if (moved) {
-      toast('搬进来 ' + moved + ' 项，正在刷新…');
-      setTimeout(function () { window.location.reload(); }, 1200);
+      // 只搬成一部分时也要把没搬成的说出来，别让人以为整本账都过来了
+      toast(missed
+        ? '搬进来 ' + moved + ' 项，还有 ' + missed + ' 项没搬成，刷新后可以再补一次'
+        : '搬进来 ' + moved + ' 项，正在刷新…');
+      setTimeout(function () { window.location.reload(); }, missed ? 2200 : 1200);
       return;
     }
     if ((res.failed || []).length) {

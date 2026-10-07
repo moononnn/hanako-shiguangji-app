@@ -118,7 +118,7 @@ test("反馈聊天窗：保留，且走注入的 apiFetch 而不是自己拼 tok
     reply: "听起来是刷新后设置没读到，我记一条。",
     issue: { title: "刷新后设置丢失", description: "重开页面后模型档位回到跟随档" },
     env: { pluginName: "拾光记", pluginVersion: "0.0.24", hanaVersion: "0.1059.0" },
-    prefillUrl: "https://github.com/moononnn/hanako-shiguangji/issues/new?title=x",
+    prefillUrl: "https://github.com/moononnn/hanako-shiguangji-app/issues/new?title=x",
   };
   const { window, calls } = createFeedbackHarness({ apiResponse: response });
 

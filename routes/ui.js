@@ -75,7 +75,7 @@ import { configureDebugLog, logInfo, logWarn, logError } from "../lib/debug-log.
 import { Feedback } from "../lib/feedback/index.js";
 
 // 反馈提交的目标仓库；App 更新由宿主应用市场管理。
-const REPO = "moononnn/hanako-shiguangji";
+const REPO = "moononnn/hanako-shiguangji-app";
 const PLUGIN_NAME = "拾光记";
 
 
