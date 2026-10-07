@@ -11,19 +11,12 @@ jobs:
     env:
       # 本地开发机在 UTC+8，日期与生活日相关的断言跟时区绑着；跑 UTC 会挂。
       TZ: Asia/Shanghai
-      # 测试跑在隔离的数据目录里，不碰 runner 上的用户目录。
-      HANA_HOME: ${{ runner.temp }}\hana-home
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-
-      - name: 准备隔离目录
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path $env:HANA_HOME -Force | Out-Null
 
       - name: 语法检查
         shell: pwsh
@@ -46,4 +39,8 @@ jobs:
         shell: pwsh
         # 不给名单：Node 自己递归找（tests/ 顶层 31 个 + lib/update-checker/tests/ 2 个）。
         # 显式列 tests/*.test.js 会漏掉积木自带的那两个文件（差 60 条用例）。
-        run: node --test
+        # 测试跑在隔离的数据目录里，不碰 runner 上的用户目录。
+        run: |
+          $env:HANA_HOME = Join-Path $env:RUNNER_TEMP "hana-home"
+          New-Item -ItemType Directory -Path $env:HANA_HOME -Force | Out-Null
+          node --test
