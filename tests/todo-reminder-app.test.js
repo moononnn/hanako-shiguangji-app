@@ -11,6 +11,7 @@ function harness({event=todo(), state=null, schedules=[], show=async()=>({shown:
   let handler, sequence=0, at=clock();
   const records=schedules.map(v=>structuredClone(v));
   const data={listEvents:()=>[...events.values()],getEvent:id=>events.get(id),getTodoReminder:id=>states.get(id),
+    getTodoOccurrence(id,date,{preserveId=false}={}){const event=events.get(id);if(!event?.repeatRule||date<event.date)return null;const rule=event.repeatRule;const weekday=new Date(date+'T12:00:00').getDay();if(rule.frequency==='weekly'&&!rule.weekdays.includes(weekday))return null;return {...event,id:preserveId?id:`${id}@${date}`,seriesId:id,seriesStartDate:event.date,occurrenceDate:date,date,done:(event.completedDates||[]).includes(date)};},
     async saveTodoReminder(id,value){states.set(id,structuredClone(value));return value;},async removeTodoReminder(id){states.delete(id);}};
   const ctx={tasks:{
     async registerHandler(key,value){calls.register.push(key);handler=value;},
@@ -25,7 +26,43 @@ function harness({event=todo(), state=null, schedules=[], show=async()=>({shown:
   return {ctx,data,events,states,calls,records,scheduler,get handler(){return handler;},advance(ms){at+=ms;},input(){return {eventId:event.id,key:todoReminderKey(events.get(event.id)),runAt:at};}};
 }
 
- test('App apply 只登记处理器，权限/计划恢复在装载后，不启动新计划',async()=>{
+ test('周期待办：提醒送达后自动排到下一个日历日期，不等勾选完成',async()=>{
+  const item={...todo('daily'),repeatRule:{frequency:'daily'},completedDates:[]};
+  const h=harness({event:item});await h.scheduler.registerAppTaskHandler();
+  await h.scheduler.eventChanged(item);
+  assert.equal(h.calls.schedule[0].payload.occurrenceDate,'2026-10-05');
+  assert.equal((await h.handler.run({input:h.records[0]})).delivered,true);
+  assert.equal(h.calls.notifications.length,1);
+  assert.equal(h.calls.schedule.length,2);
+  assert.equal(h.calls.schedule[1].payload.occurrenceDate,'2026-10-06');
+  assert.deepEqual(h.events.get('daily').completedDates,[],'提醒推进不能伪造完成记录');
+  assert.equal(h.events.get('daily').repeatRule.frequency,'daily','提醒推进不能改重复规则');
+  __resetTodoReminderSchedulerForTest(h.scheduler);
+});
+
+test('周期待办：重启恢复只续到当前日期，不重放停机期间的历史提醒',async()=>{
+  const item={...todo('daily'),date:'2026-10-01',repeatRule:{frequency:'daily'},completedDates:[]};
+  const oldOccurrence={...item,date:'2026-10-05',seriesId:'daily',occurrenceDate:'2026-10-05'};
+  const state={key:todoReminderKey(oldOccurrence),status:'delivered',notificationState:'confirmed',scheduleId:'old-plan',planState:'completed'};
+  const h=harness({event:item,state});h.advance(7*24*60*60*1000);await h.scheduler.registerAppTaskHandler();
+  await h.scheduler.eventChanged(item);
+  assert.equal(h.calls.schedule.length,1);
+  assert.equal(h.calls.schedule[0].payload.occurrenceDate,'2026-10-12');
+  assert.equal(h.calls.notifications.length,0,'恢复排程不会补发停机期间的旧提醒');
+  __resetTodoReminderSchedulerForTest(h.scheduler);
+});
+
+test('周期待办：提前勾掉当前实例后只把提醒计划移到下次，规则不变',async()=>{
+  const item={...todo('daily'),repeatRule:{frequency:'daily'},completedDates:['2026-10-05']};
+  const h=harness({event:item});await h.scheduler.registerAppTaskHandler();
+  await h.scheduler.eventChanged(item);
+  assert.equal(h.calls.schedule[0].payload.occurrenceDate,'2026-10-06');
+  assert.equal(h.calls.notifications.length,0);
+  assert.equal(h.events.get('daily').repeatRule.frequency,'daily');
+  __resetTodoReminderSchedulerForTest(h.scheduler);
+});
+
+test('App apply 只登记处理器，权限/计划恢复在装载后，不启动新计划',async()=>{
   const h=harness({event:null});await h.scheduler.registerAppTaskHandler();
   assert.deepEqual(h.calls.register,[TODO_REMINDER_TASK_TYPE]);assert.equal(h.calls.list,0);assert.deepEqual(h.calls.bus,[]);
   await h.scheduler.restoreAppSchedules();assert.equal(h.calls.list,1);assert.equal(h.calls.schedule.length,0);

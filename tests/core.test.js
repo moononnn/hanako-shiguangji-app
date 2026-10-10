@@ -47,6 +47,7 @@ import {
 import {
   extractCity,
   getWeatherForInject,
+  ensureWeatherFresh,
   normalizeWeatherResult,
   translateWeatherToMood,
   weatherCacheIsFresh,
@@ -578,7 +579,7 @@ test("注入文本：DeepSeek 峰谷关照要求闲聊也硬带一句", () => {
   assert.ok(toneTexts[2].includes("梁文峰") && toneTexts[2].includes("梁文谷"), toneTexts[2]);
 });
 
-test("注入文本：逾期待办只报条数，不逐条刷屏；今天到期照常列出", () => {
+test("注入文本：逾期待办只报次数，不逐条刷屏；今天到期照常列出", () => {
   // D1=2026-08-28：到期日为 08-27 是逾期，08-28 是今天；未来待办由调用方过滤，不在本函数职责内。
   const text = buildInjectionText({
     now: D1,
@@ -592,7 +593,7 @@ test("注入文本：逾期待办只报条数，不逐条刷屏；今天到期�
   assert.ok(text.includes("今日待办：今天要做"), text);
   assert.ok(!text.includes("陈年旧账一"), "逾期标题不应逐条出现: " + text);
   assert.ok(!text.includes("陈年旧账二"), "逾期标题不应逐条出现: " + text);
-  assert.ok(text.includes("另有 2 条待办已经逾期"), text);
+  assert.ok(text.includes("另有 2 次待办已经逾期"), text);
 });
 
 test("注入文本：只有逾期待办时不再列空今日待办", () => {
@@ -604,7 +605,7 @@ test("注入文本：只有逾期待办时不再列空今日待办", () => {
     force: true,
   });
   assert.ok(!text.includes("今日待办"), text);
-  assert.ok(text.includes("另有 1 条待办已经逾期"), text);
+  assert.ok(text.includes("另有 1 次待办已经逾期"), text);
 });
 
 test("注入文本：逾期带完成态时不再计入条数", () => {
@@ -979,6 +980,95 @@ test("天气：过期或未来时间的缓存都不能当作当前天气", () =>
   assert.equal(weatherCacheIsFresh(expired, { weatherIntervalHours: 3 }, now), false);
   assert.equal(weatherCacheIsFresh(future, { weatherIntervalHours: 3 }, now), false);
   assert.equal(weatherCacheIsFresh({ fetchedAt: now.getTime(), result: null }, { weatherIntervalHours: 3 }, now), false);
+});
+
+test("天气：缓存新鲜直接复用，不白跑网络", async () => {
+  let calls = 0;
+  const now = new Date("2026-10-10T07:12:00+08:00");
+  const data = {
+    getSettings() { return { weatherLocation: "河北省 邢台市 襄都区", weatherIntervalHours: 3 }; },
+    getWeatherCache() { return { location: "河北省 邢台市 襄都区", fetchedAt: now.getTime() - 60 * 1000, result: { place: "河北省 邢台市 襄都区", line: "晴空万里，16°C", temp: 16, code: 0, isDay: true } }; },
+    async setWeatherCache() { throw new Error("新鲜缓存不应被覆盖"); },
+  };
+  const result = await ensureWeatherFresh({
+    data,
+    now,
+    fetcher: async () => { calls++; return null; },
+  });
+  assert.equal(calls, 0, "命中新鲜缓存就不该出网");
+  assert.equal(result.temp, 16);
+  assert.equal(result.place, "河北省 邢台市 襄都区");
+});
+
+test("天气：缓存过期时补查一次并写回（早起冷启动那轮靠它）", async () => {
+  let calls = 0;
+  let saved = null;
+  const now = new Date("2026-10-10T07:12:00+08:00");
+  const data = {
+    getSettings() { return { weatherLocation: "河北省 邢台市 襄都区", weatherIntervalHours: 3 }; },
+    getWeatherCache() { return { location: "河北省 邢台市 襄都区", fetchedAt: now.getTime() - 6 * 3600 * 1000, result: { place: "河北省 邢台市 襄都区", line: "昨天的天气", temp: 23, code: 0, isDay: false } }; },
+    async setWeatherCache(value) { saved = value; },
+  };
+  const logged = [];
+  const result = await ensureWeatherFresh({
+    data,
+    now,
+    fetcher: async (url) => {
+      calls++;
+      assert.ok(url.startsWith("https://api.open-meteo.com/v1/forecast?"), url);
+      return { current: { temperature_2m: 16.2, weather_code: 0, is_day: 1, time: "2026-10-10T07:10:00+08:00" } };
+    },
+    log: { info: (m) => logged.push(m) },
+  });
+  assert.equal(calls, 1, "过期只补查一次");
+  assert.equal(result.temp, 16);
+  assert.ok(result.line.includes("阳光正好"), result.line);
+  assert.equal(saved.result.temp, 16, "新天气要写回缓存，下一轮直接命中");
+  assert.equal(logged.length, 1);
+});
+
+test("天气：关闭天气 / 没配置居住地 / 没有网络能力时安静返回空", async () => {
+  const now = new Date("2026-10-10T07:12:00+08:00");
+  const offData = {
+    getSettings() { return { weatherEnabled: false, weatherLocation: "河北省 邢台市 襄都区" }; },
+    getWeatherCache() { return null; },
+    async setWeatherCache() { throw new Error("不该写缓存"); },
+  };
+  assert.equal(await ensureWeatherFresh({ data: offData, now, fetcher: async () => ({}) }), null, "关闭天气不查");
+
+  const noPlaceData = {
+    getSettings() { return { weatherLocation: "" }; },
+    getWeatherCache() { return null; },
+    async setWeatherCache() {},
+  };
+  assert.equal(await ensureWeatherFresh({ data: noPlaceData, now, fetcher: async () => ({}) }), null, "没地点不查");
+
+  let calls = 0;
+  const staleData = {
+    getSettings() { return { weatherLocation: "河北省 邢台市 襄都区", weatherIntervalHours: 3 }; },
+    getWeatherCache() { return null; },
+    async setWeatherCache() {},
+  };
+  assert.equal(await ensureWeatherFresh({ data: staleData, now, fetcher: null }), null, "宿主网络未就位时静默跳过");
+  assert.equal(calls, 0);
+});
+
+test("天气：同步补查超时按查不到处理，不拖住整轮开场", async () => {
+  const now = new Date("2026-10-10T07:12:00+08:00");
+  const data = {
+    getSettings() { return { weatherLocation: "河北省 邢台市 襄都区", weatherIntervalHours: 3 }; },
+    getWeatherCache() { return null; },
+    async setWeatherCache() {},
+  };
+  const started = Date.now();
+  const result = await ensureWeatherFresh({
+    data,
+    now,
+    timeoutMs: 50,
+    fetcher: () => new Promise(() => {}), // 永不返回：模拟接口卡住
+  });
+  assert.equal(result, null);
+  assert.ok(Date.now() - started < 2000, "应按超时快速放弃，而不是干等");
 });
 
 // ── 节假日 ──

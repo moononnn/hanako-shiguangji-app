@@ -63,6 +63,24 @@ test("添加待办工具：识别标题时间并回显准点/时段", async () =
   }
 });
 
+test("添加待办工具：支持按周重复并回显所选星期", async () => {
+  assert.ok(parameters.properties.repeat);
+  assert.ok(parameters.properties.weekdays);
+  const data = new UserData(tmpDir("todo-repeat-tool"));
+  __setSharedUserDataForTest(data);
+  try {
+    const result = await execute({
+      title: "倒垃圾", type: "todo", date: "2026-09-01", repeat: "weekly", weekdays: [1, 3],
+      reminderStart: "20:00", reminderEnd: "20:00",
+    });
+    assert.match(result.content[0].text, /每周一、三重复/);
+    const event = data.listEvents()[0];
+    assert.deepEqual(event.repeatRule, { frequency: "weekly", weekdays: [1, 3] });
+  } finally {
+    __setSharedUserDataForTest(null);
+  }
+});
+
 test("今天工具：不播报未来待办，保留今天和逾期事项", async () => {
   const data = new UserData(tmpDir("today-due-filter"));
   __setSharedUserDataForTest(data);
@@ -93,7 +111,7 @@ test("今天工具：不播报未来待办，保留今天和逾期事项", async
     assert.match(text, /今天该做/);
     assert.match(text, /昨天没做/);
     assert.doesNotMatch(text, /未来才做/);
-    assert.match(text, /其中 1 条已经逾期/);
+    assert.match(text, /其中 1 次已经逾期/);
   } finally {
     __setSharedUserDataForTest(null);
   }
