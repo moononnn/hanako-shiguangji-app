@@ -12,6 +12,7 @@ import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { mkdtempSync } from "node:fs";
 
 import { decryptJson, encryptJson } from "../lib/crypto-store.js";
@@ -244,7 +245,7 @@ test("搬迁：探测到的那几个凭据文件就是「她已经有数据」�
 test("搬迁不在装载期发生：主入口里不出现受权限保护的资源调用", () => {
   // apply() 里调 ctx.resources.* 会让宿主判定装载失败并回滚安装记录，
   // 所以读插件目录只能待在路由里。这条断言防以后顺手把它挪回装载期。
-  const appRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..");
+  const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const source = fs.readFileSync(path.join(appRoot, "index.js"), "utf-8");
   const applyBody = source.slice(source.indexOf("export async function apply"));
   assert.equal(/ctx\.resources/.test(applyBody), false);
@@ -253,7 +254,7 @@ test("搬迁不在装载期发生：主入口里不出现受权限保护的资�
 
 test("界面：搬数据那一块默认隐藏，只在有插件版数据时才露面", () => {
   // 这是一次性的功能，不该在没数据的人面前常驻。改成常驻之前先让这条测试拦一下。
-  const appRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..");
+  const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const source = fs.readFileSync(path.join(appRoot, "lib", "page-template.js"), "utf-8");
   assert.match(source, /class="set-group hidden" id="legacy-migration-group"/);
   assert.match(source, /classList\.toggle\('hidden',[^)]*nothing-to-migrate/);
