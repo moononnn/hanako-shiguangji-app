@@ -701,23 +701,17 @@ test("路由：宿主模型目录不可用时列表降级为空且不抛错", ()
 test("页面：三档模型区域与 Hana 运行时凭据直连文案保持一致", async () => {
   const { renderPage } = await import("../lib/page-template.js");
   const html = renderPage("test-token");
-  const asset = fs.readFileSync(path.resolve("assets/model-config-panel.js"), "utf8");
-  for (const source of [html, asset]) {
-    assert.match(source, /跟随伙伴/);
-    assert.match(source, /工具模型留空/);
-    assert.match(source, /从 Hana 模型列表选择/);
-    assert.match(source, /运行时凭据/);
-    assert.match(source, /自定义 API/);
-    assert.match(source, /API Key/);
-  }
+  // 文案只活在服务端渲染出的页面里；旧的 assets/model-config-panel.* 副本已随死代码清掉。
+  assert.match(html, /跟随伙伴/);
+  assert.match(html, /工具模型留空/);
+  assert.match(html, /从 Hana 模型列表选择/);
+  assert.match(html, /运行时凭据/);
+  assert.match(html, /自定义 API/);
+  assert.match(html, /API Key/);
   assert.doesNotMatch(html, /id="mc-hana-key"/);
-  assert.doesNotMatch(asset, /id="mc-hana-key"/);
   assert.doesNotMatch(html, /Hana 模型设置页/);
-  assert.doesNotMatch(asset, /Hana 模型设置页/);
   assert.match(html, /id="mc-custom-key-toggle"/);
   assert.match(html, /function mcToggleKey/);
-  assert.match(asset, /id="mc-custom-key-toggle"/);
-  assert.match(asset, /function toggleKeyVisibility/);
   assert.match(html, /providerId: document\.getElementById\('mc-provider'\)\.value/);
   assert.doesNotMatch(html, /baseUrl: provider \? provider\.baseUrl/);
   assert.doesNotMatch(html, /api: provider \? provider\.api/);

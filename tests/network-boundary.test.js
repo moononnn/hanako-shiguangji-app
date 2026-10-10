@@ -12,7 +12,6 @@ import {
   createWeatherFetcher,
   getWeatherForInject,
 } from "../lib/weather.js";
-import { UpdateChecker } from "../lib/update-checker/index.js";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MANIFEST = JSON.parse(fs.readFileSync(path.join(ROOT, "manifest.json"), "utf8"));
@@ -107,17 +106,6 @@ test("天气：没有宿主网络出口时不出网，缓存仍可读", async ()
     now: new Date(),
   });
   assert.equal(noNetwork, null);
-});
-
-test("检查更新：没有宿主网络出口时不回退全局 fetch", async () => {
-  const checker = new UpdateChecker({ ctx: {}, manifestPath: null });
-  const result = await checker.check({ repo: "owner/repo" });
-  assert.equal(result.hasUpdate, false);
-  assert.equal(result._transient, true);
-  assert.match(result.message, /检查失败/);
-  assert.match(result.message, /https:\/\/github\.com\/owner\/repo\/releases/);
-  assert.equal(result.manualCheck, true);
-  assert.equal(result.releaseUrl, "https://github.com/owner/repo/releases");
 });
 
 test("自定义模型：请求经宿主网络出口并保留响应解析", async () => {
@@ -378,7 +366,6 @@ test("Hana 模型档：切换供应商时不会带着旧地址或 Key", async ()
 test("网络生产模块：不存在 globalThis.fetch 降级路径", () => {
   for (const relative of [
     "lib/weather.js",
-    "lib/update-checker/core/checker.js",
     "lib/model-config/core/client.js",
   ]) {
     const source = fs.readFileSync(path.join(ROOT, relative), "utf8");
