@@ -20,6 +20,7 @@ import { getFestivalHintPool, pickFestivalHint, didMentionFestival } from "../li
 import { finishedLifeDayKey, lifeDayKey, resolveSummaryAgentId } from "../lib/day-summary.js";
 import { readHanaUserName, resolveHanaUserName } from "../lib/user-name.js";
 import {
+  ensureWeatherFresh,
   getConfiguredWeatherFetcher,
   getWeatherForInject,
   normalizeWeatherResult,
@@ -33,6 +34,16 @@ import { schedulePublicToday } from "../lib/public-today.js";
 
 const tracker = new InjectionTracker();
 let weatherTimer = null; // 天气惰性刷新定时器
+let weatherPrefetchAt = 0; // 上一轮「顺手补一次」的发起时间（防止网络不通时每轮都去撞）
+const WEATHER_PREFETCH_THROTTLE_MS = 60 * 1000;
+
+// 缓存过期时的即时补查：静默、失败不重试轰炸，60 秒内最多发起一次。
+function scheduleWeatherPrefetch(data, settings) {
+  const nowTs = Date.now();
+  if (nowTs - weatherPrefetchAt < WEATHER_PREFETCH_THROTTLE_MS) return;
+  weatherPrefetchAt = nowTs;
+  void ensureWeatherFresh({ data, settings, onError: () => {} }).catch(() => {});
+}
 let nowProvider = () => new Date(); // 可覆写的时钟（测试用），生产保持真实当前时间
 
 // 对外快照（public-today.json）的刷新刻度：只在数据版本或生活日变过之后才排一次。
@@ -305,7 +316,7 @@ export default function registerShiguangjiInject(pi) {
         }
       }
       const workday = isWorkday(now);
-      // 待办：只带今天和逾期的一次性待办；日期先统一归一化，避免旧 MM-DD 被字符串比较误判。
+      // 待办：周期规则按实际日期展开成实例；先统一日期口径，避免旧 MM-DD 被字符串比较误判。
       const todos = filterDueTodos(data.listEvents(), now);
 
       // 节日引导变体：读已用索引，预先 pick 一个未用过的（随机不重复）；注入成功后才回写
@@ -394,8 +405,12 @@ export default function registerShiguangjiInject(pi) {
         prompt: extractPrompt(event),
       });
 
-      // 天气：同步读缓存（刷新由定时器后台做，不阻塞注入）；没配置/没缓存就 null。
+      // 天气：同步读缓存（刷新由定时器/预热补，不阻塞注入）；没配置/没缓存就 null。
       const weather = readFreshWeather(data, settings, now);
+      if (!weather && settings.weatherEnabled !== false) {
+        // 缓存空或已过期：不干等那 15 分钟一轮，现在就补一次；本轮多半赶不上，下一轮就有。
+        scheduleWeatherPrefetch(data, settings);
+      }
       let weatherDecision = decideWeatherMention({ weather, lastState, now });
       // 旧版本只落盘 DeepSeek 状态，无法知道上次天气事实；升级后的第一次恢复保守跳过天气，避免立刻重复刷屏。
       if (legacyRecovery && weather && !storedInjectionState) {
@@ -600,37 +615,23 @@ function startWeatherRefresher(dataDir = null) {
       const data = getData();
       const settings = data.getSettings();
       if (settings.weatherEnabled === false) return; // 用户主动关闭天气时不查询
-      const weatherConfig = resolveWeatherLocation(settings);
-      const loc = weatherConfig.location;
-      if (!loc) return; // 没配置就不查
-      const cache = data.getWeatherCache();
-      const now = new Date();
-      // 缓存有效（同地点 + 未过期）→ 不用查；旧地点文字也能命中
-      if (weatherCacheMatches(cache, settings) && weatherCacheIsFresh(cache, settings, now)) return;
-      // 过期/没有 → 后台查（失败静默，下次再试）。没有宿主网络能力时不出网。
-      const fetcher = getConfiguredWeatherFetcher();
-      if (typeof fetcher !== "function") return;
-      getWeatherForInject({
+      if (!resolveWeatherLocation(settings).location) return; // 没配置居住地就不查
+      // 缓存有效就什么都不做；过期/没有 → 后台查（失败静默，下次再试）。判定逻辑统一在 weather.js。
+      ensureWeatherFresh({
         data,
-        location: loc,
-        coordinates: weatherConfig.coordinates,
-        now: new Date(now),
-        fetcher,
+        settings,
         onError: (e) => logWarn(`天气后台刷新失败：${String(e?.message || e || "").slice(0, 300)}`),
-      })
-        .then((r) => {
-          if (r) {
-            logInfo(`天气已刷新：${r.place} · ${r.line}`);
-            // 新天气落地了，对外快照跟着换一份
-            try {
-              const refreshed = getData();
-              refreshPublicTodayNow({ dataDir, data: refreshed, settings: refreshed.getSettings() });
-            } catch {
-              // 天气刷新成功但快照失败，不影响下一次注入
-            }
+      }).then((r) => {
+        if (r) {
+          // 新天气落地了，对外快照跟着换一份
+          try {
+            const refreshed = getData();
+            refreshPublicTodayNow({ dataDir, data: refreshed, settings: refreshed.getSettings() });
+          } catch {
+            // 天气刷新成功但快照失败，不影响下一次注入
           }
-        })
-        .catch(() => {});
+        }
+      }).catch(() => {});
     } catch {
       // 刷新失败静默
     }

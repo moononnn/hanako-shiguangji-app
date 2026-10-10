@@ -330,6 +330,18 @@ test("去抖：连着排多次只落一次盘（清掉定时器不炸）", () =>
 // 用本地时间构造，跟 dateKey / getHours 同一套算法，换时区跑也不会飘。
 const LOCAL_1700 = new Date(2026, 8, 13, 17, 0, 0);
 
+test("周期待办：共享标题按组收拢逾期次数，实例 ID 仍各自可回指", () => {
+  const data = fakeData({ allEvents: [{
+    id: "laundry", title: "洗衣服", type: "todo", date: "2026-09-11",
+    repeatRule: { frequency: "daily" }, completedDates: [], reminderStart: "16:00", reminderEnd: "16:00",
+  }] });
+  const snap = buildPublicToday({ now: LOCAL_1700, data });
+  assert.deepEqual(snap.today.todos, ["洗衣服", "洗衣服（逾期 2 次）"]);
+  assert.equal(snap.today.todosPending.length, 3);
+  assert.equal(new Set(snap.today.todosPending.map(item => item.id)).size, 3);
+  assert.deepEqual(snap.today.todosDue, [{ id: "laundry@2026-09-13", title: "洗衣服", at: "16:00", soon: 0 }]);
+});
+
 test("todosDue：只收今天过了钟点、还没了结的那几条，带钟点", () => {
   const data = fakeData({
     allEvents: [

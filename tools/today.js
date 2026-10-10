@@ -3,7 +3,7 @@
 
 import { getSharedUserData } from "../lib/shared-data.js";
 import { getBuiltinFestivals, isWorkday } from "../lib/festivals.js";
-import { dateKey, filterDueTodos, isTodoOverdue } from "../lib/data.js";
+import { filterDueTodos, isTodoOverdue } from "../lib/data.js";
 
 function getData(context = null) {
   return getSharedUserData(context?.dataDir || context?.pluginContext?.dataDir || context?.ctx?.dataDir);
@@ -43,11 +43,19 @@ export async function execute(_input = {}, context = {}) {
   if (workday) specials.push("调休上班日");
   lines.push(specials.length ? `今天有：${specials.join("、")}` : "今天没有特殊日子");
 
-  const today = dateKey(now);
   const todos = filterDueTodos(data.listEvents(), now);
   const overdue = todos.filter((e) => isTodoOverdue(e, now));
-  lines.push(todos.length ? `待办：${todos.map((t) => t.title).join("、")}` : "今天没有到期待办");
-  if (overdue.length) lines.push(`其中 ${overdue.length} 条已经逾期`);
+  const overdueRepeats = new Map();
+  const overdueSingles = [];
+  for (const todo of overdue) {
+    if (todo.seriesId && todo.repeatRule) {
+      overdueRepeats.set(todo.seriesId, { title: todo.title, count: (overdueRepeats.get(todo.seriesId)?.count || 0) + 1 });
+    } else overdueSingles.push(todo.title);
+  }
+  const todoLabels = todos.filter(todo => !isTodoOverdue(todo, now)).map(todo => todo.title).concat(overdueSingles);
+  for (const group of overdueRepeats.values()) todoLabels.push(`${group.title}（逾期 ${group.count} 次）`);
+  lines.push(todos.length ? `待办：${todoLabels.join("、")}` : "今天没有到期待办");
+  if (overdue.length) lines.push(`其中 ${overdue.length} 次已经逾期`);
 
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
