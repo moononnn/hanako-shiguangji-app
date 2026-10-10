@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "shiguangji-app",
   "name": "拾光记",
-  "version": "0.0.47",
+  "version": "0.0.48",
   "entry": "index.js",
   "description": "日子账本：日历、情境关照、心情与时光册。",
   "icon": "assets/icon.png",
