@@ -14,7 +14,7 @@
 - 用于提供收费的软件服务、平台服务或基础设施服务；
 - 任何直接或间接以本项目产生收入的使用方式。
 
-如需商业授权，可通过本仓库的 [GitHub Issues](https://github.com/moononnn/hanako-shiguangji/issues) 发起联系。商业授权的范围、期限、费用和其他条件，以双方单独签署或确认的书面协议为准。
+如需商业授权，可通过本仓库的 [GitHub Issues](https://github.com/moononnn/hanako-shiguangji-app/issues) 发起联系。商业授权的范围、期限、费用和其他条件，以双方单独签署或确认的书面协议为准。
 
 本文件只说明商业授权申请入口，不构成任何商业授权；在收到明确的书面授权前，不得进行商业使用。
 
