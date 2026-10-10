@@ -10,6 +10,7 @@
     --card: #fffdf8;
     --ink: #4a463e;
     --muted: #948b7a;
+    --faint: #c2b6a1;
     --primary: #7fb8a0;
     --primary-deep: #4d8a70;
     --primary-soft: #e7f1eb;
@@ -19,6 +20,7 @@
     --warm-soft: #f9ecdf;
     --warm: #dd9f6f;
     --line: #efe7d8;
+    --deep: #3f6b59;
     --shadow: 0 8px 22px rgba(96, 74, 40, 0.07);
     --radius: 18px;
     --radius-sm: 12px;
@@ -31,7 +33,7 @@
     font-family: "LXGW WenKai", "霞鹜文楷", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
     font-size: 13px;
     line-height: 1.7;
-    padding: 14px 12px 20px;
+    padding: 12px 12px 18px;
     -webkit-font-smoothing: antialiased;
   }
   *::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -42,76 +44,164 @@
 
   .hall { display: flex; flex-direction: column; gap: 12px; }
 
-  .brand-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .brand { font-size: 11px; color: var(--muted); letter-spacing: 2px; }
-  .state { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  /* ── 顶部：品牌 + 心跳状态 ── */
+  .brand-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px; }
+  .brand { font-size: 12px; color: var(--primary-deep); letter-spacing: 4px; }
+  .state {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--muted); white-space: nowrap;
+  }
+  .beat {
+    width: 6px; height: 6px; border-radius: 99px; background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(127, 184, 160, 0.18);
+  }
+  .state.stale .beat { background: var(--warm); box-shadow: 0 0 0 3px rgba(221, 159, 111, 0.18); }
+  .state.busy .beat { background: var(--accent); animation: beat .9s ease-in-out infinite; }
+  @keyframes beat { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 
+  /* ── 今日卡：整页唯一的深色压舱 ── */
   .today {
-    background: var(--card);
-    border: 1px solid var(--line);
+    background: var(--deep);
     border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 14px 16px 13px;
+    padding: 13px 15px 12px;
+    box-shadow: 0 10px 24px rgba(63, 107, 89, 0.22);
+    color: #f7f2e7;
   }
   .date {
-    font-size: 26px; line-height: 1.2; color: var(--primary-deep);
+    font-size: 30px; line-height: 1.15; color: #fffdf8; font-weight: 600;
     font-family: "Poppins", "Segoe UI", sans-serif; letter-spacing: 1px;
   }
-  .week { margin-top: 2px; font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+  .week { margin-top: 1px; font-size: 12px; color: rgba(247, 242, 231, 0.72); letter-spacing: 2px; }
   .fests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
   .fest {
     font-size: 11px; padding: 2px 9px; border-radius: 99px;
-    background: var(--accent-soft); color: var(--accent-deep);
+    background: rgba(255, 253, 248, 0.16); color: #fffdf8;
   }
-  .fest.legal { background: var(--warm-soft); color: #a96f3f; }
+  .fest.legal { background: rgba(255, 253, 248, 0.24); }
 
+  /* ── 天气条 ── */
+  .weather {
+    display: flex; align-items: center; gap: 9px;
+    background: var(--card); border-radius: var(--radius-sm);
+    padding: 9px 12px; box-shadow: var(--shadow);
+    font-size: 12px; color: var(--muted);
+  }
+  .weather .w-icon { flex: none; color: var(--accent); stroke-width: 3; }
+  .weather.weather-moon .w-icon { color: #7893b4; }
+  .weather.weather-partly .w-icon { color: #9b9c8a; }
+  .weather.weather-cloud .w-icon { color: #86a49f; }
+  .weather.weather-rain .w-icon { color: #6f9fb8; }
+  .weather.weather-snow .w-icon { color: #8ba9c0; }
+  .weather.weather-fog .w-icon { color: #a69186; }
+  .weather.weather-storm .w-icon { color: #806c99; }
+  .weather .w-line { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .weather .w-temp { flex: none; font-family: "Poppins", "Segoe UI", sans-serif; color: var(--muted); }
+
+  /* ── 待办：可点完成 ── */
   .section { display: flex; flex-direction: column; gap: 8px; }
-  .section-title { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
-  .section-title b { color: var(--primary-deep); font-size: 14px; font-family: "Poppins", "Segoe UI", sans-serif; }
+  .section-title {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+    font-size: 12px; color: var(--muted); letter-spacing: 1px; padding: 0 2px;
+  }
+  .section-title b { color: var(--primary-deep); font-size: 15px; font-family: "Poppins", "Segoe UI", sans-serif; }
+  .section-hint { font-size: 11px; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
 
   .todos {
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: var(--radius); box-shadow: var(--shadow);
-    padding: 4px 12px;
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 2px 10px;
   }
-  .todo-item {
-    display: flex; align-items: flex-start; gap: 8px;
-    padding: 9px 0; font-size: 13px; line-height: 1.6;
-    border-top: 1px solid var(--line);
+  .todo {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%;
+    padding: 10px 4px; border: 0; border-top: 1px solid var(--line);
+    background: none; font: inherit; color: inherit; text-align: left;
+    cursor: pointer; border-radius: 8px; transition: background .15s;
   }
-  .todo-item:first-child { border-top: none; }
+  .todo:first-child { border-top: 0; }
+  .todo:hover { background: var(--warm-soft); }
+  .todo:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .todo:disabled { cursor: default; }
   .todo-dot {
-    flex: none; width: 9px; height: 9px; margin-top: 6px; border-radius: 99px;
-    border: 2px solid #d8c9b4;
+    flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 99px;
+    border: 2px solid #d8c9b4; background: #fff; position: relative; transition: all .18s;
   }
-  .todo-item.overdue .todo-dot { border-color: var(--accent); }
-  .todo-text { min-width: 0; overflow-wrap: anywhere; }
-  .todo-time { color: var(--muted); font-size: 11px; margin-left: 4px; white-space: nowrap; }
-  .todo-item.overdue .todo-text { color: var(--accent-deep); }
-  .todo-item.due .todo-text { color: var(--accent-deep); font-weight: 600; }
-  .todo-due { color: var(--accent-deep); font-size: 11px; margin-left: 4px; white-space: nowrap; }
+  .todo:hover .todo-dot { border-color: var(--warm); transform: scale(1.08); }
+  .todo-text { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+  .todo-time {
+    display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px;
+    background: var(--warm-soft); color: #b97a45; font-size: 11px; white-space: nowrap;
+  }
+  .todo-due {
+    display: inline-block; margin-left: 5px; padding: 1px 7px; border-radius: 99px;
+    background: var(--accent-soft); color: var(--accent-deep); font-size: 11px; white-space: nowrap;
+  }
+  .todo.overdue .todo-dot { border-color: var(--accent); }
+  .todo.overdue .todo-text > .todo-name { color: var(--accent-deep); }
+  .todo.due .todo-name { color: var(--accent-deep); font-weight: 600; }
+  .repeat-debt { padding: 9px 4px; border-top: 1px solid var(--line); }
+  .repeat-debt:first-child { border-top: 0; }
+  .repeat-debt-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .repeat-debt-name { min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--accent-deep); font-weight: 600; }
+  .repeat-debt-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .repeat-debt-batch { border: 1px solid #c8ddcf; border-radius: 99px; padding: 5px 9px; background: #f2f8f3; color: var(--primary-deep); font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
+  .repeat-debt-batch:disabled { opacity: .55; cursor: default; }
+  .repeat-debt details { margin: 6px 0 0 27px; color: var(--muted); font-size: 11px; }
+  .repeat-debt summary { cursor: pointer; width: fit-content; }
+  .repeat-debt-dates { margin-top: 4px; }
+  .repeat-debt-dates .todo { padding: 7px 4px; font-size: 12px; }
 
+  /* 点中：圈填上、字划掉，然后这条自己走掉 */
+  .todo.done { background: var(--primary-soft); }
+  .todo.done .todo-dot { background: var(--primary); border-color: var(--primary); }
+  .todo.done .todo-dot::after {
+    content: ""; position: absolute; left: 5px; top: 2px; width: 4px; height: 8px;
+    border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .todo.done .todo-name { color: var(--faint); text-decoration: line-through; }
+  .todo.leaving { opacity: 0; transform: translateX(10px); transition: opacity .35s, transform .35s; }
+  .todo.shake { animation: shake .32s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+  }
+
+  /* ── 快捷入口 ── */
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .tile {
+    display: flex; align-items: center; gap: 8px;
     font-family: inherit; font-size: 13px; color: var(--ink);
-    background: var(--card); border: 1px solid var(--line);
-    border-radius: var(--radius-sm); padding: 11px 8px; cursor: pointer;
-    transition: all .15s; box-shadow: var(--shadow);
+    background: var(--primary-soft); border: 0; border-radius: var(--radius-sm);
+    padding: 11px 12px; cursor: pointer; transition: all .15s;
   }
-  .tile:hover { border-color: var(--primary); color: var(--primary-deep); transform: translateY(-1px); }
+  .tile .t-icon { flex: none; color: var(--primary-deep); }
+  .tile:hover { background: #dbece2; transform: translateY(-1px); }
+  .tile:hover .t-icon { color: var(--deep); }
   .tile:active { transform: translateY(0); }
-  .tile:disabled { opacity: .55; cursor: default; transform: none; }
+  .tile:disabled { opacity: .5; cursor: default; transform: none; }
+  /* 关掉生理期后剩三个入口，让心情线占满整行，不留一个空格 */
+  .tile.wide-col { grid-column: 1 / -1; }
 
   .wide {
     width: 100%; font-family: inherit; font-size: 13px;
-    background: var(--primary-soft); color: var(--primary-deep);
-    border: 1px solid #d5e8dd; border-radius: var(--radius-sm);
-    padding: 11px 12px; cursor: pointer; transition: all .15s;
+    background: var(--card); color: var(--primary-deep);
+    border: 0; border-radius: var(--radius-sm);
+    padding: 10px 12px; cursor: pointer; transition: all .15s;
+    box-shadow: var(--shadow);
   }
-  .wide:hover { background: #dcece3; }
+  .wide:hover { background: var(--primary-soft); }
   .wide:active { transform: translateY(1px); }
+  .wide:disabled { opacity: .5; cursor: default; transform: none; }
 
-  .foot { font-size: 11px; color: var(--muted); line-height: 1.7; }
+  /* ── 回音 ── */
+  .toast {
+    position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 8px);
+    background: var(--deep); color: #f7f2e7; font-size: 12px;
+    padding: 7px 15px; border-radius: 99px; box-shadow: 0 8px 18px rgba(63, 107, 89, .28);
+    opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 40;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.bad { background: var(--accent-deep); }
+
   .hidden { display: none !important; }
 </style>
 </head>
@@ -119,7 +209,7 @@
 <div class="hall">
   <div class="brand-line">
     <span class="brand">拾光记</span>
-    <span class="state" id="state">正在看今天…</span>
+    <span class="state" id="state"><span class="beat"></span><span id="state-text">正在看今天…</span></span>
   </div>
 
   <div class="today">
@@ -128,27 +218,46 @@
     <div class="fests hidden" id="fests"></div>
   </div>
 
-  <div class="section hidden" id="todo-section">
-    <div class="section-title">今天还有 <b id="todo-count">0</b> 件事</div>
-    <div class="todos" id="todos"></div>
+  <div class="weather hidden" id="weather">
+    <svg class="w-icon" id="w-icon" width="18" height="18" viewBox="0 0 46 46" fill="none"
+         stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+    <span class="w-line" id="w-line"></span>
+    <span class="w-temp" id="w-temp"></span>
+  </div>
+
+  <div class="section">
+    <div class="section-title" id="todo-title">今天没有待办<span class="section-hint">轻松点</span></div>
+    <div class="todos hidden" id="todos"></div>
   </div>
 
   <div class="section">
     <div class="section-title">去别处看看</div>
     <div class="grid" id="shortcuts">
-      <button class="tile" data-action="calendar">日历</button>
-      <button class="tile" data-action="summary">时光册</button>
-      <button class="tile" data-action="moodline">心情线</button>
-      <button class="tile" data-action="period">生理期</button>
+      <button class="tile" data-action="calendar" type="button">
+        <svg class="t-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="4"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <span>日历</span>
+      </button>
+      <button class="tile" data-action="summary" type="button">
+        <svg class="t-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M9 3v18"/></svg>
+        <span>时光册</span>
+      </button>
+      <button class="tile" data-action="moodline" type="button">
+        <svg class="t-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-8 7-8s3.5 4 6 4 3-2 5-3"/><path d="M3 21h18"/></svg>
+        <span>心情线</span>
+      </button>
+      <button class="tile" data-action="period" type="button">
+        <svg class="t-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c3.5 4 5.5 6.6 5.5 9.4A5.5 5.5 0 0 1 12 18a5.5 5.5 0 0 1-5.5-5.6C6.5 9.6 8.5 7 12 3z"/></svg>
+        <span>生理期</span>
+      </button>
     </div>
   </div>
 
   <div class="section">
-    <button class="wide" data-action="settings">设置</button>
+    <button class="wide" data-action="settings" type="button">设置</button>
   </div>
-
-  <div class="foot" id="foot"></div>
 </div>
+<div class="toast" id="toast"></div>
+
 <script>
   var BASE = '/api/apps/shiguangji-app/routes';
   var WEEK = ['日', '一', '二', '三', '四', '五', '六'];
@@ -184,8 +293,21 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function setState(text) {
-    document.getElementById('state').textContent = text || '';
+  function setState(text, kind) {
+    var el = document.getElementById('state');
+    document.getElementById('state-text').textContent = text || '';
+    el.classList.remove('stale', 'busy');
+    if (kind) el.classList.add(kind);
+  }
+
+  var toastTimer = null;
+  function toast(text, bad) {
+    var el = document.getElementById('toast');
+    el.textContent = text;
+    el.classList.toggle('bad', !!bad);
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1900);
   }
 
   function renderDate() {
@@ -227,50 +349,208 @@
   }
 
   function renderTodos(day, overdue) {
-    var section = document.getElementById('todo-section');
     var box = document.getElementById('todos');
+    var title = document.getElementById('todo-title');
     var today = (day.userEvents || []).filter(function (e) {
       return e && e.type === 'todo' && !e.done;
     });
     var late = Array.isArray(overdue) ? overdue.filter(function (e) { return e && !e.done; }) : [];
     var rows = today.concat(late);
+    var repeatGroups = {};
+    var singleLate = [];
+    late.forEach(function (e) {
+      if (e.seriesId && e.repeatRule) {
+        if (!repeatGroups[e.seriesId]) repeatGroups[e.seriesId] = [];
+        repeatGroups[e.seriesId].push(e);
+      } else singleLate.push(e);
+    });
+
+    // 今天没排、但前几天还欠着：两种情况分开说；次数按每一回算，不把同一条周期任务挤成一件。
     if (!rows.length) {
-      section.classList.add('hidden');
+      title.innerHTML = '今天没有待办<span class="section-hint">轻松点</span>';
+      box.classList.add('hidden');
       box.innerHTML = '';
       return;
     }
-    section.classList.remove('hidden');
-    document.getElementById('todo-count').textContent = String(rows.length);
-    var nowDate = new Date();
-    box.innerHTML = rows.map(function (e) {
-      var isLate = late.indexOf(e) >= 0;
-      var isDue = !isLate && isDueNow(e, nowDate);
+    if (!today.length && late.length) {
+      title.innerHTML = '今天没安排，欠着 <b>' + rows.length + '</b> 次<span class="section-hint">核对后再勾</span>';
+    } else {
+      title.innerHTML = '今天还有 <b>' + rows.length + '</b> 次<span class="section-hint">点一下就算完成</span>';
+    }
+
+    function todoRow(e, isLate) {
+      var isDue = !isLate && isDueNow(e, new Date());
       var time = todoTimeText(e);
-      // 逾期项自带 date 字段，标一下哪天欠下的，免得跟今天的混在一起
       var meta = isLate && e.date ? '<span class="todo-time">' + esc(e.date.slice(5).replace('-', '/')) + ' 欠着</span>'
         : (time ? '<span class="todo-time">' + esc(time) + '</span>' : '');
       if (isDue) meta += '<span class="todo-due">到点了</span>';
-      var cls = 'todo-item' + (isLate ? ' overdue' : '') + (isDue ? ' due' : '');
-      return '<div class="' + cls + '">' +
+      var cls = 'todo' + (isLate ? ' overdue' : '') + (isDue ? ' due' : '');
+      return '<button type="button" class="' + cls + '" data-todo-id="' + esc(e.id) + '">' +
         '<span class="todo-dot"></span>' +
-        '<span class="todo-text">' + esc(e.title) + meta + '</span>' +
-        '</div>';
-    }).join('');
+        '<span class="todo-text"><span class="todo-name">' + esc(e.title) + '</span>' + meta + '</span>' +
+        '</button>';
+    }
+
+    var html = today.map(function (e) { return todoRow(e, false); }).join('');
+    html += singleLate.map(function (e) { return todoRow(e, true); }).join('');
+    Object.keys(repeatGroups).forEach(function (seriesId) {
+      var group = repeatGroups[seriesId];
+      var first = group[0];
+      html += '<div class="repeat-debt">' +
+        '<div class="repeat-debt-head">' +
+          '<span class="repeat-debt-name">' + esc(first.title) + '</span>' +
+          '<span class="repeat-debt-count">欠着 ' + group.length + ' 次</span>' +
+          '<button type="button" class="repeat-debt-batch" data-repeat-complete="' + esc(seriesId) + '">这几次都做完了</button>' +
+        '</div>' +
+        '<details><summary>看看欠在哪几天，没做的别一起勾</summary>' +
+          '<div class="repeat-debt-dates">' + group.map(function (e) { return todoRow(e, true); }).join('') + '</div>' +
+        '</details>' +
+      '</div>';
+    });
+    box.classList.remove('hidden');
+    box.innerHTML = html;
+  }
+
+  function completeRepeatDebt(seriesId, button) {
+    if (!seriesId || button.disabled) return;
+    button.disabled = true;
+    setState('正在整理欠账…', 'busy');
+    api('api/todos/complete-overdue', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seriesId: seriesId }),
+    }).then(function (res) {
+      if (!res || !res.ok) {
+        button.disabled = false;
+        setState('没整理好，再试一次', 'stale');
+        toast(res && res.error ? res.error : '没整理好，稍后再试', true);
+        return;
+      }
+      toast(res.count ? '已把 ' + res.count + ' 次标完成' : '这组欠账已经整理过了');
+      setState('欠账整理好了');
+      signal('refresh');
+      setTimeout(load, 180);
+    }).catch(function () {
+      button.disabled = false;
+      setState('没送出去', 'stale');
+      toast('没送出去，稍后再试', true);
+    });
+  }
+
+  // ── 门厅里直接把待办勾掉 ──
+  // 后端 toggle 是幂等地翻转状态；成功后本地先给一圈对勾，再让这一条自己走掉。
+  function toggleTodo(id, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    setState('正在打勾…', 'busy');
+    api('api/events/' + encodeURIComponent(id) + '/toggle', { method: 'POST' })
+      .then(function (res) {
+        if (!res || !res.ok) {
+          btn.disabled = false;
+          btn.classList.add('shake');
+          setTimeout(function () { btn.classList.remove('shake'); }, 400);
+          setState('没打上，再试一次', 'stale');
+          toast(res && res.error ? res.error : '没打上，稍后再试', true);
+          return;
+        }
+        var done = !!(res.event && res.event.done);
+        btn.classList.add('done');
+        toast(done ? '完成啦' : '又放回去了');
+        setState(done ? '打上勾了' : '拿回来了');
+        setTimeout(function () {
+          btn.classList.add('leaving');
+          signal('refresh');   // 主页面跟着重画，两边别不一样
+          setTimeout(load, 320);
+        }, 780);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        setState('没送出去', 'stale');
+        toast('没送出去，稍后再试', true);
+      });
+  }
+
+  // 天气图标沿用主页那一套，别让同一天在两个页面上长得不一样
+  var WEATHER_ICON_SVG = {
+    sun: '<circle cx="23" cy="23" r="7" fill="currentColor" opacity=".18"></circle>' +
+      '<path d="M23 5v5M23 36v5M5 23h5M36 23h5M10.5 10.5l3.5 3.5M32 32l3.5 3.5M35.5 10.5L32 14M14 32l-3.5 3.5"></path>',
+    moon: '<path d="M30 8C23 10 19 16 19 23c0 8 6 14 14 14 3 0 6-1 8-3-2 5-7 8-13 8-11 0-19-8-19-18S17 8 27 8c1 0 2 0 3 .2Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M30 8C23 10 19 16 19 23c0 8 6 14 14 14 3 0 6-1 8-3"></path>',
+    partly: '<circle cx="17" cy="16" r="5" fill="currentColor" opacity=".16"></circle>' +
+      '<path d="M17 7v3M8 16h3M10.5 9.5l2 2M23.5 9.5l-2 2"></path>' +
+      '<path d="M13 36h22c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C35 17 31 14 26 14c-6 0-10 4-11 9.5C11 23.7 8 26.4 8 30c0 3 2 6 5 6Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M13 36h22c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C35 17 31 14 26 14c-6 0-10 4-11 9.5C11 23.7 8 26.4 8 30c0 3 2 6 5 6Z"></path>',
+    cloud: '<path d="M8 35h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 17 28 14 23 14c-6 0-10 4-11 9.5C8 23.7 5 26.4 5 30c0 3 1 5 3 5Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M8 35h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 17 28 14 23 14c-6 0-10 4-11 9.5C8 23.7 5 26.4 5 30c0 3 1 5 3 5Z"></path>',
+    rain: '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5ZM15 36l-2 5M24 36l-2 5M33 36l-2 5"></path>',
+    snow: '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5ZM16 36v8M12 40h8M13.2 37.2l5.6 5.6M18.8 37.2l-5.6 5.6M30 36v8M26 40h8M27.2 37.2l5.6 5.6M32.8 37.2l-5.6 5.6" stroke-width="2.4"></path>',
+    fog: '<path d="M11 16h24M8 24h30M11 32h24M15 40h16"></path>',
+    storm: '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5Z" fill="currentColor" opacity=".18"></path>' +
+      '<path d="M8 31h28c4 0 7-3 7-7s-3-7-7-7c-1 0-2 .2-3 .6C32 13 28 10 23 10c-6 0-10 4-11 9.5C8 19.7 5 22.4 5 26c0 3 1 5 3 5ZM24 30l-4 7h5l-3 7 8-10h-5l4-4"></path>',
+  };
+
+  function weatherIsDay(weather) {
+    if (weather && typeof weather.isDay === 'boolean') return weather.isDay;
+    var line = String(weather && weather.line || '');
+    if (line.indexOf('天已经黑') >= 0 || line.indexOf('夜') >= 0) return false;
+    if (line.indexOf('清晨') >= 0 || line.indexOf('正午') >= 0 || line.indexOf('傍晚') >= 0) return true;
+    var hour = new Date().getHours();
+    return hour >= 6 && hour < 20;
+  }
+
+  function weatherIconKind(weather) {
+    var rawCode = weather && weather.code;
+    var code = rawCode === '' || rawCode == null ? NaN : Number(rawCode);
+    if (!Number.isFinite(code)) {
+      var line = String(weather && weather.line || '');
+      if (/雷|冰雹/.test(line)) return 'storm';
+      if (/雨/.test(line)) return 'rain';
+      if (/雪|米雪/.test(line)) return 'snow';
+      if (/雾|雾凇/.test(line)) return 'fog';
+      if (/多云|阴天/.test(line)) return 'cloud';
+    }
+    if (code === 45 || code === 48) return 'fog';
+    if ((code >= 71 && code <= 77) || (code >= 85 && code <= 86)) return 'snow';
+    if (code >= 95 && code <= 99) return 'storm';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'rain';
+    if (code === 1) return weatherIsDay(weather) ? 'partly' : 'moon';
+    if (code === 2 || code === 3) return 'cloud';
+    return weatherIsDay(weather) ? 'sun' : 'moon';
   }
 
   function renderWeather(weather) {
-    var el = document.getElementById('foot');
-    if (!weather || !weather.line) { el.textContent = ''; return; }
-    var temp = Number.isFinite(Number(weather.temp)) ? '（' + Number(weather.temp) + '°C）' : '';
-    el.textContent = '窗外：' + weather.line + temp;
+    var el = document.getElementById('weather');
+    if (!weather || !weather.line) { el.classList.add('hidden'); return; }
+    var kind = weatherIconKind(weather);
+    el.className = 'weather weather-' + kind;
+    document.getElementById('w-icon').innerHTML = WEATHER_ICON_SVG[kind] || WEATHER_ICON_SVG.sun;
+    document.getElementById('w-line').textContent = weather.line;
+    document.getElementById('w-temp').textContent =
+      Number.isFinite(Number(weather.temp)) ? Number(weather.temp) + '°C' : '';
+  }
+
+  // 生理期开关关了，入口就得跟着消失——主页各处都是按 showPeriod 判的，
+  // 门厅不能还摆一个点进去空转的按钮。读不到设置时保持原样，不乱藏。
+  function applySettings(settings) {
+    var tile = document.querySelector('[data-action="period"]');
+    if (!tile) return;
+    var on = settings.showPeriod !== false;
+    tile.classList.toggle('hidden', !on);
+    // 四个变三个，让心情线横跨整行，格子不留空
+    var mood = document.querySelector('[data-action="moodline"]');
+    if (mood) mood.classList.toggle('wide-col', !on);
   }
 
   function load() {
     renderDate();
     var date = todayKey();
+    api('api/settings').then(function (res) {
+      if (res && res.ok) applySettings(res.settings || {});
+    }).catch(function () {});
     return api('api/events/' + date).then(function (res) {
       if (!res || !res.ok || !res.day) {
-        setState('没读到');
+        setState('没读到', 'stale');
         return;
       }
       var day = res.day;
@@ -279,23 +559,26 @@
       renderWeather(day.weather);
       var now = new Date();
       setState(pad(now.getHours()) + ':' + pad(now.getMinutes()) + ' 看过');
-    }).catch(function () { setState('没读到'); });
+    }).catch(function () { setState('没读到', 'stale'); });
   }
 
   // 左侧栏没有直接操作右边页面的口子，两个页面也不共享脚本对象，
   // 所以点位走 App 自己的后端：这边写入，主页那边轮询取走再执行。
-  function ping(action) {
-    var tiles = document.querySelectorAll('[data-action]');
-    var current = document.querySelector('[data-action="' + action + '"]');
-    if (current) current.disabled = true;
-    setState('正在过去…');
-    api('api/fp-signal', {
+  function signal(action) {
+    return api('api/fp-signal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: action }),
-    }).then(function (res) {
-      setState(res && res.ok ? '已经告诉日历页了' : '没送出去，待会再试');
-    }).catch(function () { setState('没送出去，待会再试'); }).then(function () {
+    });
+  }
+
+  function ping(action) {
+    var current = document.querySelector('[data-action="' + action + '"]');
+    if (current) current.disabled = true;
+    setState('正在过去…', 'busy');
+    signal(action).then(function (res) {
+      setState(res && res.ok ? '已经告诉日历页了' : '没送出去，待会再试', res && res.ok ? '' : 'stale');
+    }).catch(function () { setState('没送出去，待会再试', 'stale'); }).then(function () {
       setTimeout(function () {
         if (current) current.disabled = false;
         load();
@@ -310,12 +593,27 @@
   document.querySelectorAll('.wide[data-action]').forEach(function (btn) {
     btn.addEventListener('click', function () { ping(btn.getAttribute('data-action')); });
   });
+  document.getElementById('todos').addEventListener('click', function (ev) {
+    var batch = ev.target.closest('[data-repeat-complete]');
+    if (batch) {
+      completeRepeatDebt(batch.getAttribute('data-repeat-complete'), batch);
+      return;
+    }
+    var btn = ev.target.closest('[data-todo-id]');
+    if (btn) toggleTodo(btn.getAttribute('data-todo-id'), btn);
+  });
 
   // 告诉宿主这边页面就绪（宿主不需要时忽略，无害）
   try { window.parent.postMessage({ protocol: 'hana.plugin.ui', version: 1, kind: 'event', type: 'hana.ready' }, '*'); } catch (e) {}
 
   load();
   setInterval(load, REFRESH_MS);
+  // 设置是在主页那边改的，门厅这边单独盯一下开关，60 秒太长会显得没生效
+  setInterval(function () {
+    api('api/settings').then(function (res) {
+      if (res && res.ok) applySettings(res.settings || {});
+    }).catch(function () {});
+  }, 8000);
 </script>
 </body>
 </html>
