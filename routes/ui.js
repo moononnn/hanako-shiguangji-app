@@ -16,6 +16,7 @@ import { probeLegacyMigration, runLegacyMigration } from "../lib/migrate-legacy.
 import { notifyAutoSummaryPaused } from "../lib/external-notify.js";
 import {
   configureWeatherNetwork,
+  ensureWeatherFresh,
   getWeatherForInject,
   normalizeWeatherResult,
   resolveWeatherLocation,
@@ -664,10 +665,20 @@ function normalizeSummaryOutput(value, userName) {
 }
 
 export default function registerRoutes(app, ctx) {
-  configureSharedUserData(ctx?.dataDir);
+  const sharedData = configureSharedUserData(ctx?.dataDir);
   configureDebugLog(ctx?.dataDir);
   // 页面路由拿得到插件 ctx；把宿主网络能力交给扩展的后台天气刷新复用。
   const weatherFetcher = configureWeatherNetwork(ctx?.network);
+  // 路由注册晚于扩展注册，而天气刷新器是在扩展注册时启动的——那一轮往往还拿不到网络能力，
+  // 于是开机后的第一次刷新静默落空，「早上的第一句话」就赶不上天气。这里补上那一轮：
+  // 网络刚就绪就先把天气拿到手，不等人的第一句话。
+  if (typeof weatherFetcher === "function") {
+    void ensureWeatherFresh({
+      data: sharedData,
+      onError: (e) => logWarn(`天气启动预热失败：${String(e?.message || e || "").slice(0, 200)}`),
+      log: { info: logInfo, warn: logWarn },
+    }).catch(() => {});
+  }
   // 把 model-config 的日志接到插件自己的日志文件。
   // 它内部那条「模型未交付可见正文，准备同模型重试（hadThinking=…, finishReason=…）」走的
   // 是 ctx.log，默认只进宿主进程日志，出问题时查不到——而这条恰恰是判断「思考耗尽」还是
@@ -703,7 +714,7 @@ export default function registerRoutes(app, ctx) {
   };
   const withReminderState = event => {
     if (event.type !== "todo") return event;
-    const state = getData().getTodoReminder(event.id);
+    const state = getData().getTodoReminder(event.seriesId || event.id);
     return { ...event, reminderState: state ? { status: state.status, notificationState: state.notificationState,
       hasError: !!state.lastError, planState: state.planState } : null };
   };
@@ -760,7 +771,7 @@ export default function registerRoutes(app, ctx) {
     const todayDate = new Date();
     const today = dateKey(todayDate);
     const overdueTodos = dk === today
-      ? data.listEvents().filter((e) => isTodoOverdue(e, todayDate))
+      ? filterDueTodos(data.listEvents(), todayDate).filter((e) => isTodoOverdue(e, todayDate))
       : [];
     const weatherCache = dk === today ? data.getWeatherCache() : null;
     const weather = dk === today && settings.weatherEnabled !== false &&
@@ -838,6 +849,21 @@ export default function registerRoutes(app, ctx) {
       if (!ev) return c.json({ ok: false, error: "找不到这条待办" });
       const reminderWarning = await syncReminder(ev);
       return c.json({ ok: true, event: ev, reminderWarning });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message });
+    }
+  });
+
+  // 门厅里一次整理某组周期待办：只勾到昨天，今天的计划仍留着；不修改重复规则。
+  app.post("/api/todos/complete-overdue", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const result = await getData().completeRecurringOverdue(body.seriesId, new Date());
+      if (result.count) {
+        const event = getData().getEvent(body.seriesId);
+        if (event) await syncReminder(event);
+      }
+      return c.json({ ok: true, count: result.count });
     } catch (e) {
       return c.json({ ok: false, error: e.message });
     }
@@ -1050,18 +1076,17 @@ export default function registerRoutes(app, ctx) {
     const m = +c.req.param("month");
     const data = getData();
     const builtinMap = getMonthFestivals(y, m);
-    const userEvents = data.listEvents();
     const settings = data.getSettings();
     const finishedLimit = finishedLifeDayKey(new Date(), normalizeBoundaryHour(settings.dayBoundaryHour));
     const daysInMonth = new Date(y, m, 0).getDate();
     const days = [];
+    let monthHasUserEvents = false;
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(y, m - 1, day);
       const dk = dateKey(d);
       const builtin = builtinMap.get(dk) || [];
-      const user = userEvents.filter((e) => e.type !== "period" && (
-        e.repeatYearly ? e.date.slice(5) === dk.slice(5) : e.date === dk
-      ));
+      const user = data.eventsOnDate(d).filter((e) => e.type !== "period");
+      if (user.length) monthHasUserEvents = true;
       const periods = data.periodsWithDayOn(d);
       days.push({
         date: dk,
@@ -1076,9 +1101,6 @@ export default function registerRoutes(app, ctx) {
         moodEmoji: pickDayMood(data.getDayMoods(dk))?.emoji || "",
       });
     }
-    const monthHasUserEvents = userEvents.some((e) =>
-      e.type !== "period" && (e.repeatYearly ? e.date.slice(5) === `${String(m).padStart(2, "0")}-` : e.date.startsWith(`${y}-${String(m).padStart(2, "0")}`))
-    );
     return c.json({
       ok: true,
       year: y,
@@ -1595,10 +1617,16 @@ export default function registerRoutes(app, ctx) {
       messages: plainMessages,
       ...(opts.maxTokens ? { maxTokens: opts.maxTokens } : {}),
       ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
-      // 推理档位必须真的传下去：调用方要「关掉思考」时，思考一旦跑起来会把输出预算吃完、
-      // 正文直接为空（MiniMax 这类模型实测如此）。宿主接受同名的字符串档位。
-      ...(opts.reasoningLevel ? { reasoningEffort: String(opts.reasoningLevel) } : {}),
     };
+    // 推理档位只给 stream 通道。
+    //   stream：调用方要「关掉思考」时必须真传下去，否则思考一旦跑起来会把输出预算吃完、
+    //          正文直接为空（MiniMax 这类模型实测如此），宿主接受同名的字符串档位。
+    //   utility：宿主的参数白名单是写死的，多一个字段就报
+    //          「Utility inference does not accept the reasoningEffort field.」整调失败；
+    //          而且 utility 通道本来就强制 reasoningLevel=off，天然关思考，不需要再传。
+    const streamOnly = opts.reasoningLevel && source === "hana"
+      ? { reasoningEffort: String(opts.reasoningLevel) }
+      : {};
     logInfo(
       `[拾光记] 宿主代调 source=${source} model=${source === "hana" ? `${providerId}/${modelId}` : "宿主utility"} maxTokens=${opts.maxTokens ?? "-"} reasoning=${opts.reasoningLevel || "-"}`
     );
@@ -1649,7 +1677,7 @@ export default function registerRoutes(app, ctx) {
     if (source === "hana") {
       let response;
       try {
-        response = await ctx.models.stream({ ...common, provider: providerId, model: modelId });
+        response = await ctx.models.stream({ ...common, ...streamOnly, provider: providerId, model: modelId });
       } catch (e) {
         logWarn(`[拾光记] 宿主 stream 抛错：${e?.message || e}`);
         throw e;
@@ -1827,7 +1855,7 @@ export default function registerRoutes(app, ctx) {
 // ── 功能面板（左侧门厅）给主页面的信号 ──
 // 门厅与主页面是两个独立文档，不共享脚本对象，宿主也没给功能面板直接操作主卡的口子。
 // 只走 App 自己的后端：门厅写入一条，主页面轮询取走再执行；只记最近一条。
-const FP_SIGNAL_ACTIONS = new Set(["calendar", "summary", "moodline", "period", "today", "settings"]);
+const FP_SIGNAL_ACTIONS = new Set(["calendar", "summary", "moodline", "period", "today", "settings", "refresh"]);
 let fpSignal = { action: "", at: 0 };
 
 // ── 每日总结（完整生活日 → 按伙伴调模型 → 加密归档） ──

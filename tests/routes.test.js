@@ -1259,6 +1259,31 @@ test("记一笔：空表单不挂红字，保存成功后不留上一条的痕�
   assert.match(script, /function cancelEditEvent\(\) \{\s*resetAddCardState\(\)/);
 });
 
+test("周期待办：表单支持不重复、每天和每周选星期，编辑提示整组规则", async () => {
+  const { renderPage } = await import("../lib/page-template.js");
+  const html = renderPage("test-token");
+  const script = html.split("<script>").slice(1)
+    .map((part) => part.split("</script>")[0])
+    .find((part) => part.includes("function saveEvent"));
+  assert.match(html, /id="new-todo-repeat"/);
+  assert.match(html, /value="daily">每天/);
+  assert.match(html, /value="weekly">每周选几天/);
+  assert.match(html, /todo-repeat-days/);
+  assert.match(script, /frequency: 'daily'/);
+  assert.match(script, /frequency: 'weekly', weekdays: weekdays/);
+  assert.match(script, /每周至少选一天/);
+  assert.match(html, /改名称或提醒会作用整组/);
+  assert.match(html, /起始日期和重复星期暂不支持改/);
+  assert.match(html, /\.todo-repeat \.dd[\s\S]*?--accent: var\(--primary\)/);
+  const repeatSync = script.match(/function syncTodoRepeatUI\(type\) \{[\s\S]*?\n\}/);
+  assert.ok(repeatSync, "待办重复方式应有专用同步逻辑");
+  assert.match(repeatSync[0], /refreshOneSelect\('new-todo-repeat'\)/);
+  assert.match(repeatSync[0], /trigger\.disabled = !!select\.disabled/);
+  const routes = fs.readFileSync(path.resolve("routes/ui.js"), "utf8");
+  assert.match(routes, /\/api\/todos\/complete-overdue/);
+  assert.match(routes, /completeRecurringOverdue\(body\.seriesId/);
+});
+
 test("检查更新：页面不挂检查更新入口，只留反馈入口", async () => {
   const { renderPage } = await import("../lib/page-template.js");
   const html = renderPage("test-token");
@@ -1789,7 +1814,7 @@ test("布局：记一笔移除、设置入顶栏、日历空状态引导", async
   assert.match(script, /NEW_TITLE_PLACEHOLDER/);
   assert.match(script, /TYPE_TIPS/);
   assert.match(script, /updateTypeGuide\(typeTab\.getAttribute/);
-  assert.match(script, /标题里有明确时间会自动填入；当天白天写“两点”会按下午两点；有“提醒”时优先它旁边的时间/);
+  assert.match(script, /标题里有明确时间会自动填入；也可以设成每天，或每周挑几天重复/);
   assert.match(script, /要做的事，标题里的时间会自动填入/);
   assert.match(script, /每年都到，比如生日、纪念日/);
   // 待办必须选择提醒时间；起止相同显示为准点提醒。
@@ -2026,6 +2051,116 @@ test("路由：生理期结束确认接口已注册", () => {
     timeout: 30000,
   });
   assert.equal(res.status, 0, `子进程退出码非 0：${res.stderr || res.stdout}`);
+});
+
+test("路由：跟随档走 utility 时不带 reasoningEffort，hana 档走 stream 时才带", () => {
+  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "sgj-reasoning-field-route-test-"));
+  const routeUrl = pathToFileURL(path.resolve("routes/ui.js")).href;
+  const dataUrl = pathToFileURL(path.resolve("lib/shared-data.js")).href;
+  // 宿主的参数白名单是写死的：utility 多一个 reasoningEffort 就报
+  // 「Utility inference does not accept the reasoningEffort field.」整调失败。
+  // 这里让 mock 的 utility 通道按宿主的脾气校验，守住这个回归。
+  const childCode = `
+    import fs from "node:fs";
+    import path from "node:path";
+    import os from "node:os";
+    import { getSharedUserData } from ${JSON.stringify(dataUrl)};
+    import registerRoutes from ${JSON.stringify(routeUrl)};
+    const home = process.env.HANA_HOME;
+    const dataDir = path.join(home, "plugin-data", "shiguangji");
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(path.join(home, "users.json"), JSON.stringify({ defaultUserId: "u1", users: [{ userId: "u1", displayName: "小测试" }] }));
+    fs.mkdirSync(path.join(home, "agents", "hanako"), { recursive: true });
+    fs.writeFileSync(path.join(home, "agents", "hanako", "config.yaml"), "agent:\\n  name: 小花\\n");
+    // 两天都有料：一天跑跟随档，一天跑 hana 档（同一天做册完就不重复做）。
+    const entries = Array.from({ length: 360 }, (_, index) => ({
+      id: "m" + index,
+      type: "message",
+      timestamp: "2026-08-" + (index % 2 ? "30" : "29") + "T10:" + String(Math.floor(index / 3) % 60).padStart(2, "0") + ":" + String(index % 60).padStart(2, "0"),
+      message: { role: index % 2 ? "assistant" : "user", content: (index % 2 ? "小花回复" : "一起整理日历") + " " + index + " " + "x".repeat(480) },
+    }));
+    const ndjson = (lines) => lines.map((line) => JSON.stringify(line)).join("\\n");
+
+    async function runOnce(modelSource, date) {
+      // 必须写共享实例：路由读的就是它，另一个 UserData 的写入它看不到。
+      await getSharedUserData(dataDir).updateSettings({
+        autoSummary: false, moodDiscoveryMode: "off", partnerMoodEnabled: false, dayBoundaryHour: 4,
+        modelSource,
+        ...(modelSource === "hana" ? { hanaModel: { providerId: "command code", modelId: "deepseek/deepseek-v4-flash" } } : {}),
+      });
+      const routes = [];
+      const app = {
+        get(p, h) { routes.push({ method: "GET", path: p, handler: h }); },
+        post(p, h) { routes.push({ method: "POST", path: p, handler: h }); },
+        put(p, h) { routes.push({ method: "PUT", path: p, handler: h }); },
+        delete(p, h) { routes.push({ method: "DELETE", path: p, handler: h }); },
+      };
+      const streamCalls = [];
+      registerRoutes(app, {
+        dataDir,
+        bus: { async request(topic) {
+          if (topic === "session:list") {
+            return { sessions: [{ sessionId: "s1", path: "p1", agentId: "hanako", modified: "2026-08-30T12:00:00" }] };
+          }
+          if (topic === "session:entries") return { entries };
+          throw new Error("不该请求：" + topic);
+        } },
+        models: {
+          async list() {
+            return [{ provider: "command code", id: "deepseek/deepseek-v4-flash", name: "DeepSeek V4 Flash", input: ["text"], reasoning: true }];
+          },
+          async utility(input) {
+            // 宿主行为：utility 的白名单里没有 reasoningEffort，多传直接拒。
+            if ("reasoningEffort" in input) {
+              throw new Error("Utility inference does not accept the reasoningEffort field.");
+            }
+            streamCalls.push({ channel: "utility", input });
+            return { text: "跟随档正文" };
+          },
+          async stream(input) {
+            streamCalls.push({ channel: "stream", input });
+            return { async text() { return ndjson([{ type: "text-delta", delta: "摘要：正常生成" }, { type: "done" }]); } };
+          },
+        },
+        network: { async fetch() { throw new Error("App 里模型调用不该直连网络出口"); } },
+        log: { info() {}, warn() {}, error() {} },
+      });
+      const run = routes.find((item) => item.method === "POST" && item.path === "/api/summaries/run");
+      const result = await run.handler({ req: { async json() { return { date }; } }, json(value) { return value; } });
+      return { result, streamCalls };
+    }
+
+    // 两档各跑一天：同一天做册完就不重复做，第二档没反应不是 bug。
+    const agent = await runOnce("agent", "2026-08-29");
+    if (!agent.result.ok) throw new Error("跟随档做册失败：" + JSON.stringify(agent.result));
+    const utilityCalls = agent.streamCalls.filter((item) => item.channel === "utility");
+    if (!utilityCalls.length) throw new Error("跟随档没有走 utility 通道");
+    if (agent.streamCalls.some((item) => item.channel === "stream")) {
+      throw new Error("跟随档不该走 stream 通道");
+    }
+
+    const hana = await runOnce("hana", "2026-08-30");
+    if (!hana.result.ok) throw new Error("hana 档做册失败：" + JSON.stringify(hana.result));
+    const streamCalls = hana.streamCalls.filter((item) => item.channel === "stream");
+    if (!streamCalls.length) throw new Error("hana 档没有走 stream 通道");
+    if (hana.streamCalls.some((item) => item.channel === "utility")) {
+      throw new Error("hana 档不该走 utility 通道");
+    }
+    // hana 档仍要真把关思考的档位传下去，否则 MiniMax 这类模型会把输出预算全吃掉、正文为空。
+    if (streamCalls.some((item) => item.input.reasoningEffort !== "off")) {
+      throw new Error("hana 档没有把推理档位传给宿主：" + JSON.stringify(streamCalls.map((item) => item.input.reasoningEffort)));
+    }
+    console.log(JSON.stringify({ utility: utilityCalls.length, stream: streamCalls.length }));
+  `;
+  const res = spawnSync(process.execPath, ["--input-type=module", "-e", childCode], {
+    cwd: path.resolve("."),
+    env: { ...process.env, USERPROFILE: isolatedHome, HOME: isolatedHome, HANA_HOME: path.join(isolatedHome, ".hanako") },
+    encoding: "utf-8",
+    timeout: 30000,
+  });
+  assert.equal(res.status, 0, `子进程退出码非 0：${res.stderr || res.stdout}`);
+  assert.match(res.stdout, /"utility":\d+/);
+  assert.match(res.stdout, /"stream":\d+/);
 });
 
 test("路由：检查更新路由已下线，反馈路由在缺 pluginDir 时仍可用", () => {
