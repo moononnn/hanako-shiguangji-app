@@ -4,14 +4,14 @@
   "name": "拾光记",
   "version": "0.0.49",
   "entry": "index.js",
-  "description": "日子账本：日历、情境关照、心情与时光册。",
+  "description": "把和伙伴聊过的一天整理成日记，让伙伴到点提醒待办。还能记心情、纪念日，给聊天带上当天的日期与天气和特殊节假日问候。",
   "icon": "assets/icon.png",
   "contributes": {
     "cards": [
       {
         "id": "calendar",
         "title": "拾光记",
-        "description": "日子账本：日历、节假日、纪念日、待办、时光册",
+        "description": "把和伙伴聊过的一天整理成日记：待办到点提醒、记心情与纪念日，给聊天带上当天的日期、天气和节日问候",
         "route": "/panel.html",
         "realization": "page",
         "siteNavEntry": true,
