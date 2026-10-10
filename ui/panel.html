@@ -37,11 +37,20 @@
     color: var(--ink);
     padding: 22px 22px 40px;
     min-height: 100vh;
-    /* 极淡的手帐纸纹：细横线 + 一点暖调 */
+  }
+  /* 极淡的手帐纸纹：细横线 + 一点暖调。
+     以前写在 body 的 background-attachment: fixed 上，滚动时浏览器要每帧重画整个视口背景，
+     长页面滚起来明显发顿。改成一层 position: fixed 的伪元素：同样不跟着滚，
+     但它是独立一层，不用跟着正文一起重绘。 */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background-image:
       repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(190, 168, 130, 0.05) 27px, rgba(190, 168, 130, 0.05) 28px),
       linear-gradient(180deg, #fcf8f0, var(--bg));
-    background-attachment: fixed;
   }
   button { font-family: inherit; }
 
@@ -917,7 +926,9 @@
   /* ── 设置弹窗（无边框 + 柔和阴影，内部 1px 细线分隔） ── */
   .set-modal { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; }
   .set-modal[hidden] { display: none; }
-  .set-modal-mask { position: absolute; inset: 0; background: rgba(58, 48, 36, 0.42); backdrop-filter: blur(2px); }
+  /* 遮罩不叠 backdrop-filter：模糊要对着背后整页实时重算，点开和滚动弹窗都跟着卡。
+     2px 的模糊几乎看不出来，改用略深一点的半透明色，观感几乎一样，开销只是填一层矩形。 */
+  .set-modal-mask { position: absolute; inset: 0; background: rgba(58, 48, 36, 0.5); }
   .set-modal-panel {
     position: relative;
     width: min(460px, calc(100vw - 40px));
