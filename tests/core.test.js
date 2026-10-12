@@ -698,7 +698,7 @@ test("生活日总结：按伙伴分组且近期默认不跨伙伴", async () =>
   const ud = new UserData(d);
   await ud.saveAgentSummary("2026-08-29", "hanako", "和用户聊了插件", { agentName: "小花", messageCount: 4 });
   await ud.saveAgentSummary("2026-08-29", "partner-two", "和用户聊了天气", { agentName: "另一位伙伴", messageCount: 2 });
-  await ud.saveAgentSummary("2026-08-20", "hanako", "以前一起做过一个插件", { agentName: "小花", importance: 8 });
+  await ud.saveAgentSummary("2026-08-20", "hanako", "以前一起做过一个天气插件", { agentName: "小花", importance: 8 });
   await ud.saveSummary("2026-08-28", "混合旧档案", { source: "auto" });
   const encrypted = fs.readFileSync(path.join(d, "daily-summaries.dat"), "utf-8");
   assert.ok(!encrypted.includes("和用户聊了插件"), "分类总结也必须保持加密");
@@ -717,7 +717,7 @@ test("生活日总结：按伙伴分组且近期默认不跨伙伴", async () =>
   assert.ok(!privateView.entries.some((entry) => entry.text === "混合旧档案"));
 
   const sharedView = selectRecentSummaries(entries, {
-    now, boundaryHour: 4, currentAgentId: "hanako", shared: true, prompt: "以前做过的插件",
+    now, boundaryHour: 4, currentAgentId: "hanako", shared: true, prompt: "以前做过的天气插件",
   });
   assert.ok(sharedView.entries.some((entry) => entry.agentId === "partner-two"), "共享模式应包含其他伙伴近期动态");
   assert.ok(sharedView.entries.some((entry) => entry.expanded && entry.date === "2026-08-20"), "相关旧档案应按需展开");
@@ -747,9 +747,9 @@ test("生活日总结：同日跨窗口时明确区分上一生活日与前一�
   assert.ok(text.includes("【近期回忆】"));
   assert.ok(text.includes("每条事实的日期以行首的绝对日期为准"));
   assert.ok(text.includes("档案只包含正文明确写出的事实"));
-  assert.ok(text.includes("代码注释、模型自身记忆、当前会话或其他窗口里的事实，都不能补写或归入生活日 2026-08-30"));
+  assert.ok(text.includes("代码注释、模型自身记忆、当前会话或其他窗口里的事实都不能补写进这份档案"));
   assert.ok(text.includes("当前对话的自然日期是 2026-08-31"));
-  assert.ok(text.includes("当前会话与同一自然日内的前一个对话框都属于 2026-08-31"));
+  assert.ok(text.includes("当前自然日内的前一个对话框仍属于 2026-08-31"));
   assert.ok(text.includes("日期硬约束适用于所有可见回复和 MOOD"));
   assert.ok(text.includes("上下文里标为“今天”或只写“凌晨/清晨/今早/上午/刚才”的事实，在没有更早绝对日期证据时按 2026-08-31 归属"));
   assert.ok(text.includes("当前自然日内已经发生的这些事项，哪怕跨夜、熬夜或来自前一个对话框，也不能改称“昨晚/昨天”"));
@@ -879,16 +879,16 @@ test("天气：旧缓存补出状态并修复晴天夜间文案", () => {
     place: "成都 武侯区",
     line: "晴空万里，阳光正好，26°C，天已经黑了",
     temp: 26,
-  });
-  assert.equal(legacy.line, "晴朗，26°C，夜色清亮");
+  }, new Date(2026, 7, 30, 21));
+  assert.equal(legacy.line, "晴朗，26°C，夜间时分");
   assert.equal(legacy.code, 0);
   assert.equal(legacy.isDay, false);
 
   const legacyPartly = normalizeWeatherResult({
     line: "大晴天，就是云不多，26°C，天已经黑了",
-  });
+  }, new Date(2026, 7, 30, 21));
   assert.equal(legacyPartly.code, 1);
-  assert.equal(legacyPartly.line, "晴朗，云不多，26°C，夜色清亮");
+  assert.equal(legacyPartly.line, "晴朗，云不多，26°C，夜间时分");
 });
 
 test("天气：晴天文案遵守昼夜语义", () => {
@@ -898,9 +898,11 @@ test("天气：晴天文案遵守昼夜语义", () => {
   const night = translateWeatherToMood({
     current: { temperature_2m: 26.4, weather_code: 0, is_day: 0, time: "2026-08-30T20:00:00+08:00" },
   });
-  assert.match(day.line, /阳光正好/);
+  assert.match(day.line, /晴朗.*午间时分/);
+  assert.doesNotMatch(day.line, /正午阳光/);
   assert.doesNotMatch(night.line, /阳光正好/);
-  assert.match(night.line, /夜色清亮/);
+  assert.match(night.line, /夜间时分/);
+  assert.doesNotMatch(night.line, /夜色清亮|天已经黑了/);
   assert.equal(night.code, 0);
   assert.equal(night.isDay, false);
 });
@@ -948,7 +950,7 @@ test("天气：旧版成都+区配置自动使用匹配区县坐标，旧缓存�
     location: "成都 武侯区",
     fetcher: async () => { calls++; return null; },
   });
-  assert.equal(cached.line, "旧缓存");
+  assert.match(cached.line, /^旧缓存，.+时分$/);
   assert.equal(calls, 0);
 
   const urls = [];
@@ -1022,7 +1024,9 @@ test("天气：缓存过期时补查一次并写回（早起冷启动那轮靠�
   });
   assert.equal(calls, 1, "过期只补查一次");
   assert.equal(result.temp, 16);
-  assert.ok(result.line.includes("阳光正好"), result.line);
+  assert.ok(result.line.includes("晴朗"), result.line);
+  assert.ok(result.line.includes("清晨时分"), result.line);
+  assert.equal(result.isDay, true, "天气服务的观测状态保留，措辞不凭钟点猜光照");
   assert.equal(saved.result.temp, 16, "新天气要写回缓存，下一轮直接命中");
   assert.equal(logged.length, 1);
 });

@@ -776,7 +776,7 @@ export default function registerRoutes(app, ctx) {
     const weatherCache = dk === today ? data.getWeatherCache() : null;
     const weather = dk === today && settings.weatherEnabled !== false &&
       weatherCacheMatches(weatherCache, settings) && weatherCacheIsFresh(weatherCache, settings, todayDate)
-      ? normalizeWeatherResult(weatherCache.result)
+      ? normalizeWeatherResult(weatherCache.result, todayDate)
       : null;
     return c.json({
       ok: true,
@@ -1023,6 +1023,7 @@ export default function registerRoutes(app, ctx) {
         boundaryHour: settings.dayBoundaryHour,
         currentAgentId,
         shared: settings.summaryShared === true,
+        userName,
       });
       const periods = settings.showPeriod === false
         ? []
@@ -1043,7 +1044,7 @@ export default function registerRoutes(app, ctx) {
       const cached = data.getWeatherCache();
       const weather = settings.weatherEnabled !== false &&
         weatherCacheMatches(cached, settings) && weatherCacheIsFresh(cached, settings, now)
-        ? normalizeWeatherResult(cached.result)
+        ? normalizeWeatherResult(cached.result, now)
         : null;
       const text = buildInjectionText({
         now,

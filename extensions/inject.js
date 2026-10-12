@@ -402,6 +402,7 @@ export default function registerShiguangjiInject(pi) {
         boundaryHour: settings.dayBoundaryHour,
         currentAgentId: summaryAgentId,
         shared: settings.summaryShared === true,
+        userName,
         prompt: extractPrompt(event),
       });
 
@@ -548,7 +549,7 @@ function readFreshWeather(data, settings, now) {
       weatherCacheMatches(cache, settings) &&
       weatherCacheIsFresh(cache, settings, now)
     ) {
-      const normalized = normalizeWeatherResult(cache.result);
+      const normalized = normalizeWeatherResult(cache.result, now);
       return normalized ? { ...normalized, place: normalized.place || cache.location || "" } : null;
     }
   } catch {
