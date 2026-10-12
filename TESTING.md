@@ -1,6 +1,66 @@
 # 拾光记 App 自动测试与实机验收
 
-当前开发版本：0.0.45（2026-10-10）。
+当前开发版本：0.0.53（2026-10-12）。
+
+## 本轮：天气缓存时段重绘（v0.0.53）
+
+现象：09:14 的真实注入仍带采集时的“清晨刚亮”。缓存存有整句 line，读取时没有重绘时段。修改前新增 12 条时段用例全部失败；修复后再补未知昼夜幂等用例，共 13 条。
+
+处理：先从旧 line 恢复原观测 code/isDay，再移除新旧时段尾巴并按传入 now 生成“清晨时分/上午时分/午间时分”等中性描述；不从钟点推断日出、光照或月色。未知 isDay 保持 null，二次处理不回改；不修改缓存对象或 fetchedAt。真实注入、缓存读取、试查、日期页、预览、公开快照与纯文本构造均采用同一入口。天气指纹共用尾巴剥离函数，不因换词突破冷却。
+
+隔离环境中执行（非全量）：
+
+```powershell
+node --test --test-reporter=tap --test-name-pattern="^(注入|天气|生活日总结|日期语义|DeepSeek)|^路由：.*(注入预览|天气)" tests/core.test.js tests/routes.test.js
+node --test --test-reporter=tap tests/weather-clock.test.js tests/injection-guidance.test.js tests/inject-extension.test.js tests/public-today.test.js tests/public-today-app.test.js tests/network-boundary.test.js tests/festival-hints.test.js tests/inject-due-nudge.test.js
+```
+
+结果：50 + 109 = 159 条相关测试通过；lib/weather.js、lib/inject.js、lib/public-today.js、extensions/inject.js、routes/ui.js、tests/core.test.js、tests/weather-clock.test.js 语法检查 7/7 通过。首次相关回归只有旧“阳光正好”措辞断言失败；更新为保留晴朗、观测状态与中性清晨时段后复验通过。
+
+关键覆盖：七时段、旧缓存兼容、未知昼夜保持未知、重复正规化幂等、无 code 的事实指纹、冷却不破、有效缓存零网络/零写盘、原天气和温度不变、共享快照/真实注入/预览/日期页、节日与待办调用方。独立只读复核无阻断项。
+
+宿主静态校验 ok:true，0 errors，1 个动态依赖未证明的常规警告；正式 reload 后日志确认 2026-10-12 09:33:48 载入 v0.0.53，状态 host=on、agent=on。
+
+边界：公开快照的时段对应生成时刻，不保证消费者很久以后读取仍是此刻；本轮不扩展消费者刷新机制。不调用真实模型或真实天气接口，未跑全量回归，模型回复体验仍需观察。
+
+## 本轮：旧档案相关性准入（v0.0.52）
+
+目标：保留近 3 个已结束生活日、30 天回溯、1800 字符正文预算和最多 10 条；不删档案、不增加模型调用，只减少与当前话题无关的旧记录。
+
+处理：共用选择器动态排除用户名、伙伴显示名与 ID，排除通用问候/称呼/泛词；保留原文连续词组、明确项目名及具体短主题，组合二字主题需在查询中不重叠。重要程度只给已通过相关性的候选排序。无查询的预览/共享快照仅取近期底座。真实注入与预览传入已有用户称呼，不硬编码本机姓名；素材显示及“相关才提”的原约束不变。
+
+修复前新增 14 条用例中 12 条失败、2 条通过；修复后增加陌生项目名/组合/姓名属格用例；独立审阅发现“浇水吗”会漏召，补用例复现失败后修正常见语气词，共 16 条。隔离环境中按下面命令验证（非全量）：
+
+```powershell
+node --test --test-reporter=tap --test-name-pattern="^(注入|生活日总结|日期语义|DeepSeek)|^路由：.*注入预览" tests/core.test.js tests/routes.test.js
+node --test --test-reporter=tap tests/recent-summary-relevance.test.js tests/injection-guidance.test.js tests/inject-extension.test.js tests/public-today.test.js tests/public-today-app.test.js
+```
+
+结果：38 + 72 = 110 条相关测试通过。lib/recent-summaries.js、extensions/inject.js、routes/ui.js、tests/core.test.js、tests/recent-summary-relevance.test.js 的语法检查 5/5 通过。覆盖问候/姓名/泛词不展开、高分不直通、明确项目与两字主题可命中、组合证据、伙伴隔离、日期与预算、真实注入构造、预览和跨应用快照。
+
+宿主静态校验 ok:true，0 errors，1 个动态依赖未证明的常规警告；独立只读复核无阻断项，常见语气词漏召已复现并修正。已通过正式入口 reload，2026-10-12 09:02:52 宿主日志确认载入 v0.0.52，状态 host=on、agent=on；真实新窗口的注入与模型回复尚待验收。
+
+限制：本地词汇筛选不能等同于完整语义理解，相关记录的词片打分仍有长度偏置；动态姓名过滤以当前可获得的配置与档案元数据为准，未知别名不猜。尚未全量回归或验收真实模型回复质量，不宣称所有自然语言检索都准确。
+
+## 本轮：情境注入规则去重（v0.0.51）
+
+修复前，真实开场背景消息可由旧代码完整复现为 3252 字符，日期硬约束出现两次；新增 6 条用例在修复前 5 条失败、1 条通过，其中旧总结分支还缺少显式档案相对日期说明。
+
+处理：近期总结格式化只提供素材与标签，整条注入末尾统一提供日期和档案使用规则；原素材、伙伴筛选、字符预算、触发频率、天气、节日、待办和模型峰谷关照逻辑不变。保留旧总结调用方及仅有近期回忆的分支。
+
+隔离环境下执行以下定向命令（非全量测试）：
+
+```powershell
+node --test --test-reporter=tap --test-name-pattern="^(注入|生活日总结|日期语义|DeepSeek)" tests/core.test.js
+node --test --test-reporter=tap tests/injection-guidance.test.js tests/festival-hints.test.js tests/inject-due-nudge.test.js
+```
+
+结果：36 + 28 = 64 条相关测试通过；lib/inject.js、lib/recent-summaries.js、tests/core.test.js、tests/injection-guidance.test.js 语法检查 4/4 通过。覆盖单份规则、同日跨窗口/正文与 MOOD 日期归属、旧总结/近期总结混合、无历史素材、天气不强制播报、节日问候与时间边界、待办提醒和 DeepSeek 关照分支。
+
+独立只读复核后，补回“也不能归入生活日”和“不要猜”两处原有边界，并增加断言；上述相关测试重新运行仍为 64/64、语法检查仍为 4/4。
+
+同一真实开场输入最终重建后为 2813 字符，减少 439 字符（约 13.5%，非 token 计数），素材行逐行一致，日期硬约束由 2 份变为 1 份。宿主静态校验 ok:true，0 errors，1 个动态依赖未证明的常规警告。已通过正式 extension_manager reload；启动日志确认 2026-10-12 08:38:11 载入 v0.0.51，App 状态 host=on、agent=on。此对比不调用模型；尚未运行全量回归或验证模型回复质量，不把模板等价当成体验已实机验收。
+
 
 ## 本轮：记一笔重复方式下拉（v0.0.45）
 
