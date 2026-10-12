@@ -4,7 +4,7 @@
 
 当前版本：`0.0.53`
 
-当前版本最近一次自动测试结果（2026-10-12）：全量回归 550/550 通过（36 个测试文件），84 个 JavaScript 文件语法检查通过。
+当前版本最近一次自动测试结果（2026-10-12）：全量回归 550/550 通过（36 个测试文件），源码目录 84 个 JavaScript 文件（含测试）语法检查通过。
 
 ## ⚠️ 先说清楚
 
@@ -122,15 +122,17 @@
 拾光记是 Hana v2 应用，安装方式和插件不一样，放的是 `apps` 目录：
 
 1. 下载最新 Release 的应用压缩包。
-2. 解压后，把 `shiguangji-app` 整个文件夹放进：
+2. 解压后，把应用文件放进：
 
    ```text
    <HANA_HOME>\apps\shiguangji-app\
    ```
 
+   两种压缩包布局各对应一句：从仓库 Releases 下载的源码压缩包，解压后有一层 `shiguangji-app` 文件夹，把整个文件夹搬进去即可；Hana 官方市场安装包解压后是一层平铺的文件，直接把这些文件放进上面那个目录。
+
    默认的 `HANA_HOME` 是 `%USERPROFILE%\.hanako`；如果你在 Hana 里改过数据目录，就换成那个位置。不知道在哪的话，去 Hana 的设置或关于页面看「数据目录」。
 
-   文件夹名要保持 `shiguangji-app`，跟 `manifest.json` 里的 `id` 一致。解压别多套一层，最后要能看见 `apps\shiguangji-app\manifest.json` 这个文件。
+   目录名要保持 `shiguangji-app`，跟 `manifest.json` 里的 `id` 一致。别多套一层，最后要能看见 `apps\shiguangji-app\manifest.json` 这个文件。
 3. 重启 Hana，或者去扩展页「已安装」里点「重新加载」。
 4. 它要是出现在「待批准」里，先批准；再去「设置 → 安全 → 应用能力」里把它的权限打开。
 
