@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "shiguangji-app",
   "name": "拾光记",
-  "version": "0.0.50",
+  "version": "0.0.53",
   "entry": "index.js",
   "description": "把和伙伴聊过的一天整理成日记，让伙伴到点提醒待办。还能记心情、纪念日，给聊天带上当天的日期与天气和特殊节假日问候。",
   "icon": "assets/icon.png",
