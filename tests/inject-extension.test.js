@@ -32,8 +32,8 @@ function makePi() {
 
 test("扩展：伙伴身份优先取上下文，缺失时从会话路径回退", () => {
   assert.equal(resolveAgentId({}, { agentId: "hanako" }), "hanako");
-  assert.equal(resolveAgentId({}, { sessionManager: { getSessionFile: () => "C:\\Users\\test\\.hanako\\agents\\partner-two\\sessions\\s.jsonl" } }), "partner-two");
-  assert.equal(resolveAgentId({}, { sessionManager: { getSessionFile: () => "C:\\Users\\test\\other\\s.jsonl" } }), "");
+  assert.equal(resolveAgentId({}, { sessionManager: { getSessionFile: () => "D:\\fixture\\.hanako\\agents\\partner-two\\sessions\\s.jsonl" } }), "partner-two");
+  assert.equal(resolveAgentId({}, { sessionManager: { getSessionFile: () => "D:\\fixture\\other\\s.jsonl" } }), "");
 });
 
 test("扩展：当前上下文模型优先于事件模型", () => {
