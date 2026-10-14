@@ -1,6 +1,120 @@
 # 拾光记 App 自动测试与实机验收
 
-当前开发版本：0.0.53（2026-10-12）。
+当前版本以 manifest.json 为准；开发期间不修改版本号。
+
+## 提个醒专注通知联动（2026-10-14，本地开发）
+
+- 覆盖专注开始/结束走提个醒服务、陪读身份透传、明确缺服务时原生回退、静默 `suppressed` 终态、超时/未分类服务错误与原生异常落 `unknown` 不补发、重复回调与落盘状态，以及原生通知不双弹。
+- 定向命令：`node --test --test-reporter=tap tests/focus-reminder.test.js tests/focus-routes.test.js`，**21/21 通过**。`lib/data.js`、`lib/focus-reminder-scheduler.js`、两个相关测试文件共 4 个文件的 `node --check` 通过。
+- 仅定向测试，未跑全量。拾光记与提个醒均已通过正式入口 reload，inspect 均为 `host=on / agent=on`；提个醒新增 `app/services.provide` 已通过权限审核。**2026-10-14 作者实测：提个醒可正常联动专注提醒；且在一段 15 分钟专注结束时不打开拾光记页面，提个醒仍正常弹出，跨应用投递与页面关闭时的后台唤醒链路均已走通。**未改版本号、未提交、push 或发布。
+
+## 左侧门厅快捷专注（2026-10-14，本地开发）
+
+- 覆盖常用目标加载、恢复并在开始前重读目标专属设置、全栏字号层级与计划摘要字号/换行、选择伙伴/自己专注后仅选中且须点确认才开始、进行态目标/阶段/轮次/倒计时、到点推进，以及状态牌向主页发送 `focus` 并打开专注页；同时检查旧快照不覆盖新状态、开始 warning 绑定当前专注组、同步失败标记、详细设置入口和连续 FP 信号顺序派发；`看这天`、`记心情` 原入口保留。
+- 定向命令：`node --test --test-reporter=tap tests/fp-hall.test.js tests/focus-routes.test.js tests/focus-ui.test.js tests/focus.test.js tests/focus-companion.test.js`，**65/65 通过**。测试发现并修复主页 FP 日历动作分支缺少 `}` 的内联脚本解析错误；快捷专注回归锁验证选择只选中、确认才开始，并核对短休/长休摘要及本组不会触发的边界提示。
+- `node tools/build-page.mjs` 生成 338.4 KB 的 `ui/panel.html`；旧路径与凭证拼接检查干净，App 凭证头存在；`git diff --check` 通过。未跑全量回归；用户已查看并接受左侧栏字号/观感，另确认实测快捷启动确认流程、状态牌跳转通过。
+- 正式入口已从当前磁盘代码 reload，inspect 为 `host=on / agent=on`。只读交叉复核确认此前的响应覆盖、警告串组、配置过期、信号覆盖与旧快照提示问题均已处理；未改 `manifest.version`，未提交、push 或发布。
+
+## 专注配置记忆与每轮开始提醒（2026-10-14，本地开发）
+
+- `favoriteGoals` 继续保持字符串数组；`lastFocusConfig` 与 `favoriteGoalConfigs` 写入同一加密专注数据。首次选择没有专属配置的旧标签时，沿用上次配置并建立专属绑定；设置变动自动保存，选择常用目标恢复自己的时长、轮数、短休及长休参数。
+- 第一轮开始由开始路由发送系统通知；休息阶段推进到下一轮时，由调度器发送。开始通知按每轮独立 ID 加密认领，页面与后台并发只发送一次；暂停继续不重复，重载中断记为 unknown 不盲目补发。日历读取与开始新一组前触发的阶段推进也走同一通知协调流程，避免顺手结算上一段时漏掉结束提醒。
+- 定向命令：`node --test --test-reporter=tap tests/focus.test.js tests/focus-reminder.test.js tests/focus-routes.test.js tests/focus-ui.test.js`，**61/61 通过**，0失败/取消/跳过。8个修改JS与测试文件 `node --check` 通过；`node tools/build-page.mjs` 生成 338.1 KB 页面，旧路径/凭证拼接检查干净、App凭证头存在；`git diff --check` 通过。
+- 正式入口已从当前磁盘代码 reload；inspect 回报 `host=on / agent=on`。自动验证曾只用模拟宿主，但作者随后于 2026-10-14 实测系统通知弹出及拾光记页面关闭时的后台提醒通过。未跑全量回归；本轮未触碰 `manifest.version`（工作区原值 0.0.64），未提交、push 或发布。
+
+## `focus/state` 多轮投影（2026-10-14，本地开发）
+
+- 覆盖：`ACTIVE_FIELDS` 放行 `setId/roundIndex/totalRounds/breakKind/breakMinutes`，`RECORD_FIELDS` 放行 `roundIndex/totalRounds/planStatus/breakKindAfter/shortBreakMinutes/longBreakMinutes`；断言过界进休息时轮次不变且休息种类算得出、收尾记录带轮次且 `planStatus=active`（还有下一轮）、休息结束自动开下一轮时编号换新轮次加一、`longBreakEvery` 刻意不投影。调用方白名单（只向茶话会）、`sessionId` 契约、专注数据加密落盘范围均未改。
+- 语法：`node --check` 通过 lib/focus-companion.js 与 tests/focus-companion.test.js。
+- `node --test --test-concurrency=1 --test-reporter=tap tests/focus-companion.test.js tests/focus-routes.test.js tests/focus-reminder.test.js` → **18/20 通过，2 失败**。两处失败与本次改动无关，回退本次改动后同样失败，已复现对照：① `tests/focus-routes.test.js` 用 `spawnSync(node, ['--input-type=module','-e', childCode])` 跑内联代码，代码里 `/第 1\/1 轮开始/` 的转义在模板字符串里被吃掉，eval 时抛 `SyntaxError: Invalid regular expression flags`；② `tests/focus-reminder.test.js` 断言写死 `/第 1\/4 轮开始/`，当前通知文案是「第 1/1 轮开始」。两处属各自测试的转义与断言口径，不在本改动范围，未擅自改。未跑全量。
+- 2026-10-14 发布前复验：上述两处失败已不复现，代码侧均已改好（`tests/focus-routes.test.js` 改用 `includes('第 1/1 轮开始')` 字符串断言，不再走正则转义；`tests/focus-reminder.test.js` 的 `/第 1\/4 轮开始/` 与当前夹具的 4 轮计划一致）。按原命令 `node --test --test-concurrency=1 --test-reporter=tap tests/focus-companion.test.js tests/focus-routes.test.js tests/focus-reminder.test.js` → **28/28 通过**；扩到专注相关全部 6 个文件（focus/focus-companion/focus-reminder/focus-routes/focus-ui/fp-hall）→ **84/84 通过**，0 失败/跳过。全量回归仍未跑。
+
+## 多轮专注与常用目标（2026-10-13，本地开发）
+
+- 2026-10-14 视觉微调：常用目标标签从胶囊圆角收敛到 8px；`tests/focus-ui.test.js` **32/32 通过**，模板与测试语法检查通过，页面构建 332.0 KB，旧路径/凭证拼接检查干净，App 凭证头存在，`git diff --check` 通过。正式入口 reload 后 inspect 为 host=on/agent=on；未做嵌入页截图复验。
+- 覆盖：多轮组 ID 与每轮独立 ID、整组统计、短休/按间隔长休、末轮无休、休息结束自动开下一轮、后台轮转、常用目标加密保存与去重/移除、提前结束保留完成轮次与当前真实时长；覆盖专注/休息双阶段过界、并发推进时完成通知仍可认领。茶话会服务白名单与 `sessionId` 契约未改。
+- 定向命令：`node --test --test-reporter=tap tests/focus.test.js tests/focus-routes.test.js tests/focus-ui.test.js tests/focus-reminder.test.js`，**55/55 通过**，0失败/取消/跳过。
+- 只读交互复核发现中间窄屏设置可能溢出；用容器宽度断点改为单列，并把长休频率明确显示为“每隔 N 轮”、隐私标题改为披露跨应用同步字段。8个改动 JS 文件 `node --check` 通过；页面构建 332.1 KB，旧路径/凭证拼接检查干净，App 凭证头存在；`git diff --check` 通过。
+- 未跑全量回归、无真实模型/API调用。已通过正式入口从当前磁盘代码 reload；`inspect` 回报 host=on、agent=on。尚未在嵌入页实机检查窄屏布局与实际提醒效果。版本保持 0.0.64，未提交、push 或发布。
+
+## 专注进行态：陪读联动状态与视觉层级（2026-10-13，本地开发）
+
+- 进行态补“还剩”标识、明确的阶段标签和轻量状态便笺；开始提醒只在 `sent` 时写“已把这次专注安排告诉伙伴”；waiting/pending 仅说明送达茶话会的状态尚未确认，不推断已经交接，也不暗示伙伴会回复。stale/failed 明确标为无法确认或未送达。隐私说明补充：茶话会对话不会回显在拾光记。
+- 操作行把“暂停”和“结束并记录”收成一组，取消保留“不留记录”字样但改为分隔的轻量文字操作；380px 以下改为两个主操作并排、取消另起左对齐一行。
+- `node --test --test-reporter=tap tests/focus-ui.test.js`：**30/30 通过**；`lib/page-template.js`、`tests/focus-ui.test.js` 语法检查通过；页面构建成功（320.3 KB），旧路径与旧凭证拼接检查干净，`git diff --check` 通过。
+- 状态映射与 DOM 稳定性由测试覆盖；未做真实宿主截图/窄屏实机验收，需用户查看重载后的实际页面。
+
+## 专注结束后台提醒（2026-10-13，本地开发）
+
+- 开始仍沿用页面内「开始专注啦」轻提示；结束改由 `ctx.tasks` 的一次性 `runAt` 计划触发系统通知，不依赖拾光记页面常开。暂停撤销计划、继续按新目标重排；提前结束/取消清计划。页面结算和后台回调共用加密专注记录的通知认领状态，重载恢复会对账任务并补结算过期专注。
+- 定向命令：`node --test --test-reporter=tap tests/focus-reminder.test.js tests/focus-routes.test.js tests/focus-ui.test.js tests/focus.test.js`。
+- 自动测试 **46/46 通过**（0失败/取消/跳过），覆盖任务登记与排程、路由开始/暂停/继续/取消、禁用旧计划清理、后台到点结算通知、页面与后台通知幂等、挂起超时、重载恢复（含任务处理器登记失败）。修改的 JS 文件语法检查通过，`node tools/build-page.mjs` 构建成功（316.0 KB），`git diff --check` 通过。
+- 未跑全量回归，未做宿主实机通知验收；`listSchedules` 实机回包形状、一次性计划消费后的状态、以及 Hana 是否在拾光记页面关闭时唤醒此 App handler，仍需实机确认。
+
+## 撤搜索·折叠改10·头像尺寸闸（2026-10-13，本地开发）
+
+- 撤掉伙伴搜索输入框、`searchFocusCompanions`、`focusCompanionQuery` 及相关 CSS；折叠阈值 6→10（预览、查看全部、内部滚动同步）。头像侧：茶话会与拾光记两道 `MAX_AVATAR_BYTES` 512KB→6MB。
+- 根因：宿主伙伴头像实为 1~2MB，512KB 闸把真图全挡掉、只剩首字；茶话会页面自己那条路由无此闸所以正常。
+- 命令：`node --test --test-reporter=tap tests/focus-ui.test.js tests/focus.test.js tests/focus-routes.test.js tests/focus-companion.test.js`，**44/44 通过**，零失败/取消/跳过；4个修改JS语法通过；`node tools/build-page.mjs` 重建 315.9KB 产物，搜索残留清零、阈值 10 已在产物。
+- 新增/调整断言：`focus-ui` 人数用例改为 0/1/5/10/11/31（超过10才展开），30人用例去掉搜索步骤；`focus-companion` 尺寸用例改为 1~2MB 正例 + 7MB 超限负例。
+- **实机验收（2026-10-13）**：重载后专注页伙伴头像正常显示；本 App 诊断日志印证八位伙伴头像均读到（真图 + 默认脸）。bus 承载 ~3MB base64 载荷已实机确认。无全量、真实模型/API。
+
+## 通用头像选人与独立专注（2026-10-13，本地开发）
+
+- 少人全显；超过6人预览、明确查看全部，完整名单内部滚动并出现搜索。选择收为同桌名片，更换多人名单全部展开并保留勾选。目标/搜索节点与光标不因轮询重建；头像走带App页面凭据的同源fetch/blob，缺图回退首字。
+- `companionId`为空独立计时，无需茶话会，不触发陪读sync或显示旧陪读状态；非空选中失效必须明确失败。结束/取消读取不会自动结算的raw active，覆盖陪伴/独立休息结束、恰到点end返回真实completed记录、恰到点cancel保留completed语义。已无active的旧结束不扫描历史误发sync。
+- 主会话命令：`node --test --test-reporter=tap tests/focus-ui.test.js tests/focus.test.js tests/focus-routes.test.js tests/focus-companion.test.js tests/public-today.test.js tests/public-today-app.test.js`。最终 **76/76通过**，0失败/取消/跳过；6个修改JS语法通过，生成页3段内联JS可解析，317.0KB产物与模板逐字一致。茶话会头像必要接线相关30/30、3个JS语法通过。
+- 头像服务仅给获准调用方和已配置陪读名单；合法id、512KB上限、图类型与魔数一致，不透传异常路径，响应no-store。目录四态available/empty/absent/unavailable，未知错误不伪装成未安装；诊断只记安全code与归类。absent候选错误码未取得宿主实证，无法分辨缺装/停用时仍显示暂不可用并允许独立计时。
+- 主会话隔离生成页浏览器实测3/5/30人、420px两列/360px一列、目标节点/焦点/光标、搜索末位/更换勾选、已选后缺装显式改独立、未选服务不可用可提交独立、已选失效不提交。30人展开高度280px内部滚动，无横向溢出，console为空。模拟中发现并修复更换隐藏末位、缺装失效选择缺独立出口、mood-grid覆盖display:grid三项。记录在工作台 `_tmp_拾光记通用选人验收/浏览器验收.md`。
+- 中间失败保留：旧路由断言仍要求空伙伴拒绝，与获批独立计时契约冲突，更新为验证独立允许/非空失败；后端补丁曾有重复变量及过短PNG夹具，已更换真实1×1PNG并复验。只读审查发现自动结算快照吞结束记录、MIME与魔数不一致，已补行为回归。
+- 本轮无全量回归、真实计时写入、付费模型/API或真实跨App头像验收。模拟通过不代表宿主中文输入法、缺装分类和最终审美认可；重新加载结果另见PROJECT_LOG。
+
+## 专注整体视觉对齐（2026-10-13，本地开发）
+
+- 原页面完整CSS及日历、今日概览、时光册、心情线、设置结构先只读审计，具体视觉契约见PROJECT_LOG。专注只改展示及相关测试：980px上限纸卡/页头、记一笔输入与动作、心情选择伙伴、今日数字/正文组合、时光册结算结构；未改公共字体、全局样式或后端。
+- 同下方六文件定向命令，最新66/66通过，零失败/取消/跳过；两文件语法、三段内联JS解析通过，构建产物与模板一致。新增6项覆盖新结构/窄屏顺序、非sticky动作、暂停/等待节点稳定、真实同id结算及缺记录不猜时长。
+- 主会话浏览器将当前生成页的心情线/时光册与专注放入相同980px真实iframe，并排截屏对照准备/暂停/休息。全部使用内存fetch桩和明确模拟记录，不访问宿主真实数据或付费模型。目标刷新后节点/焦点/光标保留；暂停不重建计时和按钮，resume/pause点击处理器正确；同id mock实记时长25分钟可呈现，缺记录不推算。420px视口，长伙伴名/长错误无横向溢出，窄屏目标→伙伴→时长顺序及操作不被长错误挤走；console为空。
+- 并排截图及检查是源码生成页面的模拟浏览器证据，不能外推成宿主中文输入法、实际模型或最终审美认可。当前宿主卡本轮未响应UI检查，不宣称宿主实屏已验收。字体名只声明在CSS，没有装载证据，未偷偷只改专注字体。
+
+## 专注交互纠偏（2026-10-13，本地开发）
+
+- 撤目标模式切换、伙伴搜索/折叠/常驻刷新与独立深色/编号步骤；保留日历待办入口预填，手改目标解除taskId，跨日期关联不再被当天候选目录清空。没有后端或权限改动。
+- 同下方六文件定向命令，最新60/60通过、零失败/取消/跳过；新增UI4条，语法2文件通过，三段生成内联JS解析通过；构建305.8KB。此前24项为focus-ui17+focus7，不能与六文件60项混称。
+- 本次生成页面在模拟浏览器实测：8伙伴一开始全显，选择后仍全显；没有搜索框，正常时重试隐藏，连接失败时重试出现。跨日期todo预填“读一本书”并保留id；轮询后输入节点/焦点/光标不变，手改解除关联。420px iframe含长伙伴名无横向溢出。均使用内存fetch桩，没有调用正式计时路由或模型；真实宿主视觉认可及陪读语气仍需使用时验收。
+
+## 专注页交互重做（2026-10-13验收，本地开发）
+
+- 范围仅page-template的专注CSS/HTML/JS、新focus-ui.test.js与重建panel.html；后端、提醒逻辑、权限和版本未改。原专注相关范围43通过；新增13项UI回归。
+- 命令：`node --test --test-reporter=tap tests/focus-ui.test.js tests/focus.test.js tests/focus-routes.test.js tests/focus-companion.test.js tests/public-today.test.js tests/public-today-app.test.js`，有效输出56/56通过、零失败/取消/跳过。两个修改JS语法通过，三段生成内联脚本解析通过，最终构建310.1KB，旧路径/旧凭证拼接检查干净。
+- 实际浏览器加载本次生成页面，以内存fetch桩提供12位虚构伙伴、长名称及待办，不触碰正式数据或模型：点击专注、输入目标、刷新后节点/焦点/光标保留；选中伙伴后折叠且有准备就绪提示。420px真实iframe视口documentWidth=420、focusWidth=376，无横向溢出；开始按钮宽346px。进行/暂停/休息状态及长错误检查：操作位置不随错误移动，继续按钮文案正确，收尾pending/失败可见；浏览器console日志为空。
+- 浏览器小窗口结果是生成页面+模拟数据的布局与交互证据，不是宿主嵌入实机、中文输入法组合事件或真实跨App提醒验收。file协议尝试没有装载脚本，改用仅127.0.0.1的单页内存服务器才取得上述证据。未跑全量、真实模型/API，未调用正式开始/取消/结束路由。
+
+## 本轮：茶话会专注陪伴（2026-10-12，本地开发）
+
+- 范围：已配置陪读伙伴选择、自由目标、30分钟预设、强制茶话会依赖；限定调用方的 focus/state 服务，暂停/继续/结束同步，目录/权限失败明确提示，记录不进入通用公开快照。旧无陪读字段的进行中计时仍可结束，不擅改旧记录。
+- 定向命令：`node --test --test-reporter=tap tests/focus.test.js tests/focus-routes.test.js tests/focus-companion.test.js tests/public-today.test.js tests/public-today-app.test.js`。
+- 最新相关测试 **43/43通过**；本轮8个JS语法检查通过；最终页面构建298.5KB，三段内联脚本可解析，旧路径与凭证残留检查干净。第一次11项测试10通过/1失败，为新增30分钟后旧测试仍把30当非法值，改用20分钟验证非法预设后复验通过。
+- 模拟验证未选伙伴/茶话会不可用拒绝开始、服务回传名字而非客户端伪造名字、跨App只给当前约定和请求指定的结算记录、未知id不返回历史、旧计时不对外暴露。实际Hana授权、跨App服务、真实陪读语气与视觉尚待实机验收；没有真实模型/API请求或全量回归。运行态另见PROJECT_LOG。
+
+## 本轮：专注计时闭环（本地开发，不动版本号）
+
+范围：待办/自由专注开始、预设时长、暂停并跨实例继续、中途结束实记、到点结算与休息状态/提前结束、只开日历时的到点结算、并发结束去重、日期页记录、近 7 天统计；检查专注记录未进入伙伴情境或公开快照。
+
+隔离环境中执行（非全量）：
+
+```powershell
+node --test --test-reporter=spec tests/focus.test.js tests/focus-routes.test.js
+node --test --test-reporter=spec --test-name-pattern="日期详情接口能正常读取当天数据" tests/routes.test.js
+node --test --test-reporter=spec tests/public-today.test.js tests/public-today-app.test.js
+node --check lib/data.js
+node --check routes/ui.js
+node --check lib/page-template.js
+node --check tests/focus.test.js
+node --check tests/focus-routes.test.js
+node tools/build-page.mjs
+```
+
+结果：9 + 1 + 32 项相关测试通过（共 42 项，含专注记录不进入公开快照）；新增页面的 3 段内联脚本均可解析；JavaScript 语法检查 5/5 通过；页面构建成功（295.2 KB，旧路径/凭证残留干净，App 凭证头存在）。未跑全量回归；尚未在 Hana 运行中的页面实机操作计时控件。专注计时没有新增系统通知，关闭拾光记期间不会响铃，重新打开后按目标时间结算。
 
 ## 本轮：天气缓存时段重绘（v0.0.53）
 

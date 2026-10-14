@@ -2,16 +2,16 @@
   "manifestVersion": 2,
   "id": "shiguangji-app",
   "name": "拾光记",
-  "version": "0.0.53",
+  "version": "0.1.0",
   "entry": "index.js",
-  "description": "把和伙伴聊过的一天整理成日记，让伙伴到点提醒待办。还能记心情、纪念日，给聊天带上当天的日期与天气和特殊节假日问候。",
+  "description": "把和伙伴聊过的一天整理成日记：待办到点提醒，记心情和纪念日，给聊天带上当天的日期、天气和节日问候；装了茶话会，还能约一位伙伴陪你安静做完一段事，有点像《放松时光：与你共享Lo-Fi故事》那种有人陪着的感觉。用 DeepSeek 模型时，会在费用更高的时段自然提醒你一句。",
   "icon": "assets/icon.png",
   "contributes": {
     "cards": [
       {
         "id": "calendar",
         "title": "拾光记",
-        "description": "把和伙伴聊过的一天整理成日记：待办到点提醒、记心情与纪念日，给聊天带上当天的日期、天气和节日问候",
+        "description": "把和伙伴聊过的一天整理成日记：待办到点提醒，记心情和纪念日，给聊天带上当天的日期、天气和节日问候；装了茶话会，还能约一位伙伴陪你安静做完一段事，有点像《放松时光：与你共享Lo-Fi故事》那种有人陪着的感觉。用 DeepSeek 模型时，会在费用更高的时段自然提醒你一句",
         "route": "/panel.html",
         "realization": "page",
         "siteNavEntry": true,
@@ -33,6 +33,7 @@
     "app/notifications.show",
     "app/tools.expose-to-model",
     "app/services.provide",
+    "app/services.call",
     "app/public-data.publish",
     "app/tasks.manage"
   ],
