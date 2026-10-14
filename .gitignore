@@ -5,6 +5,9 @@ PUBLISHING.md
 PROJECT_LOG.md
 _tmp*/
 
+# 云端构建工具（由 cloud/install-workflow.mjs 装入，非项目源码）
+.cloud-build/
+
 # 运行产物
 data/
 data.json

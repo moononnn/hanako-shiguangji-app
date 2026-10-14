@@ -158,6 +158,152 @@
   .nav-tabs button.active {
     background: var(--primary); color: #fff; box-shadow: var(--shadow);
   }
+  .focus-mini-indicator {
+    border: 1px solid #cfe5d8; background: var(--primary-soft); color: var(--primary-deep);
+    padding: 6px 11px; border-radius: 99px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .focus-overview { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; max-width: 980px; margin: 0 auto 14px; }
+  .focus-overview-title { font-size: 20px; color: var(--primary-deep); letter-spacing: 2px; }
+  .focus-overview-tip { color: var(--muted); font-size: 13px; }
+  .focus-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 980px; margin: 0 auto; }
+  .focus-card { min-width: 0; padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .focus-timer-card { text-align: left; }
+  #panel-focus button, #panel-focus summary { touch-action: manipulation; }
+  #panel-focus button:focus-visible, #panel-focus input:focus-visible, #panel-focus summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+  #panel-focus .btn { min-height: 44px; white-space: nowrap; }
+  #panel-focus .focus-session-actions button { min-height: 44px; }
+  #panel-focus .btn:active, #panel-focus .focus-preset:active { transform: translateY(1px); }
+  #panel-focus input { min-width: 0; width: 100%; min-height: 44px; }
+  .focus-prepare-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); grid-template-areas: 'goal companion' 'duration companion'; gap: 18px 24px; }
+  .focus-goal { grid-area: goal; }
+  .focus-companions { grid-area: companion; padding-left: 24px; border-left: 1px solid var(--line); }
+  .focus-duration { grid-area: duration; container-type: inline-size; }
+  .focus-prepare-grid.without-companions { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'goal' 'duration'; }
+  .focus-companions { container-type: inline-size; }
+  #panel-focus .focus-companion-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .focus-companion-grid.expanded { max-height: 280px; overflow-y: auto; overscroll-behavior: contain; }
+  #panel-focus .focus-companion-grid .mood-cell { display: flex; align-items: center; gap: 8px; min-height: 52px; min-width: 0; max-width: 100%; padding: 8px; text-align: left; }
+  #panel-focus .focus-companion-grid span { white-space: normal; overflow-wrap: anywhere; }
+  .focus-avatar { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border-radius: 12px; overflow: hidden; background: var(--primary-soft); color: var(--primary-deep); }
+  .focus-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .focus-companion-name-tag { flex: 1; min-width: 0; }
+  .focus-companion-check { flex: none; color: var(--primary-deep); }
+  .focus-companion-card { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--radius-sm); background: var(--primary-soft); }
+  .focus-companion-card-body { min-width: 0; overflow-wrap: anywhere; }
+  .focus-companion-card-body p { font-size: 12px; color: var(--primary-deep); margin-top: 4px; }
+  .focus-companion-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  #panel-focus .focus-companion-link { border: 0; background: transparent; color: var(--primary-deep); padding: 8px 4px; min-height: 44px; cursor: pointer; font: inherit; font-size: 13px; border-radius: 8px; }
+  #panel-focus .focus-companion-link:hover { background: var(--primary-soft); }
+  @container (max-width: 300px) { #panel-focus .focus-companion-grid { grid-template-columns: minmax(0, 1fr); } }
+  .focus-break-option { display: flex; align-items: center; gap: 12px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .focus-break-option .focus-preset { min-height: 36px; padding: 6px 10px; }
+  .focus-plan-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin-top: 16px; }
+  @container (max-width: 460px) { #panel-focus .focus-plan-grid { grid-template-columns: minmax(0, 1fr); } }
+  .focus-plan-setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; color: var(--muted); font-size: 12px; }
+  .focus-stepper { display: inline-flex; align-items: center; gap: 7px; flex: none; }
+  #panel-focus .focus-stepper button { width: 36px; min-height: 36px; border: 1px solid var(--line); border-radius: 9px; background: var(--card); color: var(--primary-deep); font: inherit; font-size: 17px; cursor: pointer; }
+  #panel-focus .focus-stepper button:disabled { opacity: .45; cursor: not-allowed; }
+  .focus-step-value { min-width: 38px; color: var(--ink); text-align: center; font-variant-numeric: tabular-nums; }
+  .focus-favorite-save { border: 0; background: transparent; color: var(--primary-deep); padding: 6px 2px; min-height: 36px; cursor: pointer; font: inherit; font-size: 12px; }
+  .focus-favorite-save:disabled { opacity: .5; cursor: not-allowed; }
+  .focus-favorites { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .focus-favorites:empty { display: none; }
+  .focus-favorite-chip { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+  #panel-focus .focus-favorite-chip button { border: 0; background: transparent; color: var(--primary-deep); font: inherit; font-size: 12px; min-height: 36px; padding: 6px 10px; cursor: pointer; }
+  #panel-focus .focus-favorite-chip .focus-favorite-remove { padding: 6px 9px; border-left: 1px solid var(--line); color: var(--muted); }
+  .focus-submit { margin-top: 18px; }
+  .focus-feedback { color: var(--muted); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; margin-top: 8px; }
+  .focus-feedback:empty { display: none; }
+  .focus-live-paper { position: relative; display: flex; align-items: center; gap: 24px; padding: 18px 20px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+  .focus-live-paper::before { content: ''; position: absolute; left: 0; top: 14px; bottom: 14px; width: 4px; border-radius: 2px; background: var(--primary); }
+  .focus-live-clock-wrap { flex: none; min-width: 150px; }
+  .focus-live-clock-label { display: block; margin-bottom: 4px; color: var(--primary-deep); font-size: 11px; letter-spacing: 2px; }
+  .focus-live .focus-clock { flex: none; margin: 0; font-size: 56px; line-height: 1; font-weight: 600; }
+  .focus-live-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+  .focus-live .focus-phase { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; padding: 4px 9px; border-radius: 99px; background: var(--primary-soft); color: var(--primary-deep); font-weight: 600; }
+  .focus-live .focus-phase::before { content: ''; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--primary); }
+  .focus-live .focus-task-name { margin: 0; font-size: 18px; font-weight: 600; }
+  .focus-live .focus-companion-name { overflow-wrap: anywhere; }
+  .focus-live .focus-companion-name:empty { display: none; }
+  #panel-focus .focus-session-meta { overflow-wrap: anywhere; }
+  #panel-focus .focus-live-companion { display: flex; align-items: flex-start; gap: 10px; min-height: 44px; margin-top: 14px; padding: 11px 14px; border: 1px solid #dce9dc; border-radius: 14px; background: var(--primary-soft); color: var(--primary-deep); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+  #panel-focus .focus-live-companion:empty { display: none; }
+  #panel-focus .focus-live-companion::before { content: '✓'; display: grid; place-items: center; flex: none; width: 20px; height: 20px; margin-top: 1px; border-radius: 50%; background: var(--card); color: var(--primary-deep); font-size: 12px; font-weight: 700; }
+  #panel-focus .focus-live-companion[data-state='unconfirmed'] { border-color: #eadfc9; background: var(--warm-soft); color: #8a6748; }
+  #panel-focus .focus-live-companion[data-state='unconfirmed']::before { content: '↗'; color: #9b7651; }
+  #panel-focus .focus-live-companion[data-state='unknown'] { border-color: var(--line); background: var(--card); color: var(--ink); }
+  #panel-focus .focus-live-companion[data-state='unknown']::before { content: '·'; color: var(--muted); font-size: 18px; }
+  #panel-focus .focus-live-companion[data-state='warning'] { border-color: #edd8ce; background: #fbefea; color: #986b59; }
+  #panel-focus .focus-live-companion[data-state='warning']::before { content: '!'; color: #986b59; }
+  .focus-live .focus-actions { margin-top: 18px; }
+  .focus-settlement { margin-top: 18px; }
+  #panel-focus .focus-settlement .a-agent { margin-left: 0; overflow-wrap: anywhere; }
+  #panel-focus .focus-settlement .a-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  #panel-focus .focus-settlement .archive-actions button { min-height: 44px; border-radius: 8px; }
+  .focus-settlement:empty { display: none; }
+  .focus-records { padding: 0 4px; min-width: 0; }
+  .focus-records > summary { cursor: pointer; min-height: 44px; color: var(--muted); padding: 12px 0; }
+  .focus-records-body { padding: 18px 20px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .focus-records-body .focus-card-title { margin-top: 16px; }
+  #panel-focus .focus-note { max-width: 980px; }
+  #panel-focus .focus-note summary { min-height: 44px; padding: 12px 0; cursor: pointer; }
+  @media (prefers-reduced-motion: reduce) { #panel-focus *, #panel-focus *::before { transition: none !important; animation: none !important; } }
+  @media (max-width: 380px) {
+    #panel-focus .focus-actions { gap: 6px; }
+    #panel-focus .focus-actions .btn { padding-left: 10px; padding-right: 10px; }
+    #panel-focus .focus-preset-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #panel-focus .focus-break-option .focus-preset-row { display: flex; }
+    #panel-focus .focus-session-row { display: block; }
+    #panel-focus .focus-session-actions { margin-top: 8px; }
+  }
+  .focus-card-title { margin: 0; color: var(--ink); font-size: 17px; letter-spacing: 1px; }
+  .focus-phase { color: var(--muted); font-size: 13px; }
+  .focus-clock { margin: 8px 0 10px; color: var(--primary-deep); font: 500 52px/1.15 "Poppins", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
+  .focus-task-name { min-height: 22px; margin: 0 0 16px; color: var(--ink); font-size: 15px; overflow-wrap: anywhere; }
+  .focus-control { min-width: 0; text-align: left; }
+  .focus-control-label { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; }
+  .focus-preset-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .focus-preset { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 10px; padding: 7px 12px; min-height: 44px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .focus-preset:hover { border-color: var(--primary); color: var(--primary-deep); }
+  .focus-preset.active { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-deep); font-weight: 600; }
+  .focus-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; }
+  #panel-focus .focus-card-caption { color: var(--muted); font-size: 12px; line-height: 1.6; }
+  #panel-focus .focus-card-caption:empty { display: none; }
+  .focus-actions .btn { flex: none; min-width: 100px; }
+  .focus-week-summary { margin: 0 0 12px; color: var(--ink); font-size: 13px; }
+  .focus-week-summary b { color: var(--primary-deep); font-weight: 600; }
+  .focus-week-bars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; height: 78px; }
+  .focus-week-day { display: flex; height: 100%; min-width: 0; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; color: var(--muted); font-size: 10px; }
+  .focus-week-track { display: flex; width: 100%; height: 52px; align-items: flex-end; overflow: hidden; border-radius: 7px 7px 3px 3px; background: #f5f1e7; }
+  .focus-week-fill { width: 100%; min-height: 0; border-radius: 7px 7px 3px 3px; background: var(--primary-light); }
+  .focus-week-day.today .focus-week-fill { background: var(--primary); }
+  .focus-session-list { display: flex; flex-direction: column; gap: 8px; }
+  .focus-session-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .focus-session-row:last-child { border-bottom: 0; }
+  .focus-session-main { min-width: 0; flex: 1; }
+  .focus-session-name { color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+  .focus-session-meta { margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .focus-session-actions { display: flex; flex: none; gap: 4px; }
+  .focus-session-actions button { border: 0; border-radius: 8px; padding: 5px 7px; background: var(--primary-soft); color: var(--primary-deep); font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
+  .focus-note { max-width: 980px; margin: 10px auto 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+  .focus-day-records { margin: 12px 0; padding: 12px 14px; border: 1px solid #e1ece3; border-radius: 14px; background: #f5faf6; }
+  .focus-day-records h4 { margin-bottom: 6px; color: var(--primary-deep); font-size: 13px; }
+  .focus-day-row { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--ink); font-size: 12px; }
+  .focus-day-row span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .focus-day-row small { flex: none; color: var(--muted); font-size: 11px; }
+  @media (max-width: 720px) {
+    .focus-prepare-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'goal' 'companion' 'duration'; }
+    .focus-companions { padding-left: 0; border-left: 0; }
+    .focus-live-paper { align-items: stretch; flex-direction: column; gap: 12px; }
+      .focus-live-clock-wrap { min-width: 0; }
+    .focus-live .focus-clock { font-size: 48px; }
+  }
+  @media (max-width: 420px) {
+    .focus-card, .focus-records-body { padding: 14px; }
+    .focus-live-paper { padding: 14px; }
+    .focus-live .focus-clock { font-size: 44px; }
+    .focus-mini-indicator { padding: 5px 8px; font-size: 11px; }
+  }
 
   /* ── 月导航条 ── */
   .month-bar {
@@ -593,6 +739,7 @@
     font-size: 13px; padding: 4px 8px; min-width: 30px; min-height: 30px; border-radius: 99px; transition: all .15s;
   }
   .event-row .del:hover { color: var(--accent-deep); background: var(--accent-soft); }
+  .event-row .focus-start-link { flex: none; border: 0; border-radius: 8px; padding: 5px 8px; background: var(--primary-soft); color: var(--primary-deep); font: inherit; font-size: 12px; cursor: pointer; }
 
   /* ── 生理期快捷区 ── */
   .period-quick {
@@ -1346,6 +1493,7 @@
   </div>
   <div class="header-actions">
     <button class="go-today-btn" onclick="goToday()">回到今天</button>
+    <button class="focus-mini-indicator hidden" id="focus-mini-indicator" onclick="switchTab('focus')" type="button"></button>
     <button class="context-toggle-btn" id="context-toggle-btn" onclick="toggleInjectionQuick()" aria-pressed="true">情境注入·开</button>
     <button class="settings-btn" onclick="openSettingsModal()">设置</button>
   </div>
@@ -1375,6 +1523,7 @@
 <!-- 导航 -->
 <div class="nav-tabs">
   <button id="tab-calendar" class="active" onclick="switchTab('calendar')">日历</button>
+  <button id="tab-focus" onclick="switchTab('focus')">专注</button>
   <button id="tab-summary" onclick="switchTab('summary')">时光册</button>
   <button id="tab-moodline" onclick="switchTab('moodline')">心情线</button>
 </div>
@@ -1459,6 +1608,30 @@
   <div class="moodline-card" id="moodline-card">
     <div class="moodline-empty">正在把这段心情铺开…</div>
   </div>
+</div>
+
+<!-- 专注页：计时与日常记录连在一起，不另造任务清单 -->
+<div id="panel-focus" class="hidden">
+  <div class="focus-overview">
+    <div>
+      <h2 class="focus-overview-title">专注</h2>
+      <span class="focus-overview-tip">留一小段时间，安心做眼前这件事。</span>
+    </div>
+    <button class="btn" onclick="switchTab('calendar')">回到日历</button>
+  </div>
+  <div class="focus-layout">
+    <section class="focus-card focus-timer-card" id="focus-timer-card" aria-label="专注计时"></section>
+    <details class="focus-records" id="focus-records">
+      <summary>专注足迹 · 今天与近 7 天</summary>
+      <div class="focus-records-body">
+        <p class="focus-week-summary" id="focus-week-summary">正在整理专注记录…</p>
+        <div class="focus-week-bars" id="focus-week-bars"></div>
+        <h3 class="focus-card-title">今天的专注</h3>
+        <div class="focus-session-list" id="focus-session-list"><div class="empty">正在读取…</div></div>
+      </div>
+    </details>
+  </div>
+  <details class="focus-note"><summary>记录本机加密；选伙伴时同步目标、时长与约定</summary><p>选择伙伴后，拾光记会把这次的目标、时长和陪伴约定同步给茶话会；茶话会里的对话不会回显在拾光记。相关信息只用于这次联动，不进入主对话或通用情境。专注时暂停普通主动消息，暂停或结束后恢复；聊天只触发少量提醒，不读取其他伙伴的聊天正文。记录加密保存在本机，心情由你决定。</p></details>
 </div>
 
 <!-- 时光册页：整体浏览与管理已经做好的页面 -->
@@ -2429,6 +2602,29 @@ var todoReminderAutofilled = false;
 var todoReminderAutofilling = false;
 var dayEventCache = {};
 var appSettings = { showPeriod: true, injectionEnabled: true, weatherEnabled: true, moodDiscoveryMode: 'economical', partnerMoodEnabled: false }; // 全局设置缓存（启动时从后端同步）
+var focusSnapshot = { active: null, sessions: [], groups: [], favoriteGoals: [], favoriteGoalConfigs: {}, focusConfig: null, stats: null, taskOptions: [] };
+var focusSelectedTaskId = '';
+var focusSelectedCompanionId = '';
+var focusFreeTitle = '';
+var focusMinutes = 25;
+var focusTotalRounds = 4;
+var breakMinutes = 5;
+var focusLongBreakEnabled = true;
+var focusLongBreakEvery = 4;
+var focusLongBreakMinutes = 15;
+var focusSettingsInitialized = false;
+var focusSettingsTouched = false;
+var focusSelectedFavoriteTitle = '';
+var focusConfigSaveQueue = Promise.resolve();
+var focusConfigSaveSequence = 0;
+var focusFavoritePending = false;
+var focusTicker = null;
+var focusActionPending = false;
+var focusAdvancePending = false;
+var focusAdvanceRetryAt = 0;
+var focusStatusNotice = '';
+var focusLastRefreshAt = 0;
+
 var weatherRegions = [];
 var weatherRegionsPromise = null;
 var summaryAgents = [];
@@ -2698,6 +2894,7 @@ function runFpSignal(action) {
   }
   if (action === 'settings') { openSettingsModal(); return; }
   if (action === 'today') { goToday(); return; }
+  if (action === 'focus') { switchTab('focus'); return; }
   if (action === 'calendar') { switchTab('calendar'); return; }
   if (action === 'summary') { switchTab('summary'); return; }
   if (action === 'moodline') { switchTab('moodline'); return; }
@@ -2712,9 +2909,13 @@ function runFpSignal(action) {
 setInterval(function () {
   if (document.hidden) return;
   api('api/fp-signal?since=' + fpSignalAt).then(function (res) {
-    if (!res || !res.ok || !res.signal) return;
-    fpSignalAt = res.signal.at;
-    runFpSignal(res.signal.action);
+    if (!res || !res.ok) return;
+    var signals = Array.isArray(res.signals) ? res.signals : (res.signal ? [res.signal] : []);
+    signals.forEach(function (signal) {
+      if (!signal || !(signal.at > fpSignalAt)) return;
+      fpSignalAt = signal.at;
+      runFpSignal(signal.action);
+    });
   }).catch(function () {});
 }, 2500);
 
@@ -2725,14 +2926,801 @@ function switchTab(tab) {
   var activeTab = document.getElementById('tab-' + tab);
   if (activeTab) activeTab.classList.add('active');
   document.getElementById('panel-calendar').classList.toggle('hidden', tab !== 'calendar');
+  document.getElementById('panel-focus').classList.toggle('hidden', tab !== 'focus');
   document.getElementById('panel-summary').classList.toggle('hidden', tab !== 'summary');
   document.getElementById('panel-moodline').classList.toggle('hidden', tab !== 'moodline');
   if (tab === 'calendar') loadMonth();
+  if (tab === 'focus') loadFocus();
   if (tab === 'summary') loadSummaries();
   if (tab === 'moodline') {
     if (!moodLineAnchorDate) moodLineAnchorDate = selectedDate || todayMoodLineDate();
     loadMoodLine();
   }
+}
+
+function focusTodayKey() {
+  var now = new Date();
+  return dk(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+function focusConfigKey(title) {
+  var normalized = String(title || '').trim().toLocaleLowerCase();
+  return normalized ? 'goal:' + normalized : '';
+}
+function focusCurrentConfig() {
+  return { focusMinutes: focusMinutes, totalRounds: focusTotalRounds, shortBreakMinutes: breakMinutes,
+    longBreakEnabled: focusLongBreakEnabled, longBreakEvery: focusLongBreakEvery, longBreakMinutes: focusLongBreakMinutes };
+}
+function focusApplyConfig(config) {
+  if (!config || typeof config !== 'object') return;
+  if ([15, 25, 30, 45].indexOf(Number(config.focusMinutes)) >= 0) focusMinutes = Number(config.focusMinutes);
+  if (Number.isInteger(Number(config.totalRounds)) && Number(config.totalRounds) >= 1 && Number(config.totalRounds) <= 20) focusTotalRounds = Number(config.totalRounds);
+  if (Number.isInteger(Number(config.shortBreakMinutes)) && Number(config.shortBreakMinutes) >= 1 && Number(config.shortBreakMinutes) <= 60) breakMinutes = Number(config.shortBreakMinutes);
+  if (typeof config.longBreakEnabled === 'boolean') focusLongBreakEnabled = config.longBreakEnabled;
+  if (Number.isInteger(Number(config.longBreakEvery)) && Number(config.longBreakEvery) >= 1 && Number(config.longBreakEvery) <= 20) focusLongBreakEvery = Number(config.longBreakEvery);
+  if (Number.isInteger(Number(config.longBreakMinutes)) && Number(config.longBreakMinutes) >= 1 && Number(config.longBreakMinutes) <= 60) focusLongBreakMinutes = Number(config.longBreakMinutes);
+}
+function focusSaveCurrentConfig() {
+  if (focusSnapshot.active || focusActionPending) return focusConfigSaveQueue;
+  var sequence = ++focusConfigSaveSequence;
+  var config = focusCurrentConfig();
+  var title = focusSelectedFavoriteTitle && focusConfigKey(focusSelectedFavoriteTitle) === focusConfigKey(focusFreeTitle) ? focusSelectedFavoriteTitle : '';
+  var options = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ focusConfig: config, favoriteGoalTitle: title }) };
+  focusConfigSaveQueue = focusConfigSaveQueue.catch(function () {}).then(function () { return api('api/focus/settings', options); }).then(function (res) {
+    if (!res || !res.ok) throw new Error(res && res.error || '专注设置没能保存');
+    if (sequence !== focusConfigSaveSequence) return;
+    focusSnapshot.focusConfig = res.focusConfig || config;
+    focusSnapshot.favoriteGoalConfigs = res.favoriteGoalConfigs || focusSnapshot.favoriteGoalConfigs || {};
+    focusStatusNotice = title ? '已记住「' + title + '」的专属设置' : '专注设置已记住';
+    renderFocusPage();
+  }).catch(function () {
+    if (sequence !== focusConfigSaveSequence) return;
+    focusStatusNotice = '专注设置暂未保存，稍后再试';
+    renderFocusPage();
+  });
+  return focusConfigSaveQueue;
+}
+function focusSettingsChanged() {
+  focusSettingsTouched = true;
+  focusSaveCurrentConfig();
+}
+function focusApplyInitialConfig() {
+  if (focusSettingsInitialized) return;
+  focusSettingsInitialized = true;
+  if (focusSettingsTouched) focusSaveCurrentConfig();
+  else focusApplyConfig(focusSnapshot.focusConfig);
+}
+
+function focusFormatDuration(value) {
+  var ms = Math.max(0, Number(value) || 0);
+  var minutes = Math.floor(ms / 60000);
+  if (!minutes) return ms > 0 ? '不到 1 分钟' : '0 分钟';
+  if (minutes < 60) return minutes + ' 分钟';
+  var hours = Math.floor(minutes / 60);
+  var rest = minutes % 60;
+  return hours + ' 小时' + (rest ? ' ' + rest + ' 分钟' : '');
+}
+
+function focusFormatClock(value) {
+  var seconds = Math.max(0, Math.floor((Number(value) || 0) / 1000));
+  var hours = Math.floor(seconds / 3600);
+  var minutes = Math.floor((seconds % 3600) / 60);
+  var rest = seconds % 60;
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  return hours ? pad(hours) + ':' + pad(minutes) + ':' + pad(rest) : pad(minutes) + ':' + pad(rest);
+}
+
+function focusFormatTime(value) {
+  var date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+}
+
+function focusFormatRange(session) {
+  var start = new Date(session && session.startedAt);
+  var end = new Date(session && session.endedAt);
+  var startLabel = focusFormatTime(session && session.startedAt);
+  var endLabel = focusFormatTime(session && session.endedAt);
+  if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && dk(start.getFullYear(), start.getMonth() + 1, start.getDate()) !== dk(end.getFullYear(), end.getMonth() + 1, end.getDate())) {
+    endLabel = String(end.getMonth() + 1) + '/' + String(end.getDate()) + ' ' + endLabel;
+  }
+  return startLabel + '–' + endLabel;
+}
+
+function focusUpdateMini() {
+  var button = document.getElementById('focus-mini-indicator');
+  var active = focusSnapshot.active;
+  if (!button) return;
+  if (!active) { button.classList.add('hidden'); return; }
+  button.classList.remove('hidden');
+  var remaining = active.pausedAt
+    ? Math.max(0, Number(active.remainingMs) || 0)
+    : Math.max(0, Date.parse(String(active.targetAt || '')) - Date.now());
+  button.textContent = active.phase === 'break'
+    ? (active.breakKind === 'long' ? '长休 ' : '短休 ') + focusFormatClock(remaining)
+    : (active.pausedAt ? '专注已暂停 ' : '专注 ') + focusFormatClock(remaining);
+}
+
+function focusNormalizeGroups(rows) {
+  var items = Array.isArray(rows) ? rows : [];
+  if (items.some(function (row) { return Array.isArray(row.sessions); })) return items;
+  var groups = new Map();
+  items.forEach(function (row) {
+    var id = String(row.setId || row.id);
+    if (!groups.has(id)) groups.set(id, { id: id, setId: id, sessions: [] });
+    groups.get(id).sessions.push(row);
+  });
+  return Array.from(groups.values()).map(function (group) {
+    group.sessions.sort(function (a, b) { return Date.parse(a.startedAt) - Date.parse(b.startedAt); });
+    var first = group.sessions[0];
+    var last = group.sessions[group.sessions.length - 1];
+    group.date = first.setDate || first.date || focusTodayKey();
+    group.startedAt = first.startedAt;
+    group.endedAt = last.endedAt;
+    group.taskTitle = first.taskTitle || '';
+    group.totalRounds = Math.max.apply(null, group.sessions.map(function (row) { return Number(row.totalRounds) || 1; }).concat([1]));
+    group.focusMinutes = Number(first.plannedMinutes) || 0;
+    group.completedRounds = group.sessions.filter(function (row) { return row.status === 'completed'; }).length;
+    group.totalFocusMs = group.sessions.reduce(function (sum, row) { return sum + Math.max(0, Number(row.durationMs) || 0); }, 0);
+    group.partialFocusMs = group.sessions.filter(function (row) { return row.status !== 'completed'; }).reduce(function (sum, row) { return sum + Math.max(0, Number(row.durationMs) || 0); }, 0);
+    group.planStatus = group.sessions.some(function (row) { return row.planStatus === 'interrupted' || row.status === 'interrupted'; }) ? 'interrupted'
+      : group.sessions.every(function (row) { return row.status === 'completed'; }) ? 'completed' : 'active';
+    return group;
+  });
+}
+
+function focusRenderSessions(rows) {
+  var groups = focusNormalizeGroups(rows).slice().sort(function (a, b) {
+    return Date.parse(b.startedAt) - Date.parse(a.startedAt);
+  });
+  if (!groups.length) return '<div class="empty">今天还没有专注记录。</div>';
+  return groups.map(function (group) {
+    var date = String(group.date || focusTodayKey());
+    var totalRounds = Math.max(1, Number(group.totalRounds) || 1);
+    var completedRounds = Math.max(0, Number(group.completedRounds) || 0);
+    var status = group.planStatus === 'completed' ? '整组完成'
+      : group.planStatus === 'active' || group.active ? '进行中'
+        : '提前结束';
+    var title = group.taskTitle || '自由专注';
+    var progress = completedRounds + '/' + totalRounds + ' 轮';
+    var detail = group.partialFocusMs > 0
+      ? '已完成 ' + completedRounds + ' 轮，未完成轮实记 ' + focusFormatDuration(group.partialFocusMs)
+      : '共专注 ' + focusFormatDuration(group.totalFocusMs) + '（计划 ' + (Number(group.focusMinutes) || 0) * totalRounds + ' 分钟）';
+    var actions = '<button type="button" onclick="focusOpenDay(' + jsArg(date) + ')">看这天</button>';
+    if (date === focusTodayKey()) actions += '<button type="button" onclick="focusOpenMood()">记心情</button>';
+    return '<div class="focus-session-row"><div class="focus-session-main"><div class="focus-session-name">' + esc(title) + ' · ' + status + ' · ' + esc(progress) + '</div>' +
+      '<div class="focus-session-meta">' + esc(focusFormatRange(group)) + ' · ' + esc(detail) + '</div></div>' +
+      '<div class="focus-session-actions">' + actions + '</div></div>';
+  }).join('');
+}
+
+function focusRenderWeek(stats) {
+  var summary = document.getElementById('focus-week-summary');
+  var bars = document.getElementById('focus-week-bars');
+  if (!summary || !bars) return;
+  var data = stats && Array.isArray(stats.days) ? stats : { days: [], totalDurationMs: 0, count: 0, completedCount: 0 };
+  summary.innerHTML = '近 7 天专注 <b>' + esc(focusFormatDuration(data.totalDurationMs)) + '</b>，共 ' +
+    esc(String(data.count || 0)) + ' 组；完整走完 ' + esc(String(data.completedCount || 0)) + ' 组。';
+  var max = Math.max.apply(null, data.days.map(function (day) { return Number(day.durationMs) || 0; }).concat([0]));
+  bars.classList.toggle('hidden', !data.count);
+  bars.innerHTML = data.days.map(function (day) {
+    var date = String(day.date || '');
+    var weekday = date ? WEEK[new Date(date + 'T00:00:00').getDay()] : ' ';
+    var amount = Number(day.durationMs) || 0;
+    var height = max ? Math.max(3, Math.round(amount / max * 100)) : 0;
+    return '<div class="focus-week-day' + (date === focusTodayKey() ? ' today' : '') + '" title="' + esc(date + ' · ' + focusFormatDuration(amount)) + '">' +
+      '<div class="focus-week-track"><div class="focus-week-fill" style="height:' + height + '%"></div></div><span>' + esc(weekday) + '</span></div>';
+  }).join('');
+}
+
+// 准备表单只在进入准备状态时创建；轮询不替换输入节点。
+function focusSetHtml(id, html) {
+  var node = document.getElementById(id);
+  if (node && node.innerHTML !== html) node.innerHTML = html;
+}
+
+var focusCompanionExpanded = false;
+var focusCompanionChanging = false;
+var focusSelectedCompanion = null;
+var focusAvatarCache = new Map();
+var focusSoloReminderHidden = false;
+function focusCompanionStatus() {
+  var options = focusSnapshot.companionOptions;
+  if (!options) return 'unavailable';
+  if (['available', 'empty', 'absent', 'unavailable'].indexOf(options.status) >= 0) return options.status;
+  return options.available ? ((options.partners || []).length ? 'available' : 'empty') : 'unavailable';
+}
+function focusReminderStatus() {
+  var active = focusSnapshot.active;
+  if (active && !active.companionId) return null;
+  var latest = (focusSnapshot.sessions || [])[0];
+  if (!active && (focusSoloReminderHidden || latest && latest.companionId === '')) return null;
+  return focusSnapshot.companionOptions && focusSnapshot.companionOptions.reminderStatus;
+}
+function focusCompanionNotice(active) {
+  if (!active || !active.companionId) return { state: '', text: '' };
+  var name = String(active.companionName || '所选伙伴');
+  var notice = String(focusStatusNotice || '');
+  if (/茶话会|陪读/.test(notice)) {
+    return { state: 'warning', text: /没能生成|没能送达/.test(notice) ? '陪读提醒没能送达，专注计时仍会继续。' : '茶话会暂时未接通，专注计时仍会继续。' };
+  }
+  var status = focusReminderStatus();
+  if (status && status.sessionId === active.id) {
+    if (active.phase === 'focus' && status.start === 'failed') return { state: 'warning', text: '开始提醒未能送达，专注计时仍会继续。' };
+    if (active.phase === 'break' && status.end === 'failed') return { state: 'warning', text: '收尾提醒未能送达，专注计时仍会继续。' };
+    if (status.failed) return { state: 'warning', text: '有陪读提醒没能送达，专注计时仍会继续。' };
+    if (active.phase === 'focus' && status.start === 'sent') return { state: 'sent', text: '已把这次专注安排告诉' + name + '。' };
+    if (active.phase === 'focus' && (status.start === 'pending' || status.start === 'waiting')) return { state: 'unconfirmed', text: '开始提醒是否已送达茶话会，暂未确认。' };
+    if (active.phase === 'focus' && status.start === 'stale') return { state: 'warning', text: '开始提醒状态已过期，暂时无法确认是否送达。' };
+    if (active.phase === 'break' && status.end === 'sent') return { state: 'sent', text: '这段专注的收尾安排已告诉' + name + '。' };
+    if (active.phase === 'break' && (status.end === 'pending' || status.end === 'waiting')) return { state: 'unconfirmed', text: '收尾提醒是否已送达茶话会，暂未确认。' };
+    if (active.phase === 'break' && status.end === 'stale') return { state: 'warning', text: '收尾提醒状态已过期，暂时无法确认是否送达。' };
+  }
+  if (focusCompanionStatus() !== 'available') return { state: 'warning', text: '暂时联系不上茶话会，专注计时仍在本机继续。' };
+  return { state: 'unknown', text: '本次陪读伙伴：' + name + '。这段联动状态尚未确认。' };
+}
+function focusAvatarHtml(partner) {
+  var initial = Array.from(String(partner.name || '伙伴'))[0];
+  return '<span class="focus-avatar" aria-hidden="true"><span>' + esc(initial) + '</span>' +
+    (partner.avatar ? '<img hidden data-focus-avatar="' + esc(partner.id) + '" alt="">' : '') + '</span>';
+}
+function focusLoadAvatars() {
+  document.getElementById('focus-companions').querySelectorAll('img[data-focus-avatar]').forEach(function (img) {
+    if (img.dataset.loading) return;
+    img.dataset.loading = 'true';
+    var id = img.dataset.focusAvatar;
+    if (!focusAvatarCache.has(id)) {
+      focusAvatarCache.set(id, apiFetch('api/focus/avatar/' + encodeURIComponent(id), { signal: AbortSignal.timeout(5000) }).then(function (res) {
+        if (!res.ok) throw new Error('avatar unavailable');
+        return res.blob();
+      }).then(function (blob) { return URL.createObjectURL(blob); }).catch(function () { return ''; }));
+    }
+    focusAvatarCache.get(id).then(function (src) {
+      if (!src) return;
+      img.onload = function () { img.hidden = false; };
+      img.onerror = function () { img.hidden = true; img.removeAttribute('src'); };
+      img.src = src;
+    });
+  });
+}
+function changeFocusCompanion() {
+  if (focusActionPending || focusSnapshot.active) return;
+  focusCompanionChanging = true;
+  focusCompanionExpanded = (focusSnapshot.companionOptions && focusSnapshot.companionOptions.partners || []).length > 10;
+  focusUpdatePreparation();
+}
+function expandFocusCompanions() {
+  if (focusActionPending || focusSnapshot.active) return;
+  focusCompanionExpanded = true;
+  focusUpdatePreparation();
+}
+function focusPreparationHint() {
+  var options = focusSnapshot.companionOptions;
+  if (focusSelectedCompanionId) {
+    if (focusLoadError || focusCompanionStatus() !== 'available') return '所选伙伴暂不可用，请重试、更换伙伴或选择自己专注。';
+    if (!(options.partners || []).some(function (p) { return p.id === focusSelectedCompanionId; })) return '所选伙伴已不在名单中，请更换伙伴或选择自己专注。';
+  }
+  if (!focusFreeTitle.trim()) return '写下这次想做什么。';
+  return '准备好了，开始 ' + focusTotalRounds + ' 轮；休息结束会自动接上下一轮。';
+}
+
+function focusUpdatePreparation() {
+  var options = focusSnapshot.companionOptions || { available: false, partners: [] };
+  var input = document.getElementById('focus-free-title');
+  var configPending = focusActionPending || focusFavoritePending;
+  // 显式日历入口可以预填；普通轮询不写入输入框，保留焦点和光标。
+  if (input.value !== focusFreeTitle) input.value = focusFreeTitle;
+  input.disabled = configPending;
+  var status = focusCompanionStatus();
+  document.getElementById('focus-companions').classList.toggle('hidden', status === 'absent');
+  document.getElementById('focus-prepare-grid').classList.toggle('without-companions', status === 'absent');
+  var absentSolo = document.getElementById('focus-absent-solo');
+  absentSolo.classList.toggle('hidden', status !== 'absent' || !focusSelectedCompanionId);
+  absentSolo.disabled = focusActionPending;
+  var partners = status === 'available' ? (options.partners || []) : [];
+  var selected = partners.find(function (p) { return p.id === focusSelectedCompanionId; });
+  if (selected) focusSelectedCompanion = selected;
+  var collapsed = !!focusSelectedCompanionId && !focusCompanionChanging;
+  var many = partners.length > 10;
+  var list = document.getElementById('focus-companion-list');
+  list.classList.toggle('hidden', collapsed);
+  list.classList.toggle('expanded', many && focusCompanionExpanded);
+  var visible = many && !focusCompanionExpanded ? partners.slice(0, 10) : partners;
+  focusSetHtml('focus-companion-list', visible.map(function (p) {
+    var picked = p.id === focusSelectedCompanionId;
+    return '<button type="button" class="mood-cell focus-task-option' + (picked ? ' picked active' : '') + '" aria-pressed="' + picked + '" title="' + esc(p.name) + '" onclick="chooseFocusCompanion(' + esc(jsArg(p.id)) + ')"' + (focusActionPending ? ' disabled' : '') + '>' + focusAvatarHtml(p) + '<span class="focus-companion-name-tag">' + esc(p.name) + '</span>' + (picked ? '<span class="focus-companion-check" aria-hidden="true">✓</span>' : '') + '</button>';
+  }).join(''));
+  var chosen = document.getElementById('focus-companion-selected');
+  chosen.classList.toggle('hidden', !collapsed);
+  var partner = selected || focusSelectedCompanion || { id: focusSelectedCompanionId, name: '所选伙伴' };
+  focusSetHtml('focus-companion-selected', collapsed ? '<div class="focus-companion-card">' + focusAvatarHtml(partner) + '<div class="focus-companion-card-body"><strong>' + esc(partner.name) + '</strong><p>陪你专注这段时间</p></div></div>' : '');
+  var all = document.getElementById('focus-companion-all');
+  all.classList.toggle('hidden', collapsed || !many || focusCompanionExpanded);
+  all.disabled = focusActionPending;
+  all.textContent = '查看全部伙伴（共' + partners.length + '位）';
+  document.getElementById('focus-companion-change').classList.toggle('hidden', !collapsed);
+  document.getElementById('focus-companion-change').disabled = focusActionPending;
+  document.getElementById('focus-companion-solo').disabled = focusActionPending;
+  document.getElementById('focus-companion-solo').textContent = focusSelectedCompanionId ? '自己专注' : '自己专注 · 不选伙伴';
+  var companionError = focusLoadError || (status === 'unavailable' ? '伙伴暂不可用，可以自己开始专注。' : status === 'empty' || !partners.length && status === 'available' ? '暂无可选伙伴，可以自己开始专注。' : '');
+  document.getElementById('focus-companion-error').textContent = companionError;
+  focusLoadAvatars();
+  var retry = document.getElementById('focus-companion-retry');
+  retry.classList.toggle('hidden', !companionError);
+  retry.disabled = focusActionPending || focusCompanionRetryPending;
+  retry.textContent = focusCompanionRetryPending ? '正在获取伙伴…' : '重试';
+  [15, 25, 30, 45].forEach(function (value) {
+    var button = document.getElementById('focus-pick-' + value);
+    var picked = focusMinutes === value;
+    button.classList.toggle('active', picked);
+    button.disabled = configPending;
+    button.setAttribute('aria-pressed', String(picked));
+  });
+  document.getElementById('focus-round-count').textContent = focusTotalRounds + ' 轮';
+  document.getElementById('focus-short-count').textContent = breakMinutes + ' 分';
+  document.getElementById('focus-long-every-count').textContent = '每隔 ' + focusLongBreakEvery + ' 轮';
+  document.getElementById('focus-long-minutes-count').textContent = focusLongBreakMinutes + ' 分';
+  document.getElementById('focus-round-minus').disabled = configPending || focusTotalRounds <= 1;
+  document.getElementById('focus-round-plus').disabled = configPending || focusTotalRounds >= 20;
+  document.getElementById('focus-short-minus').disabled = configPending || breakMinutes <= 1;
+  document.getElementById('focus-short-plus').disabled = configPending || breakMinutes >= 60;
+  document.getElementById('focus-long-every-minus').disabled = configPending || focusLongBreakEvery <= 1 || !focusLongBreakEnabled;
+  document.getElementById('focus-long-every-plus').disabled = configPending || focusLongBreakEvery >= 20 || !focusLongBreakEnabled;
+  document.getElementById('focus-long-minutes-minus').disabled = configPending || focusLongBreakMinutes <= 1 || !focusLongBreakEnabled;
+  document.getElementById('focus-long-minutes-plus').disabled = configPending || focusLongBreakMinutes >= 60 || !focusLongBreakEnabled;
+  var longToggle = document.getElementById('focus-long-toggle');
+  longToggle.classList.toggle('active', focusLongBreakEnabled);
+  longToggle.setAttribute('aria-pressed', String(focusLongBreakEnabled));
+  longToggle.disabled = configPending;
+  longToggle.textContent = focusLongBreakEnabled ? '长休：开' : '长休：关';
+  var favorites = focusSnapshot.favoriteGoals || [];
+  focusSetHtml('focus-favorites', favorites.map(function (title) {
+    return '<span class="focus-favorite-chip"><button type="button" onclick="chooseFocusFavorite(' + esc(jsArg(title)) + ')"' + (focusFavoritePending ? ' disabled' : '') + '>' + esc(title) + '</button><button type="button" class="focus-favorite-remove" aria-label="移除常用目标 ' + esc(title) + '" onclick="removeFocusFavorite(' + esc(jsArg(title)) + ')"' + (focusFavoritePending ? ' disabled' : '') + '>×</button></span>';
+  }).join(''));
+  var saveFavorite = document.getElementById('focus-save-favorite');
+  var alreadyFavorite = favorites.some(function (title) { return title.toLowerCase() === focusFreeTitle.trim().toLowerCase(); });
+  saveFavorite.disabled = focusFavoritePending || !focusFreeTitle.trim() || alreadyFavorite;
+  saveFavorite.textContent = focusFavoritePending ? '保存中…' : alreadyFavorite ? '已存常用' : '存为常用';
+  var start = document.getElementById('focus-start-button');
+  start.disabled = configPending;
+  start.textContent = focusActionPending ? '正在开始…' : '开始 ' + focusTotalRounds + ' 轮 · 每轮 ' + focusMinutes + ' 分钟';
+  document.getElementById('focus-preparation-hint').textContent = focusPreparationHint();
+  document.getElementById('focus-status-notice').textContent = focusStatusNotice;
+  var reminder = focusReminderStatus();
+  document.getElementById('focus-last-reminder').textContent = reminder && (reminder.failed ? '上一段有陪读消息没能送达，不会自动重试或切换模型。' : reminder.end === 'pending' ? '上一段的收尾提醒暂未确认送达。' : '') || '';
+}
+
+function setFocusRounds(value) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  focusTotalRounds = Math.max(1, Math.min(20, Math.floor(Number(value) || 1)));
+  focusSettingsChanged();
+  renderFocusPage();
+}
+function setBreakMinutes(value) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  breakMinutes = Math.max(1, Math.min(60, Math.floor(Number(value) || 1)));
+  focusSettingsChanged();
+  renderFocusPage();
+}
+function setFocusLongBreakEvery(value) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  focusLongBreakEvery = Math.max(1, Math.min(20, Math.floor(Number(value) || 1)));
+  focusSettingsChanged();
+  renderFocusPage();
+}
+function setFocusLongBreakMinutes(value) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  focusLongBreakMinutes = Math.max(1, Math.min(60, Math.floor(Number(value) || 1)));
+  focusSettingsChanged();
+  renderFocusPage();
+}
+function toggleFocusLongBreak() {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  focusLongBreakEnabled = !focusLongBreakEnabled;
+  focusSettingsChanged();
+  renderFocusPage();
+}
+function chooseFocusFavorite(title) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return Promise.resolve(false);
+  var selectedTitle = String(title || '').trim();
+  var hasConfig = Object.prototype.hasOwnProperty.call(focusSnapshot.favoriteGoalConfigs || {}, focusConfigKey(selectedTitle));
+  focusFavoritePending = true;
+  focusStatusNotice = '正在读取常用目标设置…';
+  focusUpdatePreparation();
+  var request = focusConfigSaveQueue.catch(function () {}).then(function () {
+    return api('api/focus/favorites/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: selectedTitle }) });
+  });
+  return request.then(function (res) {
+    if (!res || !res.ok || !res.focusConfig) throw new Error(res && res.error || '常用目标设置暂时读不到');
+    focusFreeTitle = selectedTitle;
+    focusSelectedTaskId = '';
+    focusSelectedFavoriteTitle = selectedTitle;
+    focusSnapshot.focusConfig = res.focusConfig;
+    focusSnapshot.favoriteGoalConfigs = res.favoriteGoalConfigs || focusSnapshot.favoriteGoalConfigs || {};
+    focusApplyConfig(res.focusConfig);
+    focusSettingsInitialized = true;
+    focusSettingsTouched = true;
+    focusStatusNotice = hasConfig ? '已恢复「' + selectedTitle + '」的专属设置' : '「' + selectedTitle + '」没有专属设置，已沿用并绑定上次设置';
+    renderFocusPage();
+    var input = document.getElementById('focus-free-title');
+    if (input) input.focus({ preventScroll: true });
+    return true;
+  }).catch(function (error) {
+    focusStatusNotice = error.message || '常用目标设置暂时读不到';
+    toast(focusStatusNotice);
+    renderFocusPage();
+    return false;
+  }).finally(function () {
+    focusFavoritePending = false;
+    renderFocusPage();
+  });
+}
+function saveFocusFavorite() {
+  var title = focusFreeTitle.trim();
+  if (!title || focusFavoritePending || focusSnapshot.active) return;
+  focusFavoritePending = true;
+  focusUpdatePreparation();
+  api('api/focus/favorites/add', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title, focusConfig: focusCurrentConfig() }) })
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error(res && res.error || '常用目标没能保存');
+      focusSnapshot.favoriteGoals = res.favoriteGoals || [];
+      focusSnapshot.favoriteGoalConfigs = res.favoriteGoalConfigs || focusSnapshot.favoriteGoalConfigs || {};
+      focusSnapshot.focusConfig = focusCurrentConfig();
+      focusSelectedFavoriteTitle = title;
+      focusSettingsTouched = true;
+      focusStatusNotice = '「' + title + '」已保存，并绑定当前设置';
+      toast('已存进常用目标');
+    }).catch(function (error) { toast(error.message || '常用目标没能保存'); })
+    .finally(function () { focusFavoritePending = false; renderFocusPage(); });
+}
+function removeFocusFavorite(title) {
+  if (focusFavoritePending || focusSnapshot.active) return;
+  focusFavoritePending = true;
+  focusUpdatePreparation();
+  api('api/focus/favorites/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title }) })
+    .then(function (res) {
+      if (!res || !res.ok) throw new Error(res && res.error || '常用目标没能移除');
+      focusSnapshot.favoriteGoals = res.favoriteGoals || [];
+      focusSnapshot.favoriteGoalConfigs = res.favoriteGoalConfigs || {};
+      if (focusConfigKey(focusSelectedFavoriteTitle) === focusConfigKey(title)) focusSelectedFavoriteTitle = '';
+      toast('已从常用目标移除');
+    }).catch(function (error) { toast(error.message || '常用目标没能移除'); })
+    .finally(function () { focusFavoritePending = false; renderFocusPage(); });
+}
+
+var focusCompanionRetryPending = false;
+var focusLoadError = '';
+function retryFocusCompanions() {
+  if (focusActionPending || focusCompanionRetryPending) return;
+  focusCompanionRetryPending = true;
+  focusUpdatePreparation();
+  loadFocus().finally(function () {
+    focusCompanionRetryPending = false;
+    if (!focusSnapshot.active) focusUpdatePreparation();
+  });
+}
+function editFocusTitle(value) {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  focusFreeTitle = String(value || '');
+  if (focusSelectedFavoriteTitle && focusConfigKey(focusFreeTitle) !== focusConfigKey(focusSelectedFavoriteTitle)) focusSelectedFavoriteTitle = '';
+  // 后端关联待办时优先采用待办标题；手改目标必须解除关联。
+  focusSelectedTaskId = '';
+  focusStatusNotice = '';
+  focusUpdatePreparation();
+}
+function renderFocusPreparation(card) {
+  if (card.dataset.mode !== 'prepare') {
+    card.dataset.mode = 'prepare';
+    card.classList.remove('focus-live');
+    card.classList.add('focus-prepare');
+    var picks = [15, 25, 30, 45].map(function (value) {
+      return '<button id="focus-pick-' + value + '" type="button" class="focus-preset" onclick="setFocusMinutes(' + value + ')">' + value + ' 分钟</button>';
+    }).join('');
+    card.innerHTML = '<div class="add-head"><h3 class="focus-card-title">开始前，安排一下</h3><span class="focus-card-caption">到点记下；中途结束按实际时长记录</span></div>' +
+      '<div class="focus-prepare-grid" id="focus-prepare-grid"><div class="focus-control focus-goal add-form"><label class="focus-control-label" for="focus-free-title">这次想做什么？</label>' +
+      '<input id="focus-free-title" maxlength="120" placeholder="比如：读一章书、整理资料" value="' + esc(focusFreeTitle) + '" oninput="editFocusTitle(this.value)"><button id="focus-save-favorite" type="button" class="focus-favorite-save" onclick="saveFocusFavorite()">存为常用</button><div id="focus-favorites" class="focus-favorites" aria-label="常用目标"></div></div>' +
+      '<div class="focus-control focus-companions" id="focus-companions"><div class="focus-control-label" id="focus-companion-label">谁陪你专注？<span class="focus-card-caption">（可选）</span></div>' +
+      '<div id="focus-companion-selected" class="hidden"></div>' +
+      '<div class="mood-grid focus-companion-grid" id="focus-companion-list" role="group" aria-labelledby="focus-companion-label"></div>' +
+      '<div class="focus-companion-links"><button id="focus-companion-all" type="button" class="focus-companion-link hidden" onclick="expandFocusCompanions()">查看全部伙伴</button><button id="focus-companion-change" type="button" class="focus-companion-link hidden" onclick="changeFocusCompanion()">更换伙伴</button><button id="focus-companion-solo" type="button" class="focus-companion-link" onclick="chooseFocusCompanion(\'\')">自己专注</button></div>' +
+      '<p class="focus-feedback" id="focus-companion-error" role="status"></p><button id="focus-companion-retry" class="btn hidden" type="button" onclick="retryFocusCompanions()">重试</button></div>' +
+      '<div class="focus-control focus-duration"><div class="focus-control-label">每轮专注多久？</div><div class="focus-preset-row" role="group" aria-label="专注时长">' + picks + '</div>' +
+      '<div class="focus-plan-grid">' +
+      '<div class="focus-plan-setting"><span>总轮数</span><div class="focus-stepper"><button id="focus-round-minus" type="button" aria-label="减少轮数" onclick="setFocusRounds(focusTotalRounds - 1)">−</button><span id="focus-round-count" class="focus-step-value"></span><button id="focus-round-plus" type="button" aria-label="增加轮数" onclick="setFocusRounds(focusTotalRounds + 1)">＋</button></div></div>' +
+      '<div class="focus-plan-setting"><span>短休时长</span><div class="focus-stepper"><button id="focus-short-minus" type="button" aria-label="缩短短休" onclick="setBreakMinutes(breakMinutes - 1)">−</button><span id="focus-short-count" class="focus-step-value"></span><button id="focus-short-plus" type="button" aria-label="延长短休" onclick="setBreakMinutes(breakMinutes + 1)">＋</button></div></div>' +
+      '<div class="focus-plan-setting"><button id="focus-long-toggle" type="button" class="focus-preset" onclick="toggleFocusLongBreak()" aria-pressed="true">长休：开</button><div class="focus-stepper"><button id="focus-long-every-minus" type="button" aria-label="减少长休间隔" onclick="setFocusLongBreakEvery(focusLongBreakEvery - 1)">−</button><span id="focus-long-every-count" class="focus-step-value"></span><button id="focus-long-every-plus" type="button" aria-label="增加长休间隔" onclick="setFocusLongBreakEvery(focusLongBreakEvery + 1)">＋</button></div></div>' +
+      '<div class="focus-plan-setting"><span>长休时长</span><div class="focus-stepper"><button id="focus-long-minutes-minus" type="button" aria-label="缩短长休" onclick="setFocusLongBreakMinutes(focusLongBreakMinutes - 1)">−</button><span id="focus-long-minutes-count" class="focus-step-value"></span><button id="focus-long-minutes-plus" type="button" aria-label="延长长休" onclick="setFocusLongBreakMinutes(focusLongBreakMinutes + 1)">＋</button></div></div></div>' +
+      '<p class="focus-card-caption">长休按设定轮数触发；最后一轮结束后不再休息。</p></div></div>' +
+      '<div class="add-actions focus-submit"><button id="focus-start-button" type="button" class="btn primary" aria-describedby="focus-preparation-hint" onclick="startFocusTimer()">开始专注</button></div>' +
+      '<p class="focus-feedback" id="focus-preparation-hint"></p><button id="focus-absent-solo" type="button" class="focus-companion-link hidden" onclick="chooseFocusCompanion(\'\')">改为自己专注</button><p class="focus-feedback" id="focus-status-notice" role="status"></p><p class="focus-feedback" id="focus-last-reminder" role="status"></p>';
+  }
+  focusUpdatePreparation();
+}
+
+function focusRenderSettlement(active) {
+  var sessions = (focusSnapshot.sessions || []).slice();
+  (focusSnapshot.groups || []).forEach(function (group) { (group.sessions || []).forEach(function (row) { if (!sessions.some(function (item) { return item.id === row.id; })) sessions.push(row); }); });
+  var session = sessions.find(function (row) { return row.id === active.id; });
+  if (!session) return '<p class="focus-card-caption">这段的结算记录暂未返回；先歇一歇。</p>';
+  var duration = session.durationMs != null && Number.isFinite(Number(session.durationMs))
+    ? '实际专注 ' + focusFormatDuration(session.durationMs) : '实际时长暂未返回';
+  var status = session.status === 'completed' ? '计时到点' : '中途结束';
+  var actions = session.date ? '<button type="button" onclick="focusOpenDay(' + jsArg(session.date) + ')">看这天</button>' : '';
+  if (session.date === focusTodayKey()) actions += '<button type="button" onclick="focusOpenMood()">记心情</button>';
+  return '<div class="day-title"><span class="day-date">' + esc(session.date || '') + '</span><span class="day-label">刚才这一段 · ' + status + '</span></div>' +
+    '<article class="archive-item">' + (session.companionName ? '<span class="a-agent">' + esc(session.companionName) + '</span>' : '') +
+    '<div class="a-text">' + esc(session.taskTitle || '自由专注') + '</div>' +
+    '<p class="focus-session-meta">' + esc(focusFormatRange(session)) + ' · ' + esc(duration) + '</p>' +
+    '<p class="focus-card-caption">计时记录不代表待办已完成。</p>' +
+    '<div class="archive-actions">' + actions + '</div></article>';
+}
+
+function renderFocusPage() {
+  var card = document.getElementById('focus-timer-card');
+  var history = document.getElementById('focus-session-list');
+  if (!card || !history) return;
+  var active = focusSnapshot.active;
+  if (!active) {
+    renderFocusPreparation(card);
+  } else {
+    var remaining = active.pausedAt
+      ? Math.max(0, Number(active.remainingMs) || 0)
+      : Math.max(0, Date.parse(String(active.targetAt || '')) - Date.now());
+    var phaseText = active.phase === 'break' ? (active.breakKind === 'long' ? '长休时间' : '短休时间') : (active.pausedAt ? '这一轮已暂停' : '正在专注');
+    var taskText = active.phase === 'break' ? '接下来继续：' + (active.taskTitle || '自由专注') : (active.taskTitle || '自由专注');
+    var companionNotice = focusCompanionNotice(active);
+    // 暂停、请求等待与轮询只更新现有节点；仅换段或切换专注/休息时重建。
+    var liveKey = JSON.stringify([active.id, active.phase]);
+    if (card.dataset.mode !== liveKey) {
+      card.dataset.mode = liveKey;
+      card.classList.remove('focus-prepare');
+      card.classList.add('focus-live');
+      var actionHtml = active.phase === 'break'
+        ? '<button id="focus-end-button" type="button" class="btn" onclick="confirmEndFocusSet()">结束本组并保留记录</button>'
+        : '<button id="focus-pause-button" type="button" class="btn primary">暂停</button><button id="focus-end-button" type="button" class="btn" onclick="confirmEndFocusSet()">提前结束本组并保存</button>';
+      card.innerHTML = '<div class="focus-live-paper"><div class="focus-live-clock-wrap"><span class="focus-live-clock-label">还剩</span><div class="big-day focus-clock" id="focus-clock" aria-live="off">' + focusFormatClock(remaining) + '</div></div>' +
+        '<div class="today-body focus-live-body"><div class="focus-phase" id="focus-live-phase"></div><h3 class="focus-task-name" id="focus-live-task"></h3>' +
+        '<p class="focus-session-meta" id="focus-live-plan"></p><p class="focus-session-meta focus-companion-name" id="focus-live-name"></p></div></div>' +
+        '<div class="add-actions focus-actions">' + actionHtml + '</div>' +
+        '<p class="focus-feedback" id="focus-live-status" role="status"></p><p class="focus-feedback focus-live-companion" id="focus-live-companion" role="status"></p>' +
+        (active.phase === 'break' ? '<div class="focus-settlement" id="focus-settlement"></div>' : '');
+    }
+    document.getElementById('focus-live-phase').textContent = phaseText;
+    document.getElementById('focus-live-task').textContent = taskText;
+    document.getElementById('focus-live-plan').textContent = active.phase === 'break'
+      ? '第 ' + String(active.roundIndex || 1) + '/' + String(active.totalRounds || 1) + ' 轮完成 · ' + String(active.breakMinutes || 0) + ' 分钟后自动开始第 ' + String((Number(active.roundIndex) || 1) + 1) + ' 轮。'
+      : '第 ' + String(active.roundIndex || 1) + '/' + String(active.totalRounds || 1) + ' 轮 · 计划 ' + String(active.plannedMinutes || 0) + ' 分钟';
+    document.getElementById('focus-live-name').textContent = active.companionName ? '陪伴：' + active.companionName : '';
+    var focusedId = card.contains(document.activeElement) ? document.activeElement.id : '';
+    if (focusActionPending && focusedId) card.dataset.focusReturn = focusedId;
+    var pause = document.getElementById('focus-pause-button');
+    if (active.phase === 'focus' && pause) {
+      pause.textContent = active.pausedAt ? '继续专注' : '暂停';
+      pause.setAttribute('onclick', 'focusRequest(' + jsArg(active.pausedAt ? 'resume' : 'pause') + ')');
+    }
+    ['focus-pause-button', 'focus-end-button'].forEach(function (id) {
+      var button = document.getElementById(id);
+      if (button) button.disabled = focusActionPending;
+    });
+    if (!focusActionPending && card.dataset.focusReturn) {
+      var focusReturn = document.getElementById(card.dataset.focusReturn);
+      if (focusReturn && !focusReturn.disabled && (!document.activeElement || !document.activeElement.id)) focusReturn.focus({ preventScroll: true });
+      delete card.dataset.focusReturn;
+    }
+    if (active.phase === 'break') focusSetHtml('focus-settlement', focusRenderSettlement(active));
+    var statusNotice = document.getElementById('focus-live-status');
+    statusNotice.textContent = active.companionId && /茶话会|陪读/.test(focusStatusNotice) ? '' : focusStatusNotice;
+    var companionNode = document.getElementById('focus-live-companion');
+    companionNode.textContent = companionNotice.text;
+    companionNode.setAttribute('data-state', companionNotice.state);
+  }
+  focusRenderWeek(focusSnapshot.stats);
+  focusSetHtml('focus-session-list', focusRenderSessions(focusSnapshot.groups && focusSnapshot.groups.length ? focusSnapshot.groups : focusSnapshot.sessions));
+  focusUpdateMini();
+  focusTick();
+}
+
+var focusRequestSeq = 0;
+var focusLoadSeq = 0;
+function loadFocus() {
+  if (focusActionPending) return;
+  var requestSeq = ++focusLoadSeq;
+  return api('api/focus').then(function (res) {
+    if (requestSeq !== focusLoadSeq) return;
+    if (!res || !res.ok) {
+      focusStatusNotice = res && res.error ? res.error : '专注记录暂时读不到';
+      focusLoadError = focusStatusNotice + '，请检查连接后重试。';
+      renderFocusPage();
+      return;
+    }
+    focusSnapshot = { active: res.active || null, sessions: res.sessions || [], groups: res.groups || [], favoriteGoals: res.favoriteGoals || [], favoriteGoalConfigs: res.favoriteGoalConfigs || {}, focusConfig: res.focusConfig || null, stats: res.stats || null, taskOptions: res.taskOptions || [], companionOptions: res.companionOptions || null };
+    focusApplyInitialConfig();
+    focusLoadError = '';
+    focusStatusNotice = '';
+    renderFocusPage();
+  }).catch(function () {
+    if (requestSeq !== focusLoadSeq) return;
+    focusStatusNotice = '专注记录暂时读不到，检查一下连接';
+    focusLoadError = '暂时无法获取陪伴伙伴，请检查茶话会连接后重试。';
+    renderFocusPage();
+  });
+}
+
+function confirmEndFocusSet() {
+  if (focusActionPending) return;
+  askConfirm('提前结束这组专注？已完成轮次和当前真实专注时长都会保留。', function () {
+    focusRequest('end');
+  });
+}
+
+function focusRequest(action, body, quiet) {
+  if (focusActionPending) return;
+  focusActionPending = true;
+  focusLoadSeq++;
+  var requestSeq = ++focusRequestSeq;
+  var beforeActive = focusSnapshot.active;
+  var wasFocus = beforeActive && beforeActive.phase === 'focus';
+  var wasBreak = beforeActive && beforeActive.phase === 'break';
+  var wasFinalRound = wasFocus && Number(beforeActive.roundIndex || 1) >= Number(beforeActive.totalRounds || 1);
+  var wasSolo = beforeActive && !beforeActive.companionId;
+  var reloadAfterFailure = false;
+  focusStatusNotice = action === 'advance' ? '计时到啦，正在收好这一段…' : (action === 'start' ? '正在开始计时…' : '正在保存计时状态…');
+  renderFocusPage();
+  var options = { method: 'POST' };
+  if (body) {
+    options.headers = { 'Content-Type': 'application/json' };
+    options.body = JSON.stringify(body);
+  }
+  api('api/focus/' + action, options).then(function (res) {
+    if (requestSeq !== focusRequestSeq) return;
+    if (!res || !res.ok) {
+      focusStatusNotice = res && res.error ? res.error : '计时状态暂时没同步';
+      if (!quiet) toast(focusStatusNotice);
+      if (action === 'advance') focusAdvanceRetryAt = Date.now() + 5000;
+      reloadAfterFailure = true;
+      return;
+    }
+    focusSnapshot = { active: res.active || null, sessions: res.sessions || [], groups: res.groups || [], favoriteGoals: res.favoriteGoals || [], favoriteGoalConfigs: res.favoriteGoalConfigs || {}, focusConfig: res.focusConfig || null, stats: res.stats || null, taskOptions: res.taskOptions || [], companionOptions: res.companionOptions || null };
+    focusApplyInitialConfig();
+    if (action === 'start') focusSoloReminderHidden = !body.companionId;
+    else if (wasSolo) focusSoloReminderHidden = true;
+    focusStatusNotice = res.warning || '';
+    if (res.warning && action !== 'start') toast(res.warning);
+    if (action === 'start') toast(res.warning || '开始这组专注啦');
+    else if (action === 'pause') toast('先停一停');
+    else if (action === 'resume') toast('继续专注');
+    else if ((action === 'end' || action === 'cancel') && res.ended && res.ended.session && res.ended.session.status === 'completed' && res.ended.session.planStatus === 'interrupted') toast('这一组提前结束，已完成轮次保留');
+  else if ((action === 'end' || action === 'cancel') && res.ended && res.ended.session && res.ended.session.status === 'completed') toast('这一组完成啦，已记下专注时间');
+    else if ((action === 'end' || action === 'cancel') && res.ended && res.ended.session) toast('这一组提前结束，已按实际时长记下');
+    else if ((action === 'end' || action === 'cancel') && res.ended && res.ended.phase === 'break') toast('这一组已结束，已完成轮次保留');
+    else if ((action === 'end' || action === 'cancel') && res.ended && res.ended.phase === 'none') toast('这组计时已经结束');
+    else if (action === 'cancel' && res.session) toast('已提前结束，实际专注时间保留了');
+    else if (action === 'cancel' && res.completed) toast('这一轮到点完成啦');
+    else if (action === 'cancel' && res.cancelled) toast('这一组已结束，已完成轮次保留');
+    else if (action === 'advance' && wasFocus) toast(wasFinalRound ? '这一组完成啦，最后一轮没有追加休息' : '这一轮完成，休息结束会自动开始下一轮');
+    else if (action === 'advance' && wasBreak && res.active && res.active.phase === 'focus') toast('休息结束，开始第 ' + String(res.active.roundIndex) + ' 轮');
+    renderFocusPage();
+    if ((action === 'end' && res.ended && (res.ended.session || res.ended.phase === 'break')) || (action === 'cancel' && (res.completed || res.session)) || (action === 'advance' && (wasFocus || wasBreak))) focusRefreshDay();
+  }).catch(function () {
+    if (requestSeq !== focusRequestSeq) return;
+    focusStatusNotice = '计时状态暂时没同步，稍后会再试';
+    if (action === 'advance') focusAdvanceRetryAt = Date.now() + 5000;
+    if (!quiet) toast(focusStatusNotice);
+    reloadAfterFailure = true;
+  }).finally(function () {
+    if (requestSeq !== focusRequestSeq) return;
+    focusActionPending = false;
+    if (action === 'advance') focusAdvancePending = false;
+    renderFocusPage();
+    if (reloadAfterFailure) loadFocus();
+  });
+}
+
+function focusRefreshDay() {
+  var today = focusTodayKey();
+  if (selectedDate === today) selectDay(today);
+}
+
+function setFocusMinutes(value) {
+  if ([15, 25, 30, 45].indexOf(Number(value)) < 0 || focusSnapshot.active || focusActionPending || focusFavoritePending) return;
+  focusMinutes = Number(value);
+  focusSettingsChanged();
+  renderFocusPage();
+}
+
+function chooseFocusCompanion(id) {
+  if (focusSnapshot.active) return;
+  if (focusActionPending) return;
+  var partner = (focusSnapshot.companionOptions && focusSnapshot.companionOptions.partners || []).find(function (p) { return p.id === id; });
+  if (id && (focusCompanionStatus() !== 'available' || !partner)) return;
+  focusSelectedCompanionId = String(id || '');
+  focusSelectedCompanion = partner || null;
+  focusCompanionChanging = false;
+  focusCompanionExpanded = false;
+  focusStatusNotice = id ? '陪伴伙伴已选中' : '这段自己专注';
+  renderFocusPage();
+}
+
+function startFocusTimer() {
+  if (focusActionPending || focusFavoritePending || focusSnapshot.active) return;
+  var options = focusSnapshot.companionOptions;
+  var validCompanion = !focusSelectedCompanionId || !focusLoadError && options && focusCompanionStatus() === 'available' && (options.partners || []).some(function (p) { return p.id === focusSelectedCompanionId; });
+  if (!validCompanion || !focusFreeTitle.trim()) {
+    focusStatusNotice = focusPreparationHint();
+    renderFocusPage();
+    toast(focusStatusNotice);
+    if (!validCompanion) {
+      var companion = document.getElementById('focus-companion-list').querySelector('button');
+      var retry = document.getElementById('focus-companion-retry');
+      if (companion) companion.focus({ preventScroll: true });
+      else if (!retry.classList.contains('hidden')) retry.focus({ preventScroll: true });
+    } else document.getElementById('focus-free-title').focus({ preventScroll: true });
+    return;
+  }
+  focusRequest('start', { taskId: focusSelectedTaskId, taskTitle: focusFreeTitle, companionId: focusSelectedCompanionId, focusMinutes: focusMinutes, breakMinutes: breakMinutes, shortBreakMinutes: breakMinutes, totalRounds: focusTotalRounds, longBreakEvery: focusLongBreakEnabled ? focusLongBreakEvery : 0, longBreakMinutes: focusLongBreakMinutes,
+    focusConfig: focusCurrentConfig(), favoriteGoalTitle: focusSelectedFavoriteTitle && focusConfigKey(focusSelectedFavoriteTitle) === focusConfigKey(focusFreeTitle) ? focusSelectedFavoriteTitle : '' });
+}
+
+function startFocusForTodo(id, title) {
+  if (focusActionPending) return;
+  if (focusSnapshot.active) {
+    switchTab('focus');
+    toast('先结束当前这段专注或休息');
+    return;
+  }
+  focusSelectedTaskId = String(id || '');
+  focusSelectedFavoriteTitle = '';
+  var task = (focusSnapshot.taskOptions || []).find(function (t) { return t.id === focusSelectedTaskId; });
+  focusFreeTitle = String(title !== undefined ? title : (task && task.title || ''));
+  focusStatusNotice = focusSelectedTaskId ? '已关联这件待办；修改目标后将解除关联。' : '';
+  switchTab('focus');
+  renderFocusPage();
+  toast('目标已填好，可以直接开始，也可以选一位伙伴');
+}
+
+function focusTick() {
+  focusUpdateMini();
+  var reminderStatus = focusReminderStatus();
+  if ((focusSnapshot.active || reminderStatus && reminderStatus.end === 'pending') && Date.now() - focusLastRefreshAt > 15000 && !document.getElementById('panel-focus').classList.contains('hidden') && !focusActionPending) {
+    focusLastRefreshAt = Date.now();
+    loadFocus();
+  }
+  var active = focusSnapshot.active;
+  if (!active) return;
+  var remaining = active.pausedAt
+    ? Math.max(0, Number(active.remainingMs) || 0)
+    : Math.max(0, Date.parse(String(active.targetAt || '')) - Date.now());
+  var clock = document.getElementById('focus-clock');
+  if (clock) clock.textContent = focusFormatClock(remaining);
+  if (remaining <= 0 && !active.pausedAt && !focusAdvancePending && !focusActionPending && Date.now() >= focusAdvanceRetryAt) {
+    focusAdvancePending = true;
+    focusRequest('advance', null, true);
+  }
+}
+
+function startFocusTicker() {
+  if (focusTicker) return;
+  focusTicker = setInterval(focusTick, 1000);
+}
+
+function focusOpenDay(date) {
+  var day = new Date(String(date || focusTodayKey()) + 'T00:00:00');
+  curYear = day.getFullYear();
+  curMonth = day.getMonth() + 1;
+  switchTab('calendar');
+  loadMonth();
+  selectDay(dk(curYear, curMonth, day.getDate()), true);
+}
+
+function focusOpenMood() {
+  var today = focusTodayKey();
+  moodPanelOpen = true;
+  moodPicked = '';
+  moodReasonDraft = '';
+  switchTab('calendar');
+  selectDay(today);
+  loadMoodMetaOnce().then(function () {
+    if (moodPanelOpen && selectedDate === today) selectDay(today);
+  });
 }
 
 /* ── 今日概览 ── */
@@ -3074,6 +4062,20 @@ function todoDueNow(event) {
   return (now.getHours() * 60 + now.getMinutes()) >= minutes;
 }
 
+function focusDayRecordsHtml(rows) {
+  var groups = focusNormalizeGroups(rows);
+  if (!groups.length) return '';
+  return '<div class="focus-day-records"><h4>这一天的专注</h4>' + groups.map(function (group) {
+    var status = group.planStatus === 'completed' ? '整组完成' : group.planStatus === 'active' ? '进行中' : '提前结束';
+    var progress = String(group.completedRounds || 0) + '/' + String(group.totalRounds || 1) + ' 轮';
+    var detail = group.partialFocusMs > 0
+      ? '未完成轮实记 ' + focusFormatDuration(group.partialFocusMs)
+      : '共专注 ' + focusFormatDuration(group.totalFocusMs);
+    return '<div class="focus-day-row"><span>' + esc(group.taskTitle || '自由专注') + ' · ' + status + ' · ' + progress + '</span><small>' +
+      esc(focusFormatRange(group)) + ' · ' + esc(detail) + '</small></div>';
+  }).join('') + '</div>';
+}
+
 function renderDetail(day) {
   editingTodoNeedsReminderTime = false;
   editingRecurringTodo = false;
@@ -3200,9 +4202,12 @@ function renderDetail(day) {
       } else {
         left = '<span class="bar b-' + safeType(t) + '"></span>';
       }
+      var startFocusAction = t === 'todo' && !e.done
+        ? '<button type="button" class="focus-start-link" onclick="startFocusForTodo(' + jsArg(e.id) + ',' + jsArg(e.title) + ')">专注</button>'
+        : '';
       var actions = t === 'period'
         ? ''
-        : '<button class="del" onclick="startEditEvent(\'' + e.id + '\')" title="编辑">改</button>' +
+        : startFocusAction + '<button class="del" onclick="startEditEvent(\'' + e.id + '\')" title="编辑">改</button>' +
           '<button class="del" onclick="delEvent(\'' + e.id + '\')" title="删除">✕</button>';
       html += '<div class="event-row' + (e.done ? ' done' : '') + '">' +
         left +
@@ -4303,6 +5308,7 @@ function renderSummaryBlock(day) {
       '<div class="sum-preview hidden" id="detail-summary-preview"></div>' +
       '</div>';
   }
+  html += focusDayRecordsHtml(day.focusGroups || day.focusSessions);
   return html;
 }
 
@@ -6231,6 +7237,8 @@ function loadAppSettings() {
   });
 }
 loadAppSettings();
+loadFocus();
+startFocusTicker();
 </script>
 </body>
 </html>

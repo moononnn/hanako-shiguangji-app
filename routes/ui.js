@@ -74,6 +74,8 @@ import { moodLineSegmentForEntry, moodLineSegmentLabelForEntry } from "../lib/mo
 import { TodoReminderScheduler, getTodoReminderScheduler } from "../lib/todo-reminder-scheduler.js";
 import { configureDebugLog, logInfo, logWarn, logError } from "../lib/debug-log.js";
 import { Feedback } from "../lib/feedback/index.js";
+import { getFocusCompanions, resolveFocusCompanion, fetchFocusAvatar, syncFocusCompanion } from "../lib/focus-companion.js";
+import { getFocusReminderScheduler } from "../lib/focus-reminder-scheduler.js";
 
 // 反馈提交的目标仓库；App 更新由宿主应用市场管理。
 const REPO = "moononnn/hanako-shiguangji-app";
@@ -718,6 +720,29 @@ export default function registerRoutes(app, ctx) {
     return { ...event, reminderState: state ? { status: state.status, notificationState: state.notificationState,
       hasError: !!state.lastError, planState: state.planState } : null };
   };
+  const focusReminderChange = async (action, focusId, active = null) => {
+    const scheduler = getFocusReminderScheduler();
+    if (!scheduler) return "";
+    try {
+      const scheduled = action === "schedule" ? await scheduler.schedule(active) : await scheduler.cancel(focusId);
+      if (scheduled === false) throw new Error("宿主没有确认专注提醒任务状态");
+      return "";
+    } catch (error) {
+      logWarn(`专注后台提醒安排失败：${error?.message || error}`);
+      return "这段专注已开始，但后台结束提醒暂时没安排；请保持拾光记运行，或稍后重新打开专注页。";
+    }
+  };
+  const buildFocusPayload = async (data, now = new Date()) => {
+    const scheduler = getFocusReminderScheduler();
+    const before = data.focusStore.read()?.active || null;
+    const snapshot = await data.getFocusSnapshot(now);
+    if (scheduler) await scheduler.reconcileTransition(before, snapshot.active);
+    const taskOptions = data.eventsOnDate(now)
+      .filter(event => event.type === "todo" && !event.done)
+      .map(event => ({ id: event.id, title: event.title, date: event.date }));
+    const companionOptions = await getFocusCompanions(ctx);
+    return { ok: true, ...snapshot, taskOptions, companionOptions };
+  };
 
   // 旧数据迁移（幂等）：启动时跑一次，把手写「生理期第N天」规范成周期记录
   // 不阻塞启动，失败也不影响主流程
@@ -736,6 +761,157 @@ export default function registerRoutes(app, ctx) {
       logWarn("旧数据迁移失败（不影响使用）:", msg);
     });
 
+  // ── 专注计时 API ──
+  app.get("/api/focus", async (c) => {
+    try { return c.json(await buildFocusPayload(getData())); }
+    catch (error) { return c.json({ ok: false, error: error?.message || "专注记录暂时读不到" }); }
+  });
+
+  app.post("/api/focus/favorites/add", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const data = getData();
+      const favoriteGoals = await data.addFavoriteFocusGoal(body.title, body.focusConfig);
+      return c.json({ ok: true, favoriteGoals, favoriteGoalConfigs: data.listFavoriteFocusGoalConfigs() });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "常用目标没能保存" }); }
+  });
+
+  app.post("/api/focus/favorites/select", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const selected = await getData().selectFavoriteFocusGoal(body.title);
+      return c.json({ ok: true, ...selected });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "常用目标配置没能读取" }); }
+  });
+
+  app.post("/api/focus/settings", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const saved = await getData().saveFocusSettings(body.focusConfig, body.favoriteGoalTitle);
+      return c.json({ ok: true, ...saved });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "专注设置没能保存" }); }
+  });
+
+  app.post("/api/focus/favorites/remove", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const data = getData();
+      const favoriteGoals = await data.removeFavoriteFocusGoal(body.title);
+      return c.json({ ok: true, favoriteGoals, favoriteGoalConfigs: data.listFavoriteFocusGoalConfigs() });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "常用目标没能移除" }); }
+  });
+
+  app.post("/api/focus/start", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const data = getData();
+      // 不选伙伴就是自己专注，不查茶话会、不发同步；选了却联系不上或已失效就明确失败，不降级。
+      const companion = await resolveFocusCompanion(ctx, body.companionId);
+      if (!body.taskId && !String(body.taskTitle || '').trim()) throw new Error('写下这次想专注做什么');
+      const startReminderScheduler = getFocusReminderScheduler();
+      if (startReminderScheduler) {
+        try { await startReminderScheduler.advanceAndNotify(); }
+        catch (error) { logWarn(`开始新专注前的阶段协调失败：${error?.message || error}`); }
+      }
+      await data.startFocusSession({ taskId: body.taskId, taskTitle: body.taskTitle, companionId: companion.companionId,
+        companionName: companion.companionName, focusMinutes: body.focusMinutes, breakMinutes: body.breakMinutes,
+        shortBreakMinutes: body.shortBreakMinutes, totalRounds: body.totalRounds,
+        longBreakEvery: body.longBreakEvery, longBreakMinutes: body.longBreakMinutes,
+        focusConfig: body.focusConfig, favoriteGoalTitle: body.favoriteGoalTitle, skipAdvance: !!startReminderScheduler });
+      const active = data.focusStore.read()?.active;
+      const reminderWarning = await focusReminderChange("schedule", active?.id, active);
+      const startReminderShown = startReminderScheduler ? await startReminderScheduler.notifyFocusStarted(active) : false;
+      const startReminderWarning = startReminderShown ? "" : "这一轮已开始，但系统开始提醒暂未确认送达。";
+      const companionWarning = companion.companionId ? await syncFocusCompanion(ctx) : '';
+      const warning = [reminderWarning, startReminderWarning, companionWarning].filter(Boolean).join(" ");
+      return c.json({ ...(await buildFocusPayload(data)), warning });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "没能开始专注" }); }
+  });
+
+  app.post("/api/focus/pause", async (c) => {
+    try {
+      const data = getData();
+      const focusId = data.focusStore.read()?.active?.id;
+      const paused = await data.pauseFocusSession();
+      const reminderWarning = await focusReminderChange("cancel", focusId);
+      const companionWarning = paused?.companionId ? await syncFocusCompanion(ctx) : '';
+      const warning = [reminderWarning, companionWarning].filter(Boolean).join(" ");
+      return c.json({ ...(await buildFocusPayload(data)), warning });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "没能暂停" }); }
+  });
+
+  app.post("/api/focus/resume", async (c) => {
+    try {
+      const data = getData();
+      const resumed = await data.resumeFocusSession();
+      const reminderWarning = await focusReminderChange("schedule", resumed?.id, resumed);
+      const companionWarning = resumed?.companionId ? await syncFocusCompanion(ctx) : '';
+      const warning = [reminderWarning, companionWarning].filter(Boolean).join(" ");
+      return c.json({ ...(await buildFocusPayload(data)), warning });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "没能继续" }); }
+  });
+
+  // 结算前那一段是谁陪的。必须读 raw active：getFocusSnapshot 会先 advance，
+  // 恰到点的那段会被先转成休息（endFocusSession 再走就成了结束休息、session 为空），
+  // 休息也过界时更是直接把 active 清成 null。focusStore.read() 是缓存读，不结算也不改状态。
+  const rawActiveCompanion = data => String(data.focusStore.read()?.active?.companionId || "");
+
+  app.post("/api/focus/end", async (c) => {
+    try {
+      const data = getData();
+      const active = data.focusStore.read()?.active;
+      const companionId = rawActiveCompanion(data);
+      const result = await data.endFocusSession();
+      const completedFocus = result?.session?.status === "completed" ? result.session
+        : active?.phase === "break" ? data.listFocusSessions().find(row => row.id === active.id && row.status === "completed") : null;
+      const focusScheduler = getFocusReminderScheduler();
+      if (completedFocus && focusScheduler) await focusScheduler.notifyCompletedSession(completedFocus);
+      const reminderWarning = await focusReminderChange("cancel", active?.id);
+      // 到点的那段会带回同一条 completed 记录，结束休息的 session 为空，靠结算前那一段认伙伴。
+      const watching = result?.session?.companionId || companionId;
+      const companionWarning = watching ? await syncFocusCompanion(ctx) : '';
+      const warning = [reminderWarning, companionWarning].filter(Boolean).join(" ");
+      return c.json({ ...(await buildFocusPayload(data)), ended: result, warning });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "没能结束这段计时" }); }
+  });
+
+  app.post("/api/focus/cancel", async (c) => {
+    try {
+      const data = getData();
+      // 取消只回传 cancelled/completed，伙伴同样只能从结算前那一段认（理由同 end）。
+      const active = data.focusStore.read()?.active;
+      const companionId = rawActiveCompanion(data);
+      const result = await data.cancelFocusSession();
+      const completedFocus = result?.completed || active?.phase === "break"
+        ? data.listFocusSessions().find(row => row.id === active?.id && row.status === "completed") : null;
+      const focusScheduler = getFocusReminderScheduler();
+      if (completedFocus && focusScheduler) await focusScheduler.notifyCompletedSession(completedFocus);
+      const reminderWarning = await focusReminderChange("cancel", active?.id);
+      const companionWarning = companionId ? await syncFocusCompanion(ctx) : '';
+      const warning = [reminderWarning, companionWarning].filter(Boolean).join(" ");
+      return c.json({ ...(await buildFocusPayload(data)), ...result, warning });
+    } catch (error) { return c.json({ ok: false, error: error?.message || "没能取消计时" }); }
+  });
+
+  app.post("/api/focus/advance", async (c) => {
+    try { return c.json(await buildFocusPayload(getData())); }
+    catch (error) { return c.json({ ok: false, error: error?.message || "专注计时暂时没更新" }); }
+  });
+
+  // 伙伴头像代理：茶话会按它自己已有的规则给字节，这里只回图，编号过不了茶话会那关就 404。
+  // 获权图不进 HTTP 缓存（客户端自己管 blob 生命周期）；报错只给通用文案，不把异常路径传出去。
+  // 页面侧要用 App 凭证走 apiFetch 取 blob（不能用 <img src>，带不上 surface session 头）。
+  app.get("/api/focus/avatar/:id", async (c) => {
+    try {
+      const avatar = await fetchFocusAvatar(ctx, c.req.param("id"));
+      if (!avatar) return c.json({ ok: false, error: "没有头像" }, 404);
+      return c.body(avatar.bytes, 200, { "Content-Type": avatar.contentType, "Cache-Control": "no-store" });
+    } catch (error) {
+      logWarn(`陪读头像代理失败：${error?.message || error}`);
+      return c.json({ ok: false, error: "头像暂时读不到" }, 500);
+    }
+  });
+
   // ── 事件 API ──
   app.get("/api/events", async (c) => {
     const data = getData();
@@ -748,6 +924,12 @@ export default function registerRoutes(app, ctx) {
     const d = new Date(date + "T00:00:00");
     if (isNaN(d.getTime())) return c.json({ ok: false, error: "日期格式不对" });
     const dk = dateKey(d);
+    try {
+      const before = data.focusStore.read()?.active || null;
+      const active = await data.advanceFocusSession(new Date());
+      const scheduler = getFocusReminderScheduler();
+      if (scheduler) await scheduler.reconcileTransition(before, active);
+    } catch (error) { logWarn(`专注计时结算失败：${error?.message || error}`); }
     const builtin = getBuiltinFestivals(d);
     // period 单独走 periods，避免开始日同时出现在 userEvents 和 periods 里。
     const userEvents = data.eventsOnDate(d).filter((e) => e.type !== "period").map(withReminderState);
@@ -796,6 +978,9 @@ export default function registerRoutes(app, ctx) {
         // 这一天的心情记录（时间线回看；今日卡随手记也走这里刷新）
         moods: moodEntriesForDate(dk),
         moodMeta: MOODS,
+        // 专注账本只回给拾光记页面展示，不进入助手情境和公开快照。
+        focusSessions: data.listFocusSessions(dk),
+        focusGroups: data.listFocusGroups(dk),
       },
     });
   });
@@ -1832,16 +2017,19 @@ export default function registerRoutes(app, ctx) {
     const body = await c.req.json().catch(() => ({}));
     const action = String(body?.action || "").trim();
     if (!FP_SIGNAL_ACTIONS.has(action)) return c.json({ ok: false, error: "不认识的指令" });
-    fpSignal = { action, at: Date.now() };
-    return c.json({ ok: true, at: fpSignal.at });
+    const at = Math.max(Date.now(), lastFpSignalAt + 1);
+    lastFpSignalAt = at;
+    fpSignals.push({ action, at });
+    if (fpSignals.length > 64) fpSignals.splice(0, fpSignals.length - 64);
+    return c.json({ ok: true, at });
   });
 
   app.get("/api/fp-signal", (c) => {
     const url = new URL(c.req.url, "http://localhost");
     const raw = Number(url.searchParams.get("since") || 0);
     const since = Number.isFinite(raw) ? raw : 0;
-    if (!fpSignal || !(fpSignal.at > since)) return c.json({ ok: true, signal: null });
-    return c.json({ ok: true, signal: { action: fpSignal.action, at: fpSignal.at } });
+    const signals = fpSignals.filter(signal => signal.at > since);
+    return c.json({ ok: true, signal: signals[0] || null, signals });
   });
 
   // 情绪记录 API（记一笔当下的心情：手动标记 + 合稿产出读取/编辑/删除）
@@ -1856,8 +2044,9 @@ export default function registerRoutes(app, ctx) {
 // ── 功能面板（左侧门厅）给主页面的信号 ──
 // 门厅与主页面是两个独立文档，不共享脚本对象，宿主也没给功能面板直接操作主卡的口子。
 // 只走 App 自己的后端：门厅写入一条，主页面轮询取走再执行；只记最近一条。
-const FP_SIGNAL_ACTIONS = new Set(["calendar", "summary", "moodline", "period", "today", "settings", "refresh"]);
-let fpSignal = { action: "", at: 0 };
+const FP_SIGNAL_ACTIONS = new Set(["calendar", "focus", "summary", "moodline", "period", "today", "settings", "refresh"]);
+let fpSignals = [];
+let lastFpSignalAt = 0;
 
 // ── 每日总结（完整生活日 → 按伙伴调模型 → 加密归档） ──
 const summaryRunLocks = new Map();

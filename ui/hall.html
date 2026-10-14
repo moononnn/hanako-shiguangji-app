@@ -31,8 +31,8 @@
     background: var(--bg);
     color: var(--ink);
     font-family: "LXGW WenKai", "霞鹜文楷", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 14px;
+    line-height: 1.65;
     padding: 12px 12px 18px;
     -webkit-font-smoothing: antialiased;
   }
@@ -46,10 +46,10 @@
 
   /* ── 顶部：品牌 + 心跳状态 ── */
   .brand-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px; }
-  .brand { font-size: 12px; color: var(--primary-deep); letter-spacing: 4px; }
+  .brand { font-size: 13px; color: var(--primary-deep); letter-spacing: 4px; }
   .state {
     display: flex; align-items: center; gap: 5px;
-    font-size: 11px; color: var(--muted); white-space: nowrap;
+    font-size: 12px; color: var(--muted); white-space: nowrap;
   }
   .beat {
     width: 6px; height: 6px; border-radius: 99px; background: var(--primary);
@@ -71,10 +71,10 @@
     font-size: 30px; line-height: 1.15; color: #fffdf8; font-weight: 600;
     font-family: "Poppins", "Segoe UI", sans-serif; letter-spacing: 1px;
   }
-  .week { margin-top: 1px; font-size: 12px; color: rgba(247, 242, 231, 0.72); letter-spacing: 2px; }
+  .week { margin-top: 1px; font-size: 13px; color: rgba(247, 242, 231, 0.72); letter-spacing: 2px; }
   .fests { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
   .fest {
-    font-size: 11px; padding: 2px 9px; border-radius: 99px;
+    font-size: 12px; padding: 2px 9px; border-radius: 99px;
     background: rgba(255, 253, 248, 0.16); color: #fffdf8;
   }
   .fest.legal { background: rgba(255, 253, 248, 0.24); }
@@ -84,7 +84,7 @@
     display: flex; align-items: center; gap: 9px;
     background: var(--card); border-radius: var(--radius-sm);
     padding: 9px 12px; box-shadow: var(--shadow);
-    font-size: 12px; color: var(--muted);
+    font-size: 13px; color: var(--muted);
   }
   .weather .w-icon { flex: none; color: var(--accent); stroke-width: 3; }
   .weather.weather-moon .w-icon { color: #7893b4; }
@@ -101,10 +101,10 @@
   .section { display: flex; flex-direction: column; gap: 8px; }
   .section-title {
     display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
-    font-size: 12px; color: var(--muted); letter-spacing: 1px; padding: 0 2px;
+    font-size: 13px; color: var(--muted); letter-spacing: 1px; padding: 0 2px;
   }
   .section-title b { color: var(--primary-deep); font-size: 15px; font-family: "Poppins", "Segoe UI", sans-serif; }
-  .section-hint { font-size: 11px; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
+  .section-hint { font-size: 12px; color: var(--faint); letter-spacing: 0; white-space: nowrap; }
 
   .todos {
     background: var(--card); border-radius: var(--radius);
@@ -128,11 +128,11 @@
   .todo-text { min-width: 0; flex: 1; overflow-wrap: anywhere; }
   .todo-time {
     display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 6px;
-    background: var(--warm-soft); color: #b97a45; font-size: 11px; white-space: nowrap;
+    background: var(--warm-soft); color: #b97a45; font-size: 12px; white-space: nowrap;
   }
   .todo-due {
     display: inline-block; margin-left: 5px; padding: 1px 7px; border-radius: 99px;
-    background: var(--accent-soft); color: var(--accent-deep); font-size: 11px; white-space: nowrap;
+    background: var(--accent-soft); color: var(--accent-deep); font-size: 12px; white-space: nowrap;
   }
   .todo.overdue .todo-dot { border-color: var(--accent); }
   .todo.overdue .todo-text > .todo-name { color: var(--accent-deep); }
@@ -141,13 +141,13 @@
   .repeat-debt:first-child { border-top: 0; }
   .repeat-debt-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
   .repeat-debt-name { min-width: 0; flex: 1; overflow-wrap: anywhere; color: var(--accent-deep); font-weight: 600; }
-  .repeat-debt-count { color: var(--muted); font-size: 11px; white-space: nowrap; }
-  .repeat-debt-batch { border: 1px solid #c8ddcf; border-radius: 99px; padding: 5px 9px; background: #f2f8f3; color: var(--primary-deep); font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
+  .repeat-debt-count { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .repeat-debt-batch { border: 1px solid #c8ddcf; border-radius: 99px; padding: 5px 9px; background: #f2f8f3; color: var(--primary-deep); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
   .repeat-debt-batch:disabled { opacity: .55; cursor: default; }
-  .repeat-debt details { margin: 6px 0 0 27px; color: var(--muted); font-size: 11px; }
+  .repeat-debt details { margin: 6px 0 0 27px; color: var(--muted); font-size: 12px; }
   .repeat-debt summary { cursor: pointer; width: fit-content; }
   .repeat-debt-dates { margin-top: 4px; }
-  .repeat-debt-dates .todo { padding: 7px 4px; font-size: 12px; }
+  .repeat-debt-dates .todo { padding: 7px 4px; font-size: 13px; }
 
   /* 点中：圈填上、字划掉，然后这条自己走掉 */
   .todo.done { background: var(--primary-soft); }
@@ -169,7 +169,7 @@
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .tile {
     display: flex; align-items: center; gap: 8px;
-    font-family: inherit; font-size: 13px; color: var(--ink);
+    font-family: inherit; font-size: 14px; color: var(--ink);
     background: var(--primary-soft); border: 0; border-radius: var(--radius-sm);
     padding: 11px 12px; cursor: pointer; transition: all .15s;
   }
@@ -182,7 +182,7 @@
   .tile.wide-col { grid-column: 1 / -1; }
 
   .wide {
-    width: 100%; font-family: inherit; font-size: 13px;
+    width: 100%; font-family: inherit; font-size: 14px;
     background: var(--card); color: var(--primary-deep);
     border: 0; border-radius: var(--radius-sm);
     padding: 10px 12px; cursor: pointer; transition: all .15s;
@@ -192,10 +192,48 @@
   .wide:active { transform: translateY(1px); }
   .wide:disabled { opacity: .5; cursor: default; transform: none; }
 
+  /* ── 专注快捷启动与状态 ── */
+  .focus-quick-card { background: var(--card); border-radius: var(--radius); padding: 10px; box-shadow: var(--shadow); }
+  .focus-quick-note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .focus-quick-goals, .focus-quick-partners { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 150px; overflow: auto; }
+  .focus-quick-partners { margin-top: 8px; }
+  .focus-quick-goal, .focus-quick-partner, .focus-quick-link {
+    min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px;
+    background: #fff; color: var(--primary-deep); font: inherit; font-size: 12px;
+    text-align: left; overflow-wrap: anywhere; cursor: pointer; transition: background .15s, border-color .15s;
+  }
+  .focus-quick-goal:hover, .focus-quick-partner:hover, .focus-quick-link:hover { border-color: var(--primary); background: var(--primary-soft); }
+  .focus-quick-partner.is-selected { border-color: var(--primary); background: var(--primary-soft); color: var(--deep); font-weight: 600; }
+  .focus-quick-goal:disabled, .focus-quick-partner:disabled, .focus-quick-link:disabled { opacity: .55; cursor: default; }
+  .focus-quick-confirm { display: block; width: 100%; margin-top: 8px; border: 0; border-radius: 8px; padding: 9px 10px; background: var(--deep); color: #fffdf8; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .focus-quick-confirm:hover { background: #365f4e; }
+  .focus-quick-confirm:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .focus-quick-confirm:disabled { opacity: .55; cursor: default; }
+  .focus-quick-choice { margin-top: 8px; color: var(--primary-deep); font-size: 13px; line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
+  .focus-quick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .focus-quick-title { min-width: 0; color: var(--ink); font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+  .focus-quick-back { flex: none; border: 0; padding: 2px 4px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+  .focus-quick-config { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.4; white-space: pre-line; }
+  .focus-quick-error { margin-top: 7px; color: var(--accent-deep); font-size: 12px; overflow-wrap: anywhere; }
+  .focus-quick-detail { display: inline-block; margin-top: 7px; border: 0; padding: 2px 0; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+  .focus-quick-sync { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--accent-deep); font-size: 12px; line-height: 1.45; }
+  .focus-active-card {
+    display: block; width: 100%; border: 0; border-radius: 12px; padding: 11px 12px;
+    background: var(--deep); color: #f7f2e7; font: inherit; text-align: left; cursor: pointer;
+  }
+  .focus-active-card:hover { background: #365f4e; }
+  .focus-active-label { display: block; color: rgba(247, 242, 231, .76); font-size: 12px; letter-spacing: 1px; }
+  .focus-active-clock { display: block; margin: 2px 0 3px; color: #fffdf8; font: 500 29px/1.2 "Poppins", "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+  .focus-active-task { display: block; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+  .focus-active-meta, .focus-active-open { display: block; color: rgba(247, 242, 231, .76); font-size: 12px; overflow-wrap: anywhere; }
+  .focus-active-open { margin-top: 5px; }
+  .focus-active-warning { display: block; margin-top: 5px; color: #f7d98c; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+  .focus-active-error { display: block; margin-top: 5px; color: #ffd0bf; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
   /* ── 回音 ── */
   .toast {
     position: fixed; left: 50%; bottom: 16px; transform: translate(-50%, 8px);
-    background: var(--deep); color: #f7f2e7; font-size: 12px;
+    background: var(--deep); color: #f7f2e7; font-size: 13px;
     padding: 7px 15px; border-radius: 99px; box-shadow: 0 8px 18px rgba(63, 107, 89, .28);
     opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; z-index: 40;
   }
@@ -223,6 +261,11 @@
          stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
     <span class="w-line" id="w-line"></span>
     <span class="w-temp" id="w-temp"></span>
+  </div>
+
+  <div class="section" id="focus-quick-section">
+    <div class="section-title">快捷专注<span class="section-hint">目标 → 伙伴</span></div>
+    <div class="focus-quick-card" id="focus-quick-content"><div class="focus-quick-note">正在读取常用目标…</div></div>
   </div>
 
   <div class="section">
@@ -262,6 +305,22 @@
   var BASE = '/api/apps/shiguangji-app/routes';
   var WEEK = ['日', '一', '二', '三', '四', '五', '六'];
   var REFRESH_MS = 60000;
+  var focusSnapshot = null;
+  var focusQuickGoalTitle = '';
+  var focusQuickConfig = null;
+  var focusQuickSelectedPartnerId = '';
+  var focusQuickPartnerChosen = false;
+  var focusQuickPending = false;
+  var focusQuickLoadPending = false;
+  var focusQuickLoadError = '';
+  var focusQuickError = '';
+  var focusQuickWarning = '';
+  var focusQuickWarningSetId = '';
+  var focusQuickRevision = 0;
+  var focusQuickRenderKey = '';
+  var focusQuickAdvancePending = false;
+  var focusQuickAdvanceRetryAt = 0;
+  var focusQuickPollTimer = null;
 
   function appSurfaceSession() {
     try {
@@ -542,8 +601,309 @@
     if (mood) mood.classList.toggle('wide-col', !on);
   }
 
+  function focusRemainingMs(active) {
+    if (!active) return 0;
+    if (active.pausedAt) return Math.max(0, Number(active.remainingMs) || 0);
+    var target = Date.parse(String(active.targetAt || ''));
+    return Number.isFinite(target) ? Math.max(0, target - Date.now()) : Math.max(0, Number(active.remainingMs) || 0);
+  }
+
+  function focusClockText(value) {
+    var seconds = Math.max(0, Math.floor((Number(value) || 0) / 1000));
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    var rest = seconds % 60;
+    return hours ? pad(hours) + ':' + pad(minutes) + ':' + pad(rest) : pad(minutes) + ':' + pad(rest);
+  }
+
+  function focusQuickConfigText(config) {
+    if (!config) return '';
+    var rounds = Number(config.totalRounds) || 1;
+    var shortBreakMinutes = Number(config.shortBreakMinutes || config.breakMinutes) || 5;
+    var longBreakEvery = Number(config.longBreakEvery) || 2;
+    var shortBreakText = '短休：' + shortBreakMinutes + ' 分钟' + (rounds <= 1 ? '（本组不会触发）' : '（轮间，末轮后不休）');
+    var longBreakText = config.longBreakEnabled
+      ? '长休：每隔 ' + longBreakEvery + ' 轮 · ' + (Number(config.longBreakMinutes) || 15) + ' 分钟' + (rounds <= longBreakEvery ? '（本组不会触发）' : '')
+      : '长休：关闭';
+    return '专注：' + (Number(config.focusMinutes) || 25) + ' 分钟 × ' + rounds + ' 轮\n' + shortBreakText + '\n' + longBreakText;
+  }
+
+  function focusQuickPlanId(active) {
+    return String(active && (active.setId || active.id) || '');
+  }
+
+  function focusQuickConfigKey(title) {
+    var normalized = String(title || '').trim().toLocaleLowerCase();
+    return normalized ? 'goal:' + normalized : '';
+  }
+
+  function renderFocusQuick() {
+    var box = document.getElementById('focus-quick-content');
+    if (!box) return;
+    var active = focusSnapshot && focusSnapshot.active;
+    var html = '';
+    var key = '';
+    if (active) {
+      if (focusQuickGoalTitle) { focusQuickGoalTitle = ''; focusQuickConfig = null; focusQuickSelectedPartnerId = ''; focusQuickPartnerChosen = false; }
+      var phase = active.pausedAt ? '专注已暂停' : active.phase === 'break' ? (active.breakKind === 'long' ? '长休中' : '短休中') : '专注中';
+      var meta = '第 ' + (Number(active.roundIndex) || 1) + '/' + (Number(active.totalRounds) || 1) + ' 轮';
+      if (active.companionName) meta += ' · 陪伴：' + active.companionName;
+      key = ['active', active.id, active.phase, active.pausedAt || '', active.targetAt || '', active.roundIndex || 1,
+        active.totalRounds || 1, active.taskTitle || '', active.companionName || '', active.breakKind || '', focusQuickError, focusQuickWarning, focusQuickLoadError].join('|');
+      html = '<button type="button" class="focus-active-card" data-action="focus" aria-label="打开专注页面">' +
+        '<span class="focus-active-label">' + esc(phase) + '</span><span class="focus-active-clock" id="focus-quick-clock">' + focusClockText(focusRemainingMs(active)) + '</span>' +
+        '<span class="focus-active-task">' + esc(active.taskTitle || '自由专注') + '</span><span class="focus-active-meta">' + esc(meta) + '</span>' +
+        (focusQuickError ? '<span class="focus-active-error" role="status">' + esc(focusQuickError) + '</span>' : '') +
+        (focusQuickWarning ? '<span class="focus-active-warning" role="status">' + esc(focusQuickWarning) + '</span>' : '') +
+        (!focusQuickError && !focusQuickWarning ? '<span class="focus-active-open">点开进入专注页</span>' : '') + '</button>' +
+        (focusQuickLoadError ? '<div class="focus-quick-sync" role="status"><span>状态未同步，显示上次读到的状态。</span><button type="button" class="focus-quick-back" data-focus-retry>重试</button></div>' : '');
+    } else if (!focusSnapshot) {
+      key = 'loading|' + focusQuickLoadError;
+      html = focusQuickLoadError
+        ? '<div class="focus-quick-note">专注状态暂时读不到。</div><button type="button" class="focus-quick-link" data-focus-retry>重试</button>'
+        : '<div class="focus-quick-note">正在读取常用目标…</div>';
+    } else if (focusQuickGoalTitle) {
+      var options = focusSnapshot.companionOptions || { status: 'unavailable', partners: [], error: '暂时读不到陪伴伙伴，可以先自己专注。' };
+      var partners = Array.isArray(options.partners) ? options.partners : [];
+      var config = focusQuickConfig;
+      var configText = focusQuickConfigText(config);
+      var partnerButtons = partners.map(function (partner) {
+        var selected = focusQuickPartnerChosen && focusQuickSelectedPartnerId === String(partner.id || '');
+        return '<button type="button" class="focus-quick-partner' + (selected ? ' is-selected' : '') + '" data-focus-partner="' + esc(partner.id) + '" aria-pressed="' + (selected ? 'true' : 'false') + '"' + (focusQuickPending || !config ? ' disabled' : '') + '>' + esc(partner.name) + '</button>';
+      }).join('');
+      var selfSelected = focusQuickPartnerChosen && !focusQuickSelectedPartnerId;
+      var selectedPartner = partners.find(function (partner) { return String(partner.id || '') === focusQuickSelectedPartnerId; });
+      var selectedLabel = focusQuickSelectedPartnerId ? (selectedPartner ? selectedPartner.name : '所选伙伴') : '自己专注';
+      var partnerHint = options.status === 'available' ? '先选伙伴，再确认开始；也可以选自己专注。' : (options.error || '暂时读不到陪伴伙伴，可以先自己专注。');
+      key = ['choose', focusQuickGoalTitle, JSON.stringify(config), options.status || '', partners.map(function (p) { return p.id + ':' + p.name; }).join('|'), focusQuickSelectedPartnerId, focusQuickPartnerChosen, focusQuickPending, focusQuickError, focusQuickLoadError].join('|');
+      html = '<div class="focus-quick-head"><span class="focus-quick-title">' + esc(focusQuickGoalTitle) + '</span><button type="button" class="focus-quick-back" data-focus-back' + (focusQuickPending ? ' disabled' : '') + '>换目标</button></div>' +
+        '<div class="focus-quick-config">沿用专属设置：\n' + esc(configText || (focusQuickPending ? '正在读取…' : '暂未读取')) + '</div>' +
+        (partners.length ? '<div class="focus-quick-partners" aria-label="选择陪伴伙伴">' + partnerButtons + '</div>' : '') +
+        '<div class="focus-quick-note" style="margin-top:7px">' + esc(partnerHint) + '</div>' +
+        '<button type="button" class="focus-quick-partner' + (selfSelected ? ' is-selected' : '') + '" data-focus-partner="" aria-pressed="' + (selfSelected ? 'true' : 'false') + '"' + (focusQuickPending || !config ? ' disabled' : '') + '>自己专注</button>' +
+        (focusQuickPartnerChosen && config ? '<div class="focus-quick-choice">已选：' + esc(selectedLabel) + '\n' + esc(configText) + '</div><button type="button" class="focus-quick-confirm" data-focus-confirm' + (focusQuickPending ? ' disabled' : '') + '>确认开始专注</button>' : '') +
+        (focusQuickPending ? '<div class="focus-quick-note" style="margin-top:6px">' + (config ? '正在开始…' : '正在读取设置…') + '</div>' : '') +
+        (focusQuickError ? '<div class="focus-quick-error" role="status">' + esc(focusQuickError) + '</div>' + (!config ? '<button type="button" class="focus-quick-link" data-focus-retry-goal>重试读取设置</button>' : '') : '') +
+        (focusQuickLoadError ? '<div class="focus-quick-sync" role="status"><span>状态未同步，当前列表可能已过期。</span><button type="button" class="focus-quick-back" data-focus-retry>重试</button></div>' : '') +
+        '<button type="button" class="focus-quick-detail" data-action="focus">打开专注页调整详细设置 →</button>';
+    } else {
+      var goals = Array.isArray(focusSnapshot.favoriteGoals) ? focusSnapshot.favoriteGoals : [];
+      key = 'idle|' + goals.join('|') + '|' + focusQuickLoadError;
+      html = goals.length
+        ? '<div class="focus-quick-goals">' + goals.map(function (title) {
+            return '<button type="button" class="focus-quick-goal" data-focus-goal="' + esc(title) + '" title="' + esc(title) + '">' + esc(title) + '</button>';
+          }).join('') + '</div><div class="focus-quick-note" style="margin-top:6px">点目标，选好伙伴后确认开始。</div><button type="button" class="focus-quick-detail" data-action="focus">打开专注页调整详细设置 →</button>'
+        : '<div class="focus-quick-note">还没有常用目标，先去专注页存一个吧。</div><button type="button" class="focus-quick-link" data-action="focus">去专注页</button>';
+      if (focusQuickLoadError) html += '<div class="focus-quick-sync" role="status"><span>状态未同步，常用目标可能已过期。</span><button type="button" class="focus-quick-back" data-focus-retry>重试</button></div>';
+    }
+    if (key !== focusQuickRenderKey) {
+      box.innerHTML = html;
+      focusQuickRenderKey = key;
+    }
+    updateFocusQuickClock();
+  }
+
+  function updateFocusQuickClock() {
+    var active = focusSnapshot && focusSnapshot.active;
+    var clock = document.getElementById('focus-quick-clock');
+    if (!active || !clock) return;
+    var remaining = focusRemainingMs(active);
+    clock.textContent = focusClockText(remaining);
+    if (remaining <= 0 && !active.pausedAt && !focusQuickAdvancePending && Date.now() >= focusQuickAdvanceRetryAt) {
+      focusQuickAdvancePending = true;
+      var requestRevision = ++focusQuickRevision;
+      var reloadAfterFailure = false;
+      api('api/focus/advance', { method: 'POST' }).then(function (res) {
+        if (requestRevision !== focusQuickRevision) return;
+        if (!res || !res.ok) throw new Error('计时状态暂时没更新');
+        focusSnapshot = res;
+        focusQuickLoadError = '';
+        focusQuickError = '';
+        if (!res.active) { focusQuickWarning = ''; focusQuickWarningSetId = ''; }
+        else if (focusQuickWarningSetId && focusQuickPlanId(res.active) !== focusQuickWarningSetId) { focusQuickWarning = ''; focusQuickWarningSetId = ''; }
+        if (res.active && res.active.id === active.id && focusRemainingMs(res.active) <= 0) focusQuickAdvanceRetryAt = Date.now() + 5000;
+        renderFocusQuick();
+      }).catch(function () {
+        if (requestRevision !== focusQuickRevision) return;
+        focusQuickError = '计时暂时同步失败，稍后会重试';
+        focusQuickAdvanceRetryAt = Date.now() + 5000;
+        reloadAfterFailure = true;
+        renderFocusQuick();
+      }).then(function () {
+        focusQuickAdvancePending = false;
+        if (reloadAfterFailure) loadFocusState();
+        else scheduleFocusPoll();
+      });
+    }
+  }
+
+  function scheduleFocusPoll() {
+    clearTimeout(focusQuickPollTimer);
+    focusQuickPollTimer = setTimeout(loadFocusState, focusSnapshot && focusSnapshot.active ? 10000 : 20000);
+  }
+
+  function loadFocusState() {
+    if (focusQuickLoadPending) return;
+    if (focusQuickPending || focusQuickAdvancePending) { scheduleFocusPoll(); return; }
+    var requestRevision = focusQuickRevision;
+    focusQuickLoadPending = true;
+    api('api/focus').then(function (res) {
+      if (requestRevision !== focusQuickRevision) return;
+      if (!res || !res.ok) throw new Error('专注状态暂时读不到');
+      focusSnapshot = res;
+      focusQuickLoadError = '';
+      if (res.active) {
+        var activeSetId = focusQuickPlanId(res.active);
+        if (focusQuickWarningSetId && activeSetId !== focusQuickWarningSetId) { focusQuickWarning = ''; focusQuickWarningSetId = ''; }
+        focusQuickGoalTitle = '';
+        focusQuickConfig = null;
+        focusQuickSelectedPartnerId = '';
+        focusQuickPartnerChosen = false;
+        focusQuickError = '';
+      } else {
+        focusQuickWarning = '';
+        focusQuickWarningSetId = '';
+        if (focusQuickGoalTitle) {
+          var savedConfig = res.favoriteGoalConfigs && res.favoriteGoalConfigs[focusQuickConfigKey(focusQuickGoalTitle)];
+          if (savedConfig) focusQuickConfig = savedConfig;
+        }
+      }
+      renderFocusQuick();
+    }).catch(function () {
+      if (requestRevision !== focusQuickRevision) return;
+      focusQuickLoadError = '暂时无法同步专注状态';
+      renderFocusQuick();
+    }).then(function () {
+      focusQuickLoadPending = false;
+      scheduleFocusPoll();
+    });
+  }
+
+  function chooseFocusQuickGoal(title) {
+    if (focusQuickPending || !focusSnapshot || focusSnapshot.active) return;
+    var selected = (focusSnapshot.favoriteGoals || []).find(function (item) { return String(item).trim() === String(title || '').trim(); });
+    if (!selected) { loadFocusState(); return; }
+    focusQuickGoalTitle = selected;
+    focusQuickConfig = null;
+    focusQuickSelectedPartnerId = '';
+    focusQuickPartnerChosen = false;
+    focusQuickPending = true;
+    focusQuickError = '';
+    var requestRevision = ++focusQuickRevision;
+    renderFocusQuick();
+    api('api/focus/favorites/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: selected }) })
+      .then(function (res) {
+        if (requestRevision !== focusQuickRevision) return;
+        if (!res || !res.ok || !res.focusConfig) throw new Error(res && res.error || '常用目标设置暂时读不到');
+        focusQuickConfig = res.focusConfig;
+        focusSnapshot.focusConfig = res.focusConfig;
+        focusSnapshot.favoriteGoalConfigs = res.favoriteGoalConfigs || focusSnapshot.favoriteGoalConfigs || {};
+      }).catch(function (error) {
+        if (requestRevision !== focusQuickRevision) return;
+        focusQuickError = error.message || '常用目标设置暂时读不到';
+      }).then(function () { focusQuickPending = false; renderFocusQuick(); scheduleFocusPoll(); });
+  }
+
+  function chooseFocusQuickPartner(partnerId) {
+    if (focusQuickPending || !focusQuickGoalTitle || !focusQuickConfig || !focusSnapshot || focusSnapshot.active) return;
+    var id = String(partnerId || '');
+    var options = focusSnapshot.companionOptions || {};
+    if (id && (options.status !== 'available' || !(options.partners || []).some(function (partner) { return String(partner.id || '') === id; }))) {
+      focusQuickSelectedPartnerId = '';
+      focusQuickPartnerChosen = false;
+      focusQuickError = '这位陪读伙伴暂不可用，请重新选择或自己专注。';
+      renderFocusQuick();
+      loadFocusState();
+      return;
+    }
+    focusQuickSelectedPartnerId = id;
+    focusQuickPartnerChosen = true;
+    focusQuickError = '';
+    renderFocusQuick();
+  }
+
+  function startFocusQuick() {
+    if (focusQuickPending || !focusQuickGoalTitle || !focusQuickConfig || !focusSnapshot || focusSnapshot.active || !focusQuickPartnerChosen) return;
+    var options = focusSnapshot.companionOptions || {};
+    var id = focusQuickSelectedPartnerId;
+    if (id && (options.status !== 'available' || !(options.partners || []).some(function (p) { return String(p.id || '') === id; }))) {
+      focusQuickSelectedPartnerId = '';
+      focusQuickPartnerChosen = false;
+      focusQuickError = '这位陪读伙伴暂不可用，请重新选择或自己专注。';
+      renderFocusQuick();
+      loadFocusState();
+      return;
+    }
+    var title = focusQuickGoalTitle;
+    focusQuickPending = true;
+    focusQuickError = '';
+    var requestRevision = ++focusQuickRevision;
+    var reloadAfterFailure = false;
+    renderFocusQuick();
+    api('api/focus/favorites/select', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: title }) })
+      .then(function (selected) {
+        if (requestRevision !== focusQuickRevision) return null;
+        if (!selected || !selected.ok || !selected.focusConfig) throw new Error(selected && selected.error || '常用目标设置暂时读不到');
+        var config = selected.focusConfig;
+        focusQuickConfig = config;
+        focusSnapshot.focusConfig = config;
+        focusSnapshot.favoriteGoalConfigs = selected.favoriteGoalConfigs || focusSnapshot.favoriteGoalConfigs || {};
+        var body = {
+          taskTitle: title, companionId: id,
+          focusMinutes: config.focusMinutes, breakMinutes: config.shortBreakMinutes, shortBreakMinutes: config.shortBreakMinutes,
+          totalRounds: config.totalRounds, longBreakEvery: config.longBreakEnabled ? config.longBreakEvery : 0,
+          longBreakMinutes: config.longBreakMinutes, focusConfig: config, favoriteGoalTitle: title,
+        };
+        return api('api/focus/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      }).then(function (res) {
+        if (requestRevision !== focusQuickRevision || !res) return;
+        if (!res.ok) throw new Error(res.error || '没能开始专注');
+        focusSnapshot = res;
+        focusQuickGoalTitle = '';
+        focusQuickConfig = null;
+        focusQuickSelectedPartnerId = '';
+        focusQuickPartnerChosen = false;
+        focusQuickLoadError = '';
+        focusQuickError = '';
+        focusQuickWarning = String(res.warning || '').trim();
+        focusQuickWarningSetId = focusQuickPlanId(res.active);
+        focusQuickAdvancePending = false;
+        focusQuickAdvanceRetryAt = 0;
+        toast(focusQuickWarning ? '专注已开始，卡片里有状态提醒' : (id ? '已开始这段专注' : '已开始自己专注'));
+        renderFocusQuick();
+      }).catch(function (error) {
+        if (requestRevision !== focusQuickRevision) return;
+        focusQuickError = error.message || '没能开始专注';
+        reloadAfterFailure = true;
+        toast(focusQuickError, true);
+      }).then(function () {
+        focusQuickPending = false;
+        renderFocusQuick();
+        if (reloadAfterFailure) loadFocusState();
+        else scheduleFocusPoll();
+      });
+  }
+
+  function handleFocusQuickClick(ev) {
+    var button = ev.target.closest('[data-action="focus"]');
+    if (button) { ping('focus'); return; }
+    button = ev.target.closest('[data-focus-goal]');
+    if (button) { chooseFocusQuickGoal(button.getAttribute('data-focus-goal')); return; }
+    button = ev.target.closest('[data-focus-confirm]');
+    if (button) { startFocusQuick(); return; }
+    button = ev.target.closest('[data-focus-partner]');
+    if (button) { chooseFocusQuickPartner(button.getAttribute('data-focus-partner')); return; }
+    button = ev.target.closest('[data-focus-back]');
+    if (button) { focusQuickGoalTitle = ''; focusQuickConfig = null; focusQuickSelectedPartnerId = ''; focusQuickPartnerChosen = false; focusQuickError = ''; renderFocusQuick(); return; }
+    button = ev.target.closest('[data-focus-retry-goal]');
+    if (button) { chooseFocusQuickGoal(focusQuickGoalTitle); return; }
+    button = ev.target.closest('[data-focus-retry]');
+    if (button) { loadFocusState(); return; }
+  }
+
   function load() {
     renderDate();
+    loadFocusState();
     var date = todayKey();
     api('api/settings').then(function (res) {
       if (res && res.ok) applySettings(res.settings || {});
@@ -577,7 +937,8 @@
     if (current) current.disabled = true;
     setState('正在过去…', 'busy');
     signal(action).then(function (res) {
-      setState(res && res.ok ? '已经告诉日历页了' : '没送出去，待会再试', res && res.ok ? '' : 'stale');
+      var destination = action === 'focus' ? '专注页' : '拾光记页面';
+      setState(res && res.ok ? '已经告诉' + destination + '了' : '没送出去，待会再试', res && res.ok ? '' : 'stale');
     }).catch(function () { setState('没送出去，待会再试', 'stale'); }).then(function () {
       setTimeout(function () {
         if (current) current.disabled = false;
@@ -593,6 +954,7 @@
   document.querySelectorAll('.wide[data-action]').forEach(function (btn) {
     btn.addEventListener('click', function () { ping(btn.getAttribute('data-action')); });
   });
+  document.getElementById('focus-quick-content').addEventListener('click', handleFocusQuickClick);
   document.getElementById('todos').addEventListener('click', function (ev) {
     var batch = ev.target.closest('[data-repeat-complete]');
     if (batch) {
@@ -608,6 +970,7 @@
 
   load();
   setInterval(load, REFRESH_MS);
+  setInterval(updateFocusQuickClock, 1000);
   // 设置是在主页那边改的，门厅这边单独盯一下开关，60 秒太长会显得没生效
   setInterval(function () {
     api('api/settings').then(function (res) {

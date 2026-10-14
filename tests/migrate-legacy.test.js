@@ -248,7 +248,9 @@ test("搬迁不在装载期发生：主入口里不出现受权限保护的资�
   const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const source = fs.readFileSync(path.join(appRoot, "index.js"), "utf-8");
   const applyBody = source.slice(source.indexOf("export async function apply"));
-  assert.equal(/ctx\.resources/.test(applyBody), false);
+  // 只拦「调用」：apply 里出现 ctx.resources.方法名 才算违规（会把装载拖挂并回滚安装记录）。
+  // 把句柄原样递给扩展（setHostResources(ctx.resources)）只是存引用、不碰宿主接口，是允许的。
+  assert.equal(/ctx\??\.resources\??\.\w/.test(applyBody), false);
   assert.ok(fs.readFileSync(path.join(appRoot, "routes", "ui.js"), "utf-8").includes("runLegacyMigration"));
 });
 
