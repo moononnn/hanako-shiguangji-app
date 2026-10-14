@@ -7,8 +7,11 @@ import { setAgentCatalog } from './lib/day-summary.js';
 import { attachInject } from './lib/inject-app.js';
 import { registerDaybookTools } from './lib/app-tools.js';
 import { configurePublicTodayPublisher, writePublicToday } from './lib/public-today.js';
+import { setHostResources } from './lib/session-model.js';
 import { TodoReminderScheduler, setTodoReminderScheduler } from './lib/todo-reminder-scheduler.js';
 import { registerTodoCompleteService } from './lib/todo-complete.js';
+import { registerFocusStateService } from './lib/focus-companion.js';
+import { FocusReminderScheduler, setFocusReminderScheduler } from './lib/focus-reminder-scheduler.js';
 import { rememberActiveSession, showTodoBanner } from './lib/todo-banner.js';
 
 export const name = 'shiguangji-app';
@@ -23,6 +26,8 @@ export async function apply(ctx) {
     try { writePublicToday({ dataDir: ctx.dataDir, data }); }
     catch (error) { logWarn(`保存后的共享情境更新失败：${error?.message || error}`); }
   };
+  // 先把宿主的 resources 句柄递给扩展：扩展自己的 ctx 里没有它，但两者同进程。
+  setHostResources(ctx.resources);
   attachInject(ctx, message => logInfo(message));
   // 她最近在哪个会话开口：subscribe 第二个参数就是会话路径，到点的横幅要挂到那儿。
   try {
@@ -33,6 +38,7 @@ export async function apply(ctx) {
   const reminder = setTodoReminderScheduler(new TodoReminderScheduler({ ctx, data,
     log: { info: logInfo, warn: logWarn, error: logWarn },
     banner: { show: (payload) => showTodoBanner(ctx, payload, { log: logWarn }) } }));
+  const focusReminder = setFocusReminderScheduler(new FocusReminderScheduler({ ctx, data, log: { warn: logWarn } }));
   try { registerDaybookTools(ctx, event => event?.type === 'todo' ? reminder.eventChanged(event) : undefined); }
   catch (error) {
     logWarn(`聊天工具登记失败：${error?.code || ""} ${error?.message || error}`);
@@ -46,12 +52,22 @@ export async function apply(ctx) {
     logWarn(`跨 App 完成服务没挂上：${error?.code || ""} ${error?.message || error}`);
   }
 
+  // 专注约定服务：与 todo/complete 同规矩，注册失败只警告，不拖垮整个应用装载。
+  try { registerFocusStateService({ ctx, data }); }
+  catch (error) {
+    logWarn(`专注状态服务没挂上：${error?.code || ""} ${error?.message || error}`);
+  }
+
   await reminder.registerAppTaskHandler(); // 只登记；装载期不查询权限或创建计划。
+  await focusReminder.registerAppTaskHandler();
 
   // 不再采样其他会话正文、旁听每个 step，或执行试错式资源查询。
+  // 探针与探路函数已全部清除：ctx.resources 正门在 1.1.0-beta 上实测可用，
+  // 会话模型改由 inject-app.js 的 primeSessionModel 预取。
   const timer = setTimeout(async () => {
     writePublicToday({ dataDir: ctx.dataDir, data, force: true });
     void reminder.restoreAppSchedules();
+    void focusReminder.restore();
     try {
       const rows = await ctx.bus.request('agent:list', { scope: 'all' });
       logInfo(`伙伴名称目录就绪：${setAgentCatalog(rows)} 个`);
@@ -65,6 +81,7 @@ export async function apply(ctx) {
     try { writePublicToday({ dataDir: ctx.dataDir, data }); }
     catch (error) { logWarn(`共享情境刷新失败：${error?.message || error}`); }
     void reminder.restoreAppSchedules(); // 补排已过期的失败重试；未知结果只对账，不盲目重建。
+    void focusReminder.restore();
   }, 60 * 1000);
   refresh.unref?.();
 }

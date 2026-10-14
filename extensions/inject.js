@@ -30,6 +30,7 @@ import {
 } from "../lib/weather.js";
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
 import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
+import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/session-model.js";
 import { schedulePublicToday } from "../lib/public-today.js";
 
 const tracker = new InjectionTracker();
@@ -210,7 +211,7 @@ export default function registerShiguangjiInject(pi) {
         : []);
       const partnerInjectionDisabled = !!currentAgentId && disabledAgentIds.has(currentAgentId);
       const injectionEnabled = settings.injectionEnabled !== false && !partnerInjectionDisabled;
-      const currentModel = resolveCurrentModel(event, ctx);
+      const currentModel = resolveCurrentModel(event, ctx, sessionId, currentAgentId);
       const dataRev = data.getDataRev();
       // 对外快照独立于「情境注入」开关：那个开关只管往 Hana 会话里注入，
       // 这份快照是给别的消费方读的，关掉注入也照常维护。
@@ -577,13 +578,23 @@ function extractPrompt(event) {
   return "";
 }
 
-export function resolveCurrentModel(event, ctx) {
+export function resolveCurrentModel(event, ctx, sessionId = "", agentId = "") {
   try {
     const model = ctx?.model;
     if (model) return model;
   } catch {
     // 旧宿主或尚未绑定模型时，继续尝试事件字段。
   }
+  // 主对话场景宿主把 ctx.model 填成 null（实测），模型自述又不可信（模型不知道自己跑在哪个模型上）。
+  // 正路：注入前由 App 适配层经 ctx.resources 预取好的会话模型（读宿主会话 jsonl 里的 model_change）。
+  const primed = getPrimedModel(agentId || ctx?.agentId, sessionId || ctx?.sessionManager?.getSessionId?.());
+  if (primed) return primed;
+  // 回退：老路径，万一宿主哪天放开 fs 或 getSessionFile 变得可用。
+  const recorded = readLatestModelChange(
+    ctx?.sessionManager?.getSessionFile?.()
+    || findSessionFile(agentId || ctx?.agentId, sessionId || ctx?.sessionManager?.getSessionId?.()),
+  );
+  if (recorded) return recorded;
   return event?.model || event?.currentModel || event?.modelInfo || null;
 }
 
