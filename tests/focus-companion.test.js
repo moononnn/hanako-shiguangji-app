@@ -163,7 +163,7 @@ test('头像代理：只认茶话会给的真图字节，编号和类型都不�
 test('陪读服务不可用：只记 code 和归类，报错原文不进日志', async () => {
   const lines = [];
   const ctx = { log: { warn: line => lines.push(String(line)) }, bus: { request: async () => {
-    const error = new Error(`读不到 C:\\Users\\laotv\\secret\\app.json`);
+    const error = new Error(`读不到 C:\\Users\\someone\\secret\\app.json`);
     error.code = 'EACCES';
     throw error;
   } } };
