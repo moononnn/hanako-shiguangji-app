@@ -761,9 +761,15 @@ test("路由：后台总结任务异步完成、持久化并清洗用户称呼",
     if (!queued.ok || !queued.job || queued.job.progress.done !== 0) throw new Error("后台任务没有先返回排队状态：" + JSON.stringify(queued));
     const duplicate = await post.handler({ req: { async json() { return { dates: ["2026-08-27"] }; } }, json(value) { return value; } });
     if (duplicate.ok || !duplicate.job) throw new Error("运行中的后台任务没有阻止重复提交");
-    await sleep(420);
-    const finished = await get.handler({ req: { param(name) { return name === "id" ? queued.job.id : ""; } }, json(value) { return value; } });
-    if (!finished.ok || finished.job.status !== "completed" || finished.job.progress.done !== 2) throw new Error("后台任务没有完成：" + JSON.stringify(finished));
+    // 不能写死等待时长：并行跑时进程抢不到 CPU，定时等待会假失败。改成轮询到完成或超时。
+    let finished = null;
+    for (let i = 0; i < 100; i++) {
+      await sleep(50);
+      const probe = await get.handler({ req: { param(name) { return name === "id" ? queued.job.id : ""; } }, json(value) { return value; } });
+      if (probe.ok && probe.job.status === "completed") { finished = probe; break; }
+    }
+    if (!finished) throw new Error("后台任务没有在期限内完成");
+    if (finished.job.progress.done !== 2) throw new Error("后台任务没有完成：" + JSON.stringify(finished));
     const data = new UserData(path.join(os.homedir(), ".hanako", "plugin-data", "shiguangji"));
     const saved = data.getAgentSummary("2026-08-29", "hanako");
     const savedOld = data.getAgentSummary("2026-08-28", "hanako");
@@ -853,10 +859,15 @@ test("路由：Hana 重启后恢复未结束的总结任务", () => {
       bus: { async request() { return { text: "用户的恢复总结" }; } },
       log: { info() {}, warn() {}, error() {} },
     });
-    await sleep(220);
     const get = routes.find((item) => item.method === "GET" && item.path === "/api/summaries/jobs/:id");
-    const result = await get.handler({ req: { param(name) { return name === "id" ? "restore-job" : ""; } }, json(value) { return value; } });
-    if (!result.ok || result.job.status !== "completed") throw new Error("重启恢复任务没有完成：" + JSON.stringify(result));
+    // 同样不写死等待时长，并行下容易假失败。
+    let result = null;
+    for (let i = 0; i < 100; i++) {
+      await sleep(50);
+      const probe = await get.handler({ req: { param(name) { return name === "id" ? "restore-job" : ""; } }, json(value) { return value; } });
+      if (probe.ok && probe.job.status === "completed") { result = probe; break; }
+    }
+    if (!result) throw new Error("重启恢复任务没有在期限内完成");
     const saved = new UserData(dataDir).getAgentSummary("2026-08-29", "hanako");
     if (!saved || saved.text.includes("用户") || !saved.text.includes("小测试")) throw new Error("恢复任务没有生成清洗后的档案");
     console.log(JSON.stringify({ status: result.job.status, text: saved.text }));
