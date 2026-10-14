@@ -85,7 +85,7 @@ test("会话档案：按 agentId + sessionId 能在会话目录里定位到档�
 
 test("会话档案：伙伴不匹配时不会误捞别人家的会话", () => {
   __clearSessionModelCacheForTest();
-  assert.equal(findSessionFile("xiansheng", "0000aaaa-bbbb-cccc-dddd-eeeeffff0000"), null);
+  assert.equal(findSessionFile("partner-x", "0000aaaa-bbbb-cccc-dddd-eeeeffff0000"), null);
 });
 
 test("会话档案：长会话（十几 MB）仍能读到开头的 model_change", () => {
@@ -284,5 +284,5 @@ test("resources 正门：预取后扩展能同步取到，prime 与 get 必须�
   assert.equal(getPrimedModel("hanako", sessionId), null, "预取前应当取不到");
   await primeSessionModel(makeResources(files), { agentId: "hanako", sessionId, sessionsRoot: RES_ROOT });
   assert.equal(getPrimedModel("hanako", sessionId).provider, "deepseek");
-  assert.equal(getPrimedModel("xiansheng", sessionId), null, "不得串到别的伙伴名下");
+  assert.equal(getPrimedModel("partner-x", sessionId), null, "不得串到别的伙伴名下");
 });
