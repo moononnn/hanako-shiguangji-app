@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "project": {
+    "id": "shiguangji-app",
+    "name": "拾光记",
+    "kind": "app",
+    "version": "0.1.0",
+    "repoUrl": "moononnn/hanako-shiguangji-app"
+  },
+  "publisher": "moononnn & 小花",
+  "source": {
+    "roots": [
+      "."
+    ]
+  },
+  "checks": {
+    "testCommands": [],
+    "deferredTo": "existing-ci + local precise verify"
+  },
+  "package": {
+    "topLevel": "shiguangji-app",
+    "entry": "index.js",
+    "include": [],
+    "excludeDirs": [
+      "tests",
+      "node_modules",
+      ".git",
+      "_backups",
+      ".github",
+      "attachments",
+      ".cloud-build",
+      ".cache",
+      "out"
+    ],
+    "excludeFiles": [
+      "PENDING_CHANGES.md",
+      "PUBLISHING.md",
+      "PROJECT_LOG.md",
+      "TESTING.md",
+      "data.json",
+      "preferences.json",
+      "probe-result.json",
+      ".installed-by.json",
+      ".gitignore",
+      ".gitattributes"
+    ],
+    "excludeGlobs": [
+      "DESIGN-*.md",
+      "PLAN-*.md",
+      "*.log",
+      "*.tmp",
+      "*.dat",
+      "*.corrupt-*",
+      ".corrupt-*",
+      "analysis-*.json",
+      "taste-*.json"
+    ]
+  },
+  "devOnly": {
+    "targets": [],
+    "startMark": "",
+    "endMark": "",
+    "residue": [],
+    "replacements": []
+  },
+  "privacy": {
+    "redlineSource": "local-only（云端不持有词表；本机用 projects/<id>.json 的 redline 扫）",
+    "textExtensions": [
+      ".js",
+      ".mjs",
+      ".cjs",
+      ".json",
+      ".md",
+      ".html",
+      ".css",
+      ".txt",
+      ".yml",
+      ".yaml",
+      ".ps1"
+    ],
+    "allowedNames": [
+      "小花",
+      "moononnn",
+      "Hanako",
+      "Moonon"
+    ]
+  },
+  "resources": {
+    "manifestFile": "manifest.json",
+    "bases": [
+      "",
+      "ui/"
+    ],
+    "pointers": [
+      "icon",
+      "contributes.cards[].face.image",
+      "contributes.cards[].pageIcon",
+      "contributes.cards[].route"
+    ]
+  },
+  "output": {
+    "archiveBaseName": "app-shiguangji-app-{version}",
+    "zipExtension": ".zip"
+  },
+  "toolchain": {
+    "packScript": "scripts/extension-pack.mjs",
+    "pin": {
+      "channel": "beta",
+      "channelManifest": "https://dl.openhanako.com/channels/beta.json",
+      "version": "1.1.0-beta",
+      "platform": "win32-x64",
+      "file": "server-1.1.0-beta-win32-x64.tar.gz",
+      "sha256": "a9644df9c7a5e8ea3ae94667c7b3713a453568f8b89275b00f3690d9098d45bd",
+      "size": 241206113,
+      "mirrors": [
+        "https://dl.openhanako.com",
+        "https://github.com/liliMozi/openhanako/releases/download/train-beta-37"
+      ]
+    }
+  }
+}

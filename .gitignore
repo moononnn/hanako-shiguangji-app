@@ -5,8 +5,8 @@ PUBLISHING.md
 PROJECT_LOG.md
 _tmp*/
 
-# 云端构建工具（由 cloud/install-workflow.mjs 装入，非项目源码）
-.cloud-build/
+# 云端构建工具的本地安装标记（工具链源码与配置本身进仓库，不进 App 包）
+.cloud-build/.installed-by.json
 
 # 运行产物
 data/
