@@ -1199,7 +1199,7 @@ export default function registerRoutes(app, ctx) {
       const data = getData();
       const settings = data.getSettings();
       if (settings.injectionEnabled === false) {
-        return c.json({ ok: true, enabled: false, text: "情境注入已关闭，助手当前收不到今日时光。" });
+        return c.json({ ok: true, enabled: false, text: "情境注入已关闭，伙伴当前收不到今日时光。" });
       }
       const now = new Date();
       const currentAgentId = resolveSummaryAgentId(AGENTS_DIR, requestAgentId(c));
