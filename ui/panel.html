@@ -945,7 +945,7 @@
   .summary-auto-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--primary-deep); font-size: 13px; font-weight: 700; }
   .summary-auto-detail { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
   .archive { display: flex; flex-direction: column; gap: 10px; }
-  /* 按月 → 按天 → 按助手 三级分组：天的小节标题（像日记本翻页） */
+  /* 按月 → 按天 → 按伙伴 三级分组：天的小节标题（像日记本翻页） */
   .day-title {
     display: flex; align-items: center; gap: 8px;
     margin: 8px 2px 2px; padding: 6px 2px 4px;
@@ -1110,18 +1110,9 @@
   .set-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 14px; flex-wrap: wrap; }
   .set-label { width: 86px; flex: none; color: var(--ink); }
   .set-tip { font-size: 12px; color: var(--muted); line-height: 1.6; }
-  /* 检查更新 / 反馈：左右双栏并排，中间细竖线分隔；窄屏回退上下堆叠 */
-  .uc-fb-cols { display: flex; align-items: stretch; gap: 0; }
-  .uc-fb-col { flex: 1 1 0; min-width: 0; padding: 2px 0; }
-  .uc-fb-col + .uc-fb-col { padding-left: 16px; }
-  .uc-fb-divider { width: 1px; flex: none; background: var(--line); margin: 4px 16px; }
+  /* 反馈入口：检查更新下线后只剩一栏，双栏外壳一并收掉 */
   .uc-fb-body { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 30px; }
   .uc-fb-note { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
-  @media (max-width: 520px) {
-    .uc-fb-cols { flex-direction: column; }
-    .uc-fb-divider { width: auto; height: 1px; margin: 10px 0; }
-    .uc-fb-col + .uc-fb-col { padding-left: 0; }
-  }
   .summary-agent-picker { flex: 1 1 360px; min-width: 220px; }
   .summary-agent-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
   .summary-agent-option {
@@ -1712,15 +1703,15 @@
     <div class="set-modal-body">
       <div class="set-group">
         <h3>情境注入</h3>
-        <p class="set-desc">打开后，助手会适时知道今天的日子、待办和天气；关掉后，拾光记仍可当日历和时光册使用。</p>
+        <p class="set-desc">打开后，伙伴会适时知道今天的日子、待办和天气；关掉后，拾光记仍可当日历和时光册使用。</p>
         <div class="set-row">
-          <span class="set-label">助手情境</span>
+          <span class="set-label">伙伴情境</span>
           <div class="seg" id="injection-enabled-seg">
             <button class="seg-btn active" data-val="true">开</button>
             <button class="seg-btn" data-val="false">关</button>
           </div>
         </div>
-        <p class="set-tip hidden" id="injection-disabled-tip">当前不带入助手对话；重新打开后会继续使用原来的带入方式和间隔。</p>
+        <p class="set-tip hidden" id="injection-disabled-tip">当前不带入伙伴对话；重新打开后会继续使用原来的带入方式和间隔。下面的峰谷关照是单独的开关，不受这里影响。</p>
         <div class="set-row">
           <span class="set-label">单独关闭</span>
           <div class="summary-agent-picker" id="injection-agent-picker"><span class="set-tip">读取中…</span></div>
@@ -1819,13 +1810,13 @@
             <button class="seg-btn" data-val="false">关</button>
           </div>
         </div>
-        <p class="set-tip">关闭后日历、添加表单和助手注入里都不会出现生理期，已记的数据会保留。</p>
+        <p class="set-tip">关闭后日历、添加表单和带进对话的情境里都不会出现生理期，已记的数据会保留。</p>
 
       </div>
 
       <div class="set-group">
         <h3>今日天气</h3>
-        <p class="set-desc">打开后，主页今日卡会显示天气；情境注入也打开时，天气会成为助手收到的今日情境。关掉后不查询，已选地点会保留。</p>
+        <p class="set-desc">打开后，主页今日卡会显示天气；情境注入也打开时，天气会成为伙伴收到的今日情境。关掉后不查询，已选地点会保留。</p>
         <div class="set-row">
           <span class="set-label">今日天气</span>
           <div class="seg" id="weather-seg">
@@ -1861,8 +1852,8 @@
       </div>
 
       <div class="set-group">
-        <h3>助手收到的今日情境</h3>
-        <p class="set-desc">只预览日子、天气和待办，不会展示其他助手的私密对话。</p>
+        <h3>伙伴收到的今日情境</h3>
+        <p class="set-desc">只预览日子、天气和待办，不会展示其他伙伴的私密对话。</p>
         <button class="btn" onclick="previewInjection()">看看今天会收到什么</button>
         <div class="preview-box hidden" id="inject-preview"></div>
       </div>
@@ -1932,14 +1923,10 @@
 
       <div class="set-group">
         <h3>反馈</h3>
-        <div class="uc-fb-cols">
-          <div class="uc-fb-col">
-            <div class="uc-fb-body">
-              <button type="button" class="fb-open-btn" id="fb-open-btn">反馈</button>
-            </div>
-            <div class="uc-fb-note">想说啥用大白话讲，它帮你整理成规范 Issue 再提交</div>
-          </div>
+        <div class="uc-fb-body">
+          <button type="button" class="fb-open-btn" id="fb-open-btn">反馈</button>
         </div>
+        <div class="uc-fb-note">想说啥用大白话讲，它帮你整理成一份清楚的反馈再提交</div>
       </div>
       <div class="set-group hidden" id="legacy-migration-group">
         <h3>从插件版搬数据</h3>
@@ -1960,7 +1947,7 @@
   <div class="fb-modal-mask" data-fb-close></div>
   <div class="fb-modal-panel">
     <div class="fb-modal-head">
-      <div class="fb-modal-titles"><span class="fb-modal-title" id="fb-modal-title">反馈小助手</span><span class="fb-modal-sub">想说啥用大白话讲，它帮你整理成规范反馈</span></div>
+      <div class="fb-modal-titles"><span class="fb-modal-title" id="fb-modal-title">反馈整理</span><span class="fb-modal-sub">想说啥用大白话讲，它帮你整理成一份清楚的反馈再提交</span></div>
       <button type="button" class="fb-modal-close" data-fb-close aria-label="关闭反馈窗口">×</button>
     </div>
     <div class="fb-messages" id="fb-messages"></div>
@@ -6477,7 +6464,7 @@ function toggleInjectionQuick() {
     setSeg('injection-enabled-seg', appSettings.injectionEnabled !== false);
     syncInjectionUi(appSettings.injectionEnabled !== false);
     updateQuickInjectionToggle();
-    toast(appSettings.injectionEnabled === false ? '已关掉助手情境' : '助手会收到今日情境了');
+    toast(appSettings.injectionEnabled === false ? '已关掉伙伴情境' : '伙伴会收到今日情境了');
   }).catch(function () {
     toast('情境开关没改成，检查一下连接');
   }).then(function () {
