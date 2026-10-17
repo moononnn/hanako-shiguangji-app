@@ -42,6 +42,11 @@ jobs:
       run:
         shell: pwsh
     steps:
+      # 必须在 checkout 之前：Windows runner 默认 core.autocrlf=true，会把仓库里的 LF 检出成 CRLF，
+      # 云端包的字节就和本地/CI 不一致，只能等真打包失败才发现。
+      - name: 关闭自动换行转换（checkout 前）
+        run: git config --global core.autocrlf false
+
       - name: 检出干净 checkout
         uses: actions/checkout@v4
         with:
