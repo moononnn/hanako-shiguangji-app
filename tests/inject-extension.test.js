@@ -527,3 +527,65 @@ test("扩展：新会话返回注入消息结构（display:false）", () => {
   // 内容不含明文测试数据文件路径
   assert.ok(!result.message.content.includes(TEST_DATA_DIR));
 });
+
+// ── 峰谷关照是独立开关：不跟着情境注入一起被关 ──
+
+test("扩展：关掉情境注入后峰谷关照仍单独生效，且只带峰谷不带今日情境", async () => {
+  const data = new UserData(path.join(os.tmpdir(), `sgj-peak-only-${Date.now()}-${Math.random().toString(36).slice(2)}`));
+  __setSharedUserDataForTest(data);
+  __setInjectNowForTest(() => new Date("2026-09-07T09:30:00+08:00")); // 周一 9:30：高峰中段
+  try {
+    await data.updateSettings({ injectionEnabled: false, deepseekPeakEnabled: true });
+    const pi = makePi();
+    registerShiguangjiInject(pi);
+    const ctx = {
+      model: { provider: "openrouter", id: "deepseek/deepseek-v4-flash" },
+      sessionManager: { getSessionId: () => "peak-only-session" },
+    };
+    const first = pi._handlers["before_agent_start"]({}, ctx);
+    assert.ok(first?.message, "情境关掉后峰谷仍应能单独注入");
+    assert.equal(first.message.details.deepseekNotice, true);
+    assert.ok(first.message.content.includes("模型峰谷关照"), first.message.content);
+    assert.ok(!first.message.content.includes("【今日时光】"), "不应捎带今日情境");
+    assert.equal(first.message.display, false, "依然是隐藏消息");
+
+    const second = pi._handlers["before_agent_start"]({}, ctx);
+    assert.equal(second, undefined, "同一窗口同一时段只提一次");
+  } finally {
+    __setInjectNowForTest(null);
+    __setSharedUserDataForTest(new UserData(TEST_DATA_DIR));
+  }
+});
+
+test("扩展：峰谷开关关掉后，情境注入照常但不带峰谷", async () => {
+  const data = new UserData(path.join(os.tmpdir(), `sgj-peak-off-${Date.now()}-${Math.random().toString(36).slice(2)}`));
+  __setSharedUserDataForTest(data);
+  const now = new Date("2026-09-07T09:30:00+08:00");
+  __setInjectNowForTest(() => now);
+  try {
+    await data.addEvent({ title: "峰谷关闭对照日", type: "event", date: dateKey(now) });
+    await data.updateSettings({ injectionEnabled: true, deepseekPeakEnabled: false });
+    const pi = makePi();
+    registerShiguangjiInject(pi);
+    const result = pi._handlers["before_agent_start"]({}, {
+      model: { provider: "openrouter", id: "deepseek/deepseek-v4-flash" },
+      sessionManager: { getSessionId: () => "peak-off-session" },
+    });
+    assert.ok(result?.message, "情境注入本身不受峰谷开关影响");
+    assert.ok(result.message.content.includes("峰谷关闭对照日"));
+    assert.ok(!result.message.content.includes("【模型峰谷关照】"), "峰谷关掉后不应带峰谷块");
+    assert.notEqual(result.message.details.deepseekNotice, true);
+  } finally {
+    __setInjectNowForTest(null);
+    __setSharedUserDataForTest(new UserData(TEST_DATA_DIR));
+  }
+});
+
+test("设置：峰谷开关默认为开，能存能读，旧配置没有该键时也当开", async () => {
+  const data = new UserData(path.join(os.tmpdir(), `sgj-peak-setting-${Date.now()}-${Math.random().toString(36).slice(2)}`));
+  assert.equal(data.getSettings().deepseekPeakEnabled, true, "旧配置没这个键时默认开");
+  await data.updateSettings({ deepseekPeakEnabled: false });
+  assert.equal(data.getSettings().deepseekPeakEnabled, false, "关掉后读回来是关");
+  await data.updateSettings({ deepseekPeakEnabled: true });
+  assert.equal(data.getSettings().deepseekPeakEnabled, true, "重新打开后读回来是开");
+});

@@ -11,6 +11,7 @@ import {
   InjectionTracker,
   shouldInject,
   buildInjectionText,
+  buildDeepSeekContext,
   decideWeatherMention,
   weatherFactKey,
 } from "../lib/inject.js";
@@ -34,6 +35,9 @@ import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/s
 import { schedulePublicToday } from "../lib/public-today.js";
 
 const tracker = new InjectionTracker();
+// 峰谷单独注入时，注入状态里不夹带峰谷字段（两套 schema 不互相冒充），
+// 所以峰谷的「本窗口已报过」得自己存一份内存态，否则关掉情境后会每轮重报。
+const peakTracker = new Map();
 let weatherTimer = null; // 天气惰性刷新定时器
 let weatherPrefetchAt = 0; // 上一轮「顺手补一次」的发起时间（防止网络不通时每轮都去撞）
 const WEATHER_PREFETCH_THROTTLE_MS = 60 * 1000;
@@ -82,6 +86,7 @@ export function __setInjectNowForTest(provider) {
 // 模拟进程重启：清空内存 tracker，但盘上注入状态和 deepseekPeak 状态保留，供重启恢复类测试使用。
 export function __clearInjectTrackersForTest() {
   tracker.sessions.clear();
+  peakTracker.clear();
 }
 
 export function __resetLazySummaryForTest() {
@@ -245,7 +250,10 @@ export default function registerShiguangjiInject(pi) {
         logContextKeyChange(sessionId, lastState.contextKey, contextKey);
       }
 
-      // 全局关闭或当前伙伴单独关闭时，只阻断对话注入，不影响日历与时光册。
+      const peakEnabled = settings.deepseekPeakEnabled !== false;
+
+      // 全局关闭或当前伙伴单独关闭时，只阻断对话注入，不影响日历与时光册；
+      // 峰谷关照有自己的开关，不跟着这个开关一起被关。
       if (!injectionEnabled) {
         const disabledDecision = shouldInject({
           sessionId,
@@ -268,14 +276,37 @@ export default function registerShiguangjiInject(pi) {
         if (!trackedState || trackedState.injectionEnabled !== false) {
           persistInjectionState(data, sessionId, disabledState);
         }
-        return undefined;
+        if (!peakEnabled) return undefined;
+        const peakOnly = decideDeepSeekNotice({
+          model: currentModel,
+          now,
+          lastState: peakTracker.get(sessionId) || diskDs || null,
+        });
+        peakTracker.set(sessionId, peakOnly.state);
+        persistDeepSeekState(data, sessionId, peakOnly.state);
+        if (!peakOnly.should) return undefined;
+        return {
+          message: {
+            customType: "shiguangji-deepseek-peak",
+            content: buildDeepSeekContext(peakOnly.notice, readHanaUserName() || "对方"),
+            display: false,
+            details: {
+              injector: "shiguangji",
+              reason: `deepseek-${peakOnly.reason}`,
+              deepseekNotice: true,
+              summaryCount: 0,
+            },
+          },
+        };
       }
 
-      const deepseekDecision = decideDeepSeekNotice({
-        model: currentModel,
-        now,
-        lastState: deepseekLastState,
-      });
+      const deepseekDecision = peakEnabled
+        ? decideDeepSeekNotice({
+          model: currentModel,
+          now,
+          lastState: deepseekLastState,
+        })
+        : { should: false, reason: "peak-disabled", notice: null, state: null };
 
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);

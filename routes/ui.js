@@ -555,6 +555,7 @@ function publicSettings(s) {
     weatherLocation: s.weatherLocation || "",
     weatherArea: resolveWeatherLocation(s).area || null,
     weatherIntervalHours: s.weatherIntervalHours || 3,
+    deepseekPeakEnabled: s.deepseekPeakEnabled !== false,
     // 当前模型档关不掉思考时，页面要提醒用户「消耗明显更多，建议换一个能关思考的档」。
     thinkingUnstoppable: isThinkingUnstoppable(s),
     thinkingModelKey: currentModelKey(s),
@@ -1359,6 +1360,7 @@ export default function registerRoutes(app, ctx) {
       }
       if (body.showPeriod !== undefined) patch.showPeriod = !!body.showPeriod;
       if (body.weatherEnabled !== undefined) patch.weatherEnabled = !!body.weatherEnabled;
+      if (body.deepseekPeakEnabled !== undefined) patch.deepseekPeakEnabled = !!body.deepseekPeakEnabled;
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {
           patch.weatherArea = null;
