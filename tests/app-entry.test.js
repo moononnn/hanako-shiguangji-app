@@ -20,8 +20,10 @@ test('正式入口：登记实际贡献，不采样其他会话、不记录正�
   await new Promise(resolve => setTimeout(resolve, 30));
   await flushPublicTodayPublisher();
   assert.deepEqual(verbs, ['agent:list']);
-  assert.equal(shared.length, 1);
-  assert.equal(shared[0].key, 'today');
+  // today 与 greetings 同一条通道、各自一份：启动时两个 key 各发一次。
+  assert.deepEqual(shared.map(value => value.key).sort(), ['greetings', 'today']);
+  assert.equal(shared.find(value => value.key === 'greetings').schemaVersion, 1);
+  assert.deepEqual(shared.find(value => value.key === 'greetings').data.entries, []);
   assert.equal(existsSync(path.join(dataDir, 'probe.log')), false);
 });
 
@@ -36,13 +38,14 @@ test('共享情境：只在茶话会聊天也能跨天刷新，无变化不反�
   });
   await new Promise(resolve => setTimeout(resolve, 30));
   await flushPublicTodayPublisher();
-  assert.equal(shared.at(-1).data.today.date, '2026-10-05');
+  const todayData = () => shared.filter(v => v.key === 'today').at(-1).data;
+  assert.equal(todayData().today.date, '2026-10-05');
   t.mock.timers.tick(60_000); await flushPublicTodayPublisher();
-  assert.equal(shared.length, 1);
+  assert.equal(shared.length, 2);
   t.mock.timers.setTime(Date.parse('2026-10-06T09:41:00+08:00'));
   t.mock.timers.tick(60_000); await flushPublicTodayPublisher();
-  assert.equal(shared.at(-1).data.today.date, '2026-10-06');
-  assert.equal(shared.length, 2);
+  assert.equal(todayData().today.date, '2026-10-06');
+  assert.equal(shared.length, 3, '只有 today 的内容变了，greetings 没变就不重复发');
 });
 
 test('工具登记同步失败：保留错误交宿主裁决，不伪装成完整装载', async () => {

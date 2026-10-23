@@ -938,8 +938,7 @@ test("路由：花酿来访按角色合并、兼容旧选择并清掉旧碎片",
     import registerRoutes from ${JSON.stringify(routeUrl)};
     const hanaHome = path.join(os.homedir(), ".hanako");
     const root = path.join(hanaHome, "agents");
-    fs.mkdirSync(path.join(hanaHome, "plugins", "hanabrew"), { recursive: true });
-    fs.writeFileSync(path.join(hanaHome, "plugins", "hanabrew", "manifest.json"), "{}");
+    // 不创建旧花酿源码，身份兼容不能依赖旧 manifest。
     const identity = "# 角色身份\\n\\n你是阿青，这次临时来到 Hana。\\n";
     const opening = "这是一段较长的角色开场情境，用来验证同一位角色从多个临时来访身份合并后，重复开场只保留一份，不再把同一个伙伴拆成许多陌生编号。";
     for (const [id, role, text] of [["hanabrew-visitor-a", "assistant", opening], ["hanabrew-visitor-b", "user", "今晚把方案重新核对了一遍"]]) {
@@ -1103,8 +1102,7 @@ test("路由：花酿目录已清理时仍能用旧碎片重整", () => {
     process.env.APPDATA = path.join(os.homedir(), "appdata");
     const hanaHome = path.join(os.homedir(), ".hanako");
     const root = path.join(hanaHome, "agents");
-    fs.mkdirSync(path.join(hanaHome, "plugins", "hanabrew"), { recursive: true });
-    fs.writeFileSync(path.join(hanaHome, "plugins", "hanabrew", "manifest.json"), "{}");
+    // 只保留旧状态与档案，没有旧花酿源码。
     fs.mkdirSync(path.join(process.env.APPDATA, "hanabrew"), { recursive: true });
     fs.writeFileSync(path.join(process.env.APPDATA, "hanabrew", "state.json"), JSON.stringify({
       pendingVisitorCleanup: ["hanabrew-visitor-a", "hanabrew-visitor-b"],

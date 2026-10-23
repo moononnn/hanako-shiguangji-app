@@ -3,6 +3,7 @@
 // 文件预算豁免：该文件集中注册同一页面的 API 与页面入口，拆分会增加路由状态交叉成本。
 
 import crypto from "node:crypto";
+import fs from "node:fs";
 import os from "node:os";
 import { renderPage } from "../lib/page-template.js";
 import path from "node:path";
@@ -35,9 +36,9 @@ import {
   formatMessagesForPrompt,
   groupHistoricalSummaryEntries,
   groupSummaryMessages,
-  isHanabrewInstalled,
   isUserFacingAgentId,
   lifeDayKey,
+  listAllSessionFiles,
   listSummaryAgents,
   resolveSummaryAgentId,
   mergeSummaryGroups,
@@ -70,6 +71,33 @@ import {
 } from "../lib/mood.js";
 import { readHanaUserName, resolveHanaUserName } from "../lib/user-name.js";
 import { buildPartnerFallbackMood, findPartnerFortuneSignals, filterPartnerRows } from "../lib/partner-mood.js";
+import {
+  XINGJI_DEVIATION_LIKELY_DISTINCT_DAYS,
+  XINGJI_DEVIATION_LIKELY_POSITIVES,
+  XINGJI_DEVIATION_MIN_DISTINCT_DAYS,
+  XINGJI_DEVIATION_MIN_POSITIVES,
+  XINGJI_INJECT_MAX_ENTRIES,
+  XINGJI_LIKELY_DISTINCT_DAYS,
+  XINGJI_LIKELY_POSITIVES,
+  XINGJI_MIN_DISTINCT_DAYS,
+  XINGJI_MIN_POSITIVES,
+  applyRollup,
+  buildObservationPrompt,
+  buildRollupPrompt,
+  buildStyleProfiles,
+  capEventList,
+  evaluateEntry,
+  findCharacterEvents,
+  formatEventsForPrompt,
+  formatGenericHabitsNote,
+  isVisibleEntry,
+  normalizeEntryKind,
+  dominantRelation,
+  resolveGenericHabits,
+  parseObservationOutput,
+  parseRollupOutput,
+} from "../lib/xingji.js";
+import { readAgentPersonaBaseline } from "../lib/xingji-agent.js";
 import { moodLineSegmentForEntry, moodLineSegmentLabelForEntry } from "../lib/mood-line.js";
 import { TodoReminderScheduler, getTodoReminderScheduler } from "../lib/todo-reminder-scheduler.js";
 import { configureDebugLog, logInfo, logWarn, logError } from "../lib/debug-log.js";
@@ -283,6 +311,8 @@ function automaticRunSettled(data, day, settings, result) {
   const moodEnabled = normalizeMoodDiscoveryMode(settings.moodDiscoveryMode) !== "off";
   if (moodEnabled && !isMoodHarvestTerminal(data.getMoodHarvestState(day))) return false;
   if (moodEnabled && hasPendingPartnerMood(data, day, settings)) return false;
+  // 拾性没落下日级终态就不算跑完；但它自己的状态无论如何都会写，不会卡死自动链。
+  if (settings.xingjiEnabled === true && data.getXingjiHarvestState(day, "__day__")?.status !== "completed") return false;
   const selected = getSelectedSummaryAgentIds(settings);
   const summarySelectionEmpty = !!(selected && selected.size === 0);
   const summaryReady = data.hasAgentSummary(day) && !hasStaleHanabrewSummary(day);
@@ -546,6 +576,8 @@ function publicSettings(s) {
     autoSummary: s.autoSummary,
     moodDiscoveryMode: normalizeMoodDiscoveryMode(s.moodDiscoveryMode),
     partnerMoodEnabled: s.partnerMoodEnabled === true,
+    xingjiEnabled: s.xingjiEnabled === true,
+    xingjiInjectionEnabled: s.xingjiInjectionEnabled === true,
     dayBoundaryHour: normalizeBoundaryHour(s.dayBoundaryHour),
     summaryAgentIds: normalizeSummaryAgentIds(s.summaryAgentIds),
     summaryAgents: listSummaryAgents(AGENTS_DIR),
@@ -555,6 +587,7 @@ function publicSettings(s) {
     weatherLocation: s.weatherLocation || "",
     weatherArea: resolveWeatherLocation(s).area || null,
     weatherIntervalHours: s.weatherIntervalHours || 3,
+    weatherAlertEnabled: s.weatherAlertEnabled !== false,
     deepseekPeakEnabled: s.deepseekPeakEnabled !== false,
     // 当前模型档关不掉思考时，页面要提醒用户「消耗明显更多，建议换一个能关思考的档」。
     thinkingUnstoppable: isThinkingUnstoppable(s),
@@ -1344,6 +1377,9 @@ export default function registerRoutes(app, ctx) {
         patch.moodDiscoveryMode = mode;
       }
       if (body.partnerMoodEnabled !== undefined) patch.partnerMoodEnabled = !!body.partnerMoodEnabled;
+      // 拾性：观察总开关与注入开关彻底分开，可以只记账不注入。
+      if (body.xingjiEnabled !== undefined) patch.xingjiEnabled = !!body.xingjiEnabled;
+      if (body.xingjiInjectionEnabled !== undefined) patch.xingjiInjectionEnabled = !!body.xingjiInjectionEnabled;
       if (body.summaryAgentIds !== undefined) {
         if (body.summaryAgentIds !== null && !Array.isArray(body.summaryAgentIds)) {
           return c.json({ ok: false, error: "做册伙伴选择格式不对" });
@@ -1360,6 +1396,7 @@ export default function registerRoutes(app, ctx) {
       }
       if (body.showPeriod !== undefined) patch.showPeriod = !!body.showPeriod;
       if (body.weatherEnabled !== undefined) patch.weatherEnabled = !!body.weatherEnabled;
+      if (body.weatherAlertEnabled !== undefined) patch.weatherAlertEnabled = !!body.weatherAlertEnabled;
       if (body.deepseekPeakEnabled !== undefined) patch.deepseekPeakEnabled = !!body.deepseekPeakEnabled;
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {
@@ -1910,6 +1947,7 @@ export default function registerRoutes(app, ctx) {
   // 只在真 App 宿主里接管：自动测试的 mock ctx 有 bus 但没 models，不接管时走老路可测。
   const isAppHost = !!(ctx?.models && typeof ctx.models.stream === "function");
   if (isAppHost && ctx?.bus && typeof ctx.bus.request === "function") {
+    xingjiBusRequest = (channel, payload) => ctx.bus.request(channel, payload);
     setSessionSource({
       async collect({ range }) {
         const list = await ctx.bus.request("session:list", { scope: "all", lifecycle: "all" });
@@ -2097,7 +2135,10 @@ async function runDailySummaryUnlocked(ctx, {
   const settings = data.getSettings();
   const automatic = !manual && !preview;
   const moodMode = normalizeMoodDiscoveryMode(settings.moodDiscoveryMode);
-  if (!manual && !settings.autoSummary && !(moodOnly && moodMode !== "off")) return { ok: false, error: "自动做册未开启" };
+  // 自动做册/自动情绪/拾性三者任意一个开着就能跑；只开拾性时走轻量路径，不生成做册总结。
+  if (!manual && !settings.autoSummary && !(moodOnly && moodMode !== "off") && settings.xingjiEnabled !== true) {
+    return { ok: false, error: "自动做册未开启" };
+  }
 
   // 先把用户称呼取回来（App 里要走宿主资源接口，且只真读一次）；
   // 后面几处同步调用直接吃缓存，不用每一处都改异步。
@@ -2205,6 +2246,33 @@ async function runDailySummaryUnlocked(ctx, {
 
   setSummaryStage("正在整理这一天的际遇");
   logInfo(`${day} 做册步骤：伙伴链 ${partnerMoodResults ? (partnerMoodResults.ok === false ? `失败(${partnerMoodResults.error})` : "完成") : "跳过"}`);
+
+  // 拾性（性格补全）：只观察、只记账，默认关；失败不影响做册，也不影响心情线。
+  // 观察与注入彻底分开：这里永远不往对话里写任何东西。
+  let xingjiResults = null;
+  if (!preview && settings.xingjiEnabled === true) {
+    try {
+      xingjiResults = await harvestXingjiForDay({ day, range, userName, messages: fullMessages });
+      const rows = Array.isArray(xingjiResults?.results) ? xingjiResults.results : [];
+      const recorded = rows.filter((item) => item.ok && !item.skipped);
+      if (recorded.length) {
+        logInfo(`${day} 拾性观察完成：${recorded.length} 位伙伴有可记的瞬间`);
+      }
+    } catch (e) {
+      const error = modelChannelErrorHint(e, settings.modelSource || "agent");
+      logWarn(`${day} 拾性观察失败（不影响做册）：${error}`);
+      xingjiResults = { ok: false, error };
+    }
+    // 周归纳：内部自己有门槛（至少 3 条观察且距上次满 7 天），大部分日子会直接跳过。
+    try {
+      for (const agentId of data.listXingjiAgentIds()) {
+        await rollupXingjiForAgent({ agentId });
+      }
+    } catch (e) {
+      logWarn(`${day} 拾性归纳失败（不影响做册）：${e?.message || e}`);
+    }
+  }
+  logInfo(`${day} 做册步骤：拾性 ${xingjiResults ? (xingjiResults.ok === false ? `失败(${xingjiResults.error})` : "完成") : "跳过"}`);
 
   if (moodOnly) {
     return { ok: true, date: day, preview, moodOnly: true, mood: moodResult, partnerMood: partnerMoodResults, text: "" };
@@ -2446,7 +2514,6 @@ function resumeSummaryJobs(ctx) {
 
 // 每分钟查看“最近完整结束的一天”。失败不会冒充成功，十分钟后可重试。
 function hasStaleHanabrewSummary(date) {
-  if (!isHanabrewInstalled(AGENTS_DIR)) return false;
   return getData().listSummaryEntries(date).some((entry) =>
     /^hanabrew-visitor-/i.test(String(entry.agentId || "")) && !isSyntheticSummaryText(entry.text)
   );
@@ -2459,7 +2526,8 @@ function startSummaryTimer(ctx) {
       const data = getData();
       const settings = data.getSettings();
       const moodEnabled = normalizeMoodDiscoveryMode(settings.moodDiscoveryMode) !== "off";
-      if (!settings.autoSummary && !moodEnabled) return;
+      const xingjiEnabled = settings.xingjiEnabled === true;
+      if (!settings.autoSummary && !moodEnabled && !xingjiEnabled) return;
       // 明确全不选时不反复触发空整理；但自动情绪仍是独立能力，不能被做册伙伴选择挡掉。
       const selectedAgentIds = getSelectedSummaryAgentIds(settings);
       const summarySelectionEmpty = !!(selectedAgentIds && selectedAgentIds.size === 0);
@@ -2475,7 +2543,9 @@ function startSummaryTimer(ctx) {
       const partnerPending = moodEnabled && hasPendingPartnerMood(data, day, settings);
       const needsSummary = settings.autoSummary && !summaryReady && !summarySelectionEmpty;
       const needsMood = moodEnabled && (!moodHandled || partnerPending);
-      if (!needsSummary && !needsMood) return;
+      const xingjiHandled = data.getXingjiHarvestState(day, "__day__")?.status === "completed";
+      const needsXingji = xingjiEnabled && !xingjiHandled;
+      if (!needsSummary && !needsMood && !needsXingji) return;
 
       const now = Date.now();
       const retryGate = getAutomaticRetryGate(automaticRetryState(data, day, settings, harvestState), now);
@@ -2949,18 +3019,18 @@ async function harvestPartnerMoodForAgent({ day, range, userName, rows, agentId,
     const evidenceText = buildSignalAwareEvidence(partnerRows, signals, fmtRow, evidenceBudget);
     const prompt =
       `你是拾光记的日子整理员。现在生活日 ${day}（从 ${range.start.toLocaleString("zh-CN")} 到 ${range.end.toLocaleString("zh-CN")}）已翻篇，请根据下面的可见对话，为「伙伴：${agentName}」整理当天的际遇，生成“自动发现候选”，不要把候选说成确定的心理事实。\n\n` +
-      `本地零 Token 预筛命中的际遇线索（praise=被夸被谢、rebuke=被凶被嫌、self=它自己表达了感受；只是线索，不代表最终判断）：\n${signalText}\n\n` +
+      `本地零 Token 预筛命中的际遇线索（praise=被夸被谢、rebuke=被凶被嫌、self=ta 自己表达了感受；只是线索，不代表最终判断）：\n${signalText}\n\n` +
       `当天可见对话（只含 ${agentName} 与 ${userName} 的往来；方括号内是消息真实时间；“我”是 ${userName}）：\n${evidenceText || "（没有可用对话文字）"}\n\n` +
       `请只输出一个 JSON 数组，不要任何其他文字。每条候选使用以下字段：\n` +
-      `[{ "mood": "情绪词", "segment": "上午|下午|晚上", "observedAt": "从消息方括号原样抄回的 YYYY-MM-DD HH:MM；无法确认就填空", "certainty": "clear|possible|uncertain", "evidenceType": "explicit|context", "evidence": "从对话原样摘出的短句；无法原样找到就填空", "why": "一句带不确定语气的推测，写清是哪种际遇（被夸/被谢/被凶/被晾/被需要/它自己表达了感受）；猜不出就填空" }]\n\n` +
+      `[{ "mood": "情绪词", "segment": "上午|下午|晚上", "observedAt": "从消息方括号原样抄回的 YYYY-MM-DD HH:MM；无法确认就填空", "certainty": "clear|possible|uncertain", "evidenceType": "explicit|context", "evidence": "从对话原样摘出的短句；无法原样找到就填空", "why": "一句带不确定语气的推测，写清是哪种际遇（被夸/被谢/被凶/被晾/被需要/ta 自己表达了感受）；猜不出就填空" }]\n\n` +
       `规则：\n` +
       `- mood 只能从这些词里选：${whitelist}；选不出来就不输出那条。\n` +
-      `- 只判断“${agentName}”这一方的感受，且依据只能是它那天的际遇：被夸、被谢、被凶、被晾、被需要，或它自己明确说出的感受。\n` +
-      `- 它的服务性回应不算情绪：它安抚${userName}、说“我理解你”“别担心”这类共情话，不能推出它自己难过或担心。\n` +
+      `- 只判断“${agentName}”这一方的感受，且依据只能是 ta 那天的际遇：被夸、被谢、被凶、被晾、被需要，或 ta 自己明确说出的感受。\n` +
+      `- ta 的服务性回应不算情绪：ta 安抚${userName}、说“我理解你”“别担心”这类共情话，不能推出 ta 自己难过或担心。\n` +
       `- segment 只填“上午/下午/晚上”；没有足够线索时可以填空，系统会把它记成宽泛的白天候选。\n` +
       `- observedAt 只有在能和某条真实消息时间逐字对应时才填写，不能根据语义猜一个时间；无法对应就留空。\n` +
       `- certainty 只能用 clear、possible、uncertain，不要输出 0-100 的心理分数。context 推测优先用 possible 或 uncertain。\n` +
-      `- evidence 必须是对话里的连续短摘录（“我”夸它/凶它的话，或它自己的原话都行），找不到原文就留空；why 可以为空，绝不硬安现实原因。\n` +
+      `- evidence 必须是对话里的连续短摘录（“我”夸 ta / 凶 ta 的话，或 ta 自己的原话都行），找不到原文就留空；why 可以为空，绝不硬安现实原因。\n` +
       `- 没有可辨认际遇就输出 []，宁可少不要硬凑。`;
     return { prompt, evidenceText };
   };
@@ -3028,6 +3098,495 @@ async function harvestPartnerMoodForAgent({ day, range, userName, rows, agentId,
     explicitSignalCount: signals.length,
   });
   return { ok: true, agentId, agentName, candidateCount: candidates.length, modelCandidateCount: modelCandidates.length, fallbackCount: fallbackCandidate ? 1 : 0, autoCount: merged.length };
+}
+
+// ── 拾性（性格补全）：日采观察 + 周归纳 ──
+// 与心情线的关系：心情线记「这天 ta 经历了什么」，拾性记「ta 反复怎么做」。
+// 与心情线的差别还有一条底线：拾性永远不注入任何对话（除非用户单独打开注入开关），
+// 现阶段只记账、只展示，不反过来影响伙伴。
+
+const XINGJI_ROLLUP_EVERY_DAYS = 7;
+const XINGJI_FORCE_ROLLUP_PENDING = 12;
+const XINGJI_MIN_PENDING = 3;
+
+async function harvestXingjiForDay({ day, range, userName, messages = null, force = false } = {}) {
+  const data = getData();
+  const settings = data.getSettings();
+  if (settings.xingjiEnabled !== true) return { ok: true, skipped: true, reason: "disabled" };
+  if (!mcInstance) return { ok: false, error: "插件路由未初始化" };
+  // 日级幂等：自动定时器会反复来问，一天只真正跑一趟；手动 force 才重跑。
+  const dayState = data.getXingjiHarvestState(day, "__day__");
+  if (!force && dayState && dayState.status === "completed") {
+    return { ok: true, skipped: true, reason: "already-handled" };
+  }
+
+  // 拾性只看行为反应，不需要全量消息；上层已取过就共用，单独调用时才自己取一趟。
+  let rows;
+  let fullRange = range;
+  if (Array.isArray(messages) && messages.length) {
+    rows = messages;
+  } else {
+    const collected = await resolveDayMessages({
+      agentsDir: AGENTS_DIR,
+      targetDate: day,
+      boundaryHour: settings.dayBoundaryHour ?? 4,
+      maxMessages: 20000,
+      maxMessagesPerAgent: 0,
+    });
+    rows = Array.isArray(collected.messages) ? collected.messages : [];
+    fullRange = collected.range && collected.range.start ? collected.range : range;
+  }
+
+  const agentIds = new Set();
+  for (const row of rows) {
+    const id = String(row?.agentId || "").trim();
+    if (id && isUserFacingAgentId(id)) agentIds.add(id);
+  }
+  if (!agentIds.size) return { ok: true, skipped: true, reason: "no-agent" };
+
+  // 通用习惯一天算一次，所有人共用：同一句式在多个伙伴身上都高频，就是模型习惯，不是性格。
+  const genericHabits = resolveGenericHabits(buildStyleProfiles(rows));
+
+  const results = [];
+  for (const agentId of agentIds) {
+    try {
+      results.push(await harvestXingjiForAgent({ day, range: fullRange, userName, rows, agentId, force, genericHabits }));
+    } catch (e) {
+      const error = modelChannelErrorHint(e, settings.modelSource || "agent");
+      logWarn(`${day} 拾性观察 ${agentId} 失败（不影响做册）：${error}`);
+      results.push({ agentId, ok: false, error: String(error).slice(0, 300) });
+    }
+  }
+  // 不管成败都落下日级终态：否则自动定时器会拿同一批料反复撞同一个失败端点。
+  try {
+    await data.updateXingjiHarvestState(day, "__day__", {
+      status: "completed",
+      agentCount: agentIds.size,
+      recorded: results.filter((item) => item.ok && !item.skipped).length,
+      failed: results.filter((item) => item.ok === false).length,
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    logWarn(`${day} 拾性日级状态保存失败：${e?.message || e}`);
+  }
+  return { ok: true, results };
+}
+
+async function harvestXingjiForAgent({ day, range, userName, rows, agentId, force = false, events: presetEvents = null, genericHabits = null }) {
+  const data = getData();
+  const saveState = async (patch) => {
+    try {
+      return await data.updateXingjiHarvestState(day, agentId, patch);
+    } catch (e) {
+      logWarn(`${day} 拾性状态保存失败：${e?.message || e}`);
+      return null;
+    }
+  };
+  const previous = data.getXingjiHarvestState(day, agentId);
+  if (!force && previous && ["completed", "skipped"].includes(previous.status)) {
+    return { ok: true, skipped: true, reason: "already-handled", agentId };
+  }
+
+  // 补档走全量扫描时直接给事件卡，不用再读一遍会话。
+  const events = Array.isArray(presetEvents) ? presetEvents : findCharacterEvents(rows || [], agentId);
+  if (!events.length) {
+    await saveState({ status: "skipped", reason: "no-event", checkedAt: new Date().toISOString() });
+    return { ok: true, skipped: true, reason: "no-event", agentId };
+  }
+
+  const agentName = readAgentDisplayName(AGENTS_DIR, agentId) || agentId;
+  // 设定只当「已经写过什么」的排除清单，不往档案里搬。
+  const baseline = readAgentPersonaBaseline(AGENTS_DIR, agentId);
+  const prompt = buildObservationPrompt({
+    agentName,
+    userName,
+    day,
+    eventsText: formatEventsForPrompt(events),
+    identityText: baseline.text,
+    genericNote: formatGenericHabitsNote(genericHabits),
+  });
+
+  const attemptedAt = new Date().toISOString();
+  await saveState({ status: "running", eventCount: events.length, attemptedAt, baselineFiles: baseline.files });
+
+  const raw = await mcInstance.sample([{ role: "user", content: prompt }], {
+    maxTokens: 700,
+    temperature: 0.3,
+    timeoutMs: 45000,
+    callPurpose: "xingji-observation",
+    reasoningLevel: "off",
+  });
+  await recordThinkingUnstoppable(data, mcInstance.lastDiagnostics);
+
+  // 证据校验的原文范围：优先用事件卡本身。模型只能从卡片里摘，摘到卡外的直接丢。
+  const sourceText = Array.isArray(presetEvents) && presetEvents.length
+    ? presetEvents.map((item) => `${item.userText || ""}\n${item.replyText || ""}`).join("\n")
+    : (rows || []).filter((row) => String(row?.agentId || "") === agentId).map((row) => String(row.text || "")).join("\n");
+  const parsed = parseObservationOutput(raw, { sourceText });
+  const nowIso = new Date().toISOString();
+  const observations = parsed.map((item, index) => ({
+    id: `${day}-${agentId}-${index}-${Date.now().toString(36)}`,
+    day,
+    agentId,
+    ...item,
+    observedAt: nowIso,
+  }));
+  if (observations.length) await data.addXingjiObservations(agentId, observations);
+  await saveState({
+    status: "completed",
+    eventCount: events.length,
+    observationCount: observations.length,
+    finishedAt: nowIso,
+  });
+  if (observations.length) {
+    logInfo(`${day} 拾性观察（${agentName}）：筛到 ${events.length} 个瞬间，记下 ${observations.length} 条观察`);
+  }
+  return { ok: true, agentId, agentName, eventCount: events.length, observationCount: observations.length };
+}
+
+/**
+ * 周归纳：把攒下的观察归成条目。
+ * 门槛：至少 3 条观察、距上次归纳满 7 天；攒到 12 条时提前归一次，避免待归纳堆积。
+ */
+async function rollupXingjiForAgent({ agentId, force = false } = {}) {
+  const data = getData();
+  if (!mcInstance) return { ok: false, error: "插件路由未初始化" };
+  const profile = data.getXingjiProfile(agentId);
+  const pending = profile.pending;
+  if (!pending.length) return { ok: true, skipped: true, reason: "no-pending", agentId };
+
+  const lastRollup = profile.lastRollupAt ? new Date(profile.lastRollupAt) : null;
+  const daysSince = lastRollup && !Number.isNaN(lastRollup.getTime())
+    ? (Date.now() - lastRollup.getTime()) / 86400000
+    : Number.POSITIVE_INFINITY;
+  if (!force && pending.length < XINGJI_MIN_PENDING) {
+    return { ok: true, skipped: true, reason: "not-enough-observations", agentId, pending: pending.length };
+  }
+  if (!force && daysSince < XINGJI_ROLLUP_EVERY_DAYS && pending.length < XINGJI_FORCE_ROLLUP_PENDING) {
+    return { ok: true, skipped: true, reason: "too-soon", agentId, pending: pending.length };
+  }
+
+  const agentName = readAgentDisplayName(AGENTS_DIR, agentId) || agentId;
+  const userName = readHanaUserName() || "对方";
+  // 被用户拉掉的条目不再喂给模型：否则模型可能 merge 回去，观察被吃掉，条目却仍是 rejected。
+  const activeEntries = profile.entries.filter((entry) => entry?.status !== "rejected");
+  const prompt = buildRollupPrompt({
+    agentName,
+    userName,
+    observations: pending,
+    existingEntries: activeEntries,
+  });
+
+  const raw = await mcInstance.sample([{ role: "user", content: prompt }], {
+    // 900 在 6 条中文条目时正好卡在截断边缘；截断的 JSON 会整批解析失败，
+    // 表面上像「观察归不出条目」，实际是输出被切掉了。留足余量。
+    maxTokens: 1800,
+    temperature: 0.25,
+    timeoutMs: 45000,
+    callPurpose: "xingji-rollup",
+    reasoningLevel: "off",
+  });
+  await recordThinkingUnstoppable(data, mcInstance.lastDiagnostics);
+
+  const items = parseRollupOutput(raw, { observations: pending });
+  const consumedIds = new Set();
+  for (const item of items) {
+    for (const index of item.observationIndexes) {
+      const observation = pending[index - 1];
+      if (observation?.id) consumedIds.add(String(observation.id));
+    }
+  }
+
+  if (!items.length) {
+    // 模型说这批观察归不成条目：不动档案，但把时间戳往后挪，免得每轮都重试。
+    await data.saveXingjiRollup(agentId, { entries: profile.entries, consumedIds: [], rolledAt: new Date().toISOString() });
+    logWarn(`拾性归纳（${agentName}）：模型回了 ${String(raw || "").length} 字，没解析出条目；观察继续留着`);
+    return { ok: true, skipped: true, reason: "no-entry", agentId, pending: pending.length, remaining: pending.length };
+  }
+
+  const entries = applyRollup(activeEntries, items, pending);
+  const rejectedEntries = profile.entries.filter((entry) => entry?.status === "rejected");
+  const savedEntries = [...entries, ...rejectedEntries];
+  await data.saveXingjiRollup(agentId, { entries: savedEntries, consumedIds: [...consumedIds], rolledAt: new Date().toISOString() });
+  const visible = savedEntries.filter((entry) => isVisibleEntry(entry)).length;
+  const remaining = data.getXingjiProfile(agentId).pending.length;
+  logInfo(`拾性归纳（${agentName}）：消费 ${consumedIds.size} 条观察，条目共 ${entries.length} 条，其中已经长成的 ${visible} 条`);
+  return { ok: true, agentId, agentName, entryCount: entries.length, visible, consumed: consumedIds.size, remaining };
+}
+
+// ── 全量扫描：一次读完所有会话（含 archived/bridge），直接蒸馏成按天分桶的事件卡 ──
+// 宿主 session:list 不返回 archived 里的会话；如果只走总线，用户归档过的历史会被整段漏掉。
+// 直接按 agents/<id>/sessions 下的 .jsonl 枚举，顶层的 session-meta 隐私过滤仍然保留。
+let xingjiBusRequest = null;
+
+async function scanAllSessionsForXingji({ onProgress } = {}) {
+  const files = listAllSessionFiles({ agentsDir: AGENTS_DIR });
+  if (!files.length) {
+    // App 沙箱里 fs 碰不到 Hana 家目录，退回宿主接口；能列到活跃+归档，但只有活跃会话能读正文。
+    const existing = getData().getXingjiScanSummary();
+    if (existing && existing.dayCount) {
+      logWarn("拾性扫描：App 环境读不到会话文件，沿用已有全量预扫结果");
+      return {
+        buckets: null,
+        sessionCount: existing.sessionCount,
+        eventCount: existing.eventCount,
+        reuseExisting: true,
+      };
+    }
+    logWarn("拾性扫描：App 环境读不到会话文件，退回宿主接口，本次只覆盖活跃会话");
+    return scanSessionsViaBus({ onProgress });
+  }
+  const buckets = {};
+  let eventCount = 0;
+  let readCount = 0;
+  let index = 0;
+
+  for (const file of files) {
+    index += 1;
+    const agentId = String(file?.agentId || "").trim();
+    const sessionPath = String(file?.sessionPath || "").trim();
+    if (!agentId || !sessionPath || !isUserFacingAgentId(agentId)) continue;
+    let raw = "";
+    try {
+      raw = await fs.promises.readFile(sessionPath, "utf-8");
+    } catch {
+      continue;
+    }
+    readCount += 1;
+    const rows = [];
+    for (const line of raw.split("\n")) {
+      if (!line) continue;
+      let entry = null;
+      try {
+        entry = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (entry?.type !== "message" || !entry.message || !entry.timestamp) continue;
+      if (entry.message.display === false) continue;
+      const ts = new Date(entry.timestamp);
+      if (Number.isNaN(ts.getTime())) continue;
+      const role = entry.message.role;
+      if (role !== "user" && role !== "assistant") continue;
+      const text = extractMessageText(entry.message.content);
+      if (!text || isSyntheticSummaryText(text)) continue;
+      rows.push({ ts: ts.getTime(), role, agentId, text: text.slice(0, 500) });
+    }
+
+    for (const item of findCharacterEvents(rows, agentId)) {
+      if (!item.day) continue;
+      const dayMap = buckets[item.day] || (buckets[item.day] = {});
+      const list2 = dayMap[agentId] || (dayMap[agentId] = []);
+      list2.push(item);
+      eventCount += 1;
+    }
+    if (typeof onProgress === "function" && (index % 20 === 0 || index === files.length)) {
+      onProgress(index, files.length, eventCount);
+    }
+    // 顺序读也要给事件循环让路，别让两千多个文件的扫描把页面和接口卡死。
+    if (index % 20 === 0) await new Promise((resolve) => setImmediate(resolve));
+  }
+
+  // 一个会话只出一部分，多个会话合到同一天会超；每个桶再裁一次。
+  for (const day of Object.keys(buckets)) {
+    for (const agentId of Object.keys(buckets[day])) {
+      buckets[day][agentId] = capEventList(buckets[day][agentId], 8);
+    }
+  }
+  return { buckets, sessionCount: readCount, eventCount };
+}
+
+/** App 沙箱的退路：走宿主 session:list + session:entries，只覆盖能读正文的活跃会话。 */
+async function scanSessionsViaBus({ onProgress } = {}) {
+  if (typeof xingjiBusRequest !== "function") throw new Error("宿主会话接口不可用");
+  const list = await xingjiBusRequest("session:list", { scope: "all", lifecycle: "all" });
+  const sessions = Array.isArray(list?.sessions) ? list.sessions : [];
+  const buckets = {};
+  let eventCount = 0;
+  let readCount = 0;
+  let index = 0;
+  for (const row of sessions) {
+    index += 1;
+    const agentId = String(row?.agentId || "").trim();
+    if (!agentId || !isUserFacingAgentId(agentId)) continue;
+    const sessionId = String(row?.sessionId || row?.id || "").trim();
+    const sessionPath = String(row?.path || "").trim();
+    if (!sessionId && !sessionPath) continue;
+    let detail = null;
+    try {
+      detail = await xingjiBusRequest("session:entries", {
+        ...(sessionId ? { sessionId } : {}),
+        ...(sessionPath ? { sessionPath } : {}),
+        scope: "all",
+      });
+    } catch {
+      continue;
+    }
+    readCount += 1;
+    const rows = [];
+    for (const entry of Array.isArray(detail?.entries) ? detail.entries : []) {
+      if (entry?.type !== "message" || !entry?.message || !entry.timestamp) continue;
+      if (entry.message.display === false) continue;
+      const ts = new Date(entry.timestamp);
+      if (Number.isNaN(ts.getTime())) continue;
+      const role = entry.message.role;
+      if (role !== "user" && role !== "assistant") continue;
+      const text = extractMessageText(entry.message.content);
+      if (!text || isSyntheticSummaryText(text)) continue;
+      rows.push({ ts: ts.getTime(), role, agentId, text: text.slice(0, 500) });
+    }
+    for (const item of findCharacterEvents(rows, agentId)) {
+      if (!item.day) continue;
+      const dayMap = buckets[item.day] || (buckets[item.day] = {});
+      const list2 = dayMap[agentId] || (dayMap[agentId] = []);
+      list2.push(item);
+      eventCount += 1;
+    }
+    if (typeof onProgress === "function" && (index % 20 === 0 || index === sessions.length)) {
+      onProgress(index, sessions.length, eventCount);
+    }
+  }
+  for (const day of Object.keys(buckets)) {
+    for (const agentId of Object.keys(buckets[day])) {
+      buckets[day][agentId] = capEventList(buckets[day][agentId], 8);
+    }
+  }
+  return { buckets, sessionCount: readCount, eventCount };
+}
+
+// ── 拾性历史补档（后台任务：只补观察与归纳，不碰做册总结）──
+// 与实时链的唯一差别是 force：历史日子已经有日级状态，不 force 会被跳过。
+
+let activeXingjiJobPromise = null;
+const activeXingjiRollups = new Set();
+
+/** 盘上的活跃任务如果已经没有内存里的 Promise 在跑，就是 App 重载留下的孤任务。 */
+async function markOrphanedXingjiJob(data) {
+  const job = data.getXingjiJob();
+  if (!job || activeXingjiJobPromise || !["queued", "running", "scanning"].includes(job.status)) return job;
+  const updated = await data.updateXingjiJob({
+    status: "interrupted",
+    phase: job.phase || "scan",
+    error: "补记被中断了（App 重载或关闭）",
+    interruptedAt: new Date().toISOString(),
+  });
+  logWarn(`拾性补档：发现中断任务 ${updated?.id || job.id || ""}`);
+  return updated;
+}
+
+function startXingjiJob(jobId) {
+  if (activeXingjiJobPromise) return activeXingjiJobPromise;
+  activeXingjiJobPromise = processXingjiJob(jobId).finally(() => {
+    activeXingjiJobPromise = null;
+  });
+  return activeXingjiJobPromise;
+}
+
+async function processXingjiJob(jobId) {
+  const data = getData();
+  const job = data.getXingjiJob();
+  if (!job || job.id !== jobId) return null;
+
+  // 第一阶段：全量扫一遍会话，蒸馏成事件卡。纯本地读取，不花模型费。
+  // 维护模式可以用已经写好的预扫结果跳过这一阶段（App 沙箱读不到归档目录时用）。
+  if (job.skipScan === true) {
+    const summary = data.getXingjiScanSummary();
+    if (!summary || !summary.dayCount) {
+      await data.updateXingjiJob({ status: "failed", phase: "scan", error: "还没有可用的扫描结果" });
+      return null;
+    }
+    await data.updateXingjiJob({
+      status: "running",
+      phase: "model",
+      scanProgress: { index: summary.dayCount, total: summary.dayCount, events: summary.eventCount },
+    });
+    logInfo(`拾性补档：使用预扫结果（${summary.dayCount} 天，${summary.eventCount} 张事件卡）`);
+  } else {
+    await data.updateXingjiJob({ status: "scanning", phase: "scan", scanProgress: { index: 0, total: 0, events: 0 } });
+    let scanned = null;
+    try {
+      scanned = await scanAllSessionsForXingji({
+        onProgress: (index, total, events) => {
+          data.updateXingjiJob({ scanProgress: { index, total, events } }).catch(() => {});
+        },
+      });
+      if (scanned.reuseExisting) {
+        logInfo(`拾性补档：沿用已有预扫结果（${scanned.sessionCount} 个会话，${scanned.eventCount} 张事件卡）`);
+      } else {
+        await data.saveXingjiScan({
+          days: scanned.buckets,
+          scannedAt: new Date().toISOString(),
+          sessionCount: scanned.sessionCount,
+          eventCount: scanned.eventCount,
+        });
+        logInfo(`拾性全量扫描完成：读 ${scanned.sessionCount} 个会话，蒸馏出 ${scanned.eventCount} 张事件卡`);
+      }
+    } catch (e) {
+      const error = String(e?.message || e).slice(0, 300);
+      logWarn(`拾性全量扫描失败：${error}`);
+      await data.updateXingjiJob({ status: "failed", phase: "scan", error });
+      return null;
+    }
+  }
+
+  // 第二阶段：只读桶、调模型，不再碰原文。
+  await data.updateXingjiJob({ status: "running", phase: "model" });
+  const userName = readHanaUserName() || "对方";
+  const done = [];
+  const failed = [];
+  for (const date of job.dates) {
+    await data.updateXingjiJob({ currentDate: date });
+    const byAgent = data.getXingjiScanDay(date);
+    const agentIds = Object.keys(byAgent);
+    if (!agentIds.length) {
+      done.push(date);
+      continue;
+    }
+    // 补档时手上只有筛过的事件卡，没有原文。事件卡是稀有信号、不是全量发言，
+    // 拿它算“加粗率”没有统计意义，所以这里不伪装实测，统一走内置基线。
+    const genericHabits = resolveGenericHabits([]);
+    for (const agentId of agentIds) {
+      try {
+        const result = await harvestXingjiForAgent({ day: date, userName, agentId, events: byAgent[agentId], genericHabits });
+        if (result?.ok === false) failed.push({ date, agentId, error: String(result.error || "失败").slice(0, 200) });
+      } catch (e) {
+        failed.push({ date, agentId, error: String(e?.message || e).slice(0, 200) });
+      }
+    }
+    done.push(date);
+    await data.updateXingjiJob({ done: done.slice(), failed: failed.slice() });
+  }
+  // 补齐后再统一归纳一次，不按七天节奏等。先换阶段，页面才知道现在不是在逐天看。
+  await data.updateXingjiJob({ status: "running", phase: "rollup" });
+  for (const agentId of data.listXingjiAgentIds()) {
+    try {
+      await rollupXingjiForAgent({ agentId, force: true });
+    } catch (e) {
+      logWarn(`拾性补档归纳 ${agentId} 失败：${e?.message || e}`);
+    }
+  }
+  await data.updateXingjiJob({
+    status: "completed",
+    currentDate: "",
+    finishedAt: new Date().toISOString(),
+    done,
+    failed,
+  });
+  logInfo(`拾性补档完成：${done.length} 天处理完，${failed.length} 天失败`);
+  return { done, failed };
+}
+
+/** 枚举一段日期；超过 180 天直接拒绝，防误传巨大区间烧钱。 */
+function enumerateDates(from, to) {
+  const start = new Date(`${from}T12:00:00`);
+  const end = new Date(`${to}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) return null;
+  const dates = [];
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+    if (dates.length > 180) return null;
+  }
+  return dates;
 }
 
 // ── 伙伴心情历史补档（后台任务：只补际遇线，不碰做册总结）──
@@ -3244,6 +3803,273 @@ function registerMoodRoutes(app) {
   });
 
   // ── 伙伴心情线（独立于用户的 moods，按 agentId 分组）──
+
+  // ── 拾性（性格补全）：只读档案 + 人工纠错 ──
+  // 只返回够门槛的条目；不够的留在后台继续攒，不给用户看半成品。
+  function decorateXingjiEntry(entry) {
+    const evaluated = evaluateEntry(entry);
+    return {
+      id: entry.id,
+      kind: normalizeEntryKind(entry.kind),
+      // 跟性格设定的对照：described=设定里写过、ta 做出来了；unwritten=设定里没写、ta 一贯这样。
+      // 老档案没有任何带 relation 的证据，这里是空串，界面不标。
+      relation: dominantRelation(entry),
+      situation: entry.situation || "",
+      behavior: entry.behavior || "",
+      level: evaluated.level,
+      positives: Array.isArray(entry.positives) ? entry.positives.slice() : [],
+      negatives: Array.isArray(entry.negatives) ? entry.negatives.slice() : [],
+      triggers: entry.triggers || { strong: [], weak: [] },
+      stats: {
+        positives: evaluated.positives,
+        negatives: evaluated.negatives,
+        distinctDays: evaluated.distinctDays,
+        spanDays: evaluated.spanDays,
+      },
+      status: entry.status || "active",
+      firstSeen: (entry.positives || [])[0]?.date || "",
+      lastSeen: (entry.positives || []).slice(-1)[0]?.date || "",
+    };
+  }
+
+  app.get("/api/xingji", async (c) => {
+    try {
+      const data = getData();
+      const settings = data.getSettings();
+      const boundary = normalizeBoundaryHour(settings.dayBoundaryHour);
+      const latestFinished = finishedLifeDayKey(new Date(), boundary);
+      const scanSummary = typeof data.getXingjiScanSummary === "function" ? data.getXingjiScanSummary() : null;
+      const agents = [];
+      let totalPending = 0;
+      let totalVisible = 0;
+      let totalCandidates = 0;
+      for (const agentId of data.listXingjiAgentIds()) {
+        const profile = data.getXingjiProfile(agentId);
+        const visible = profile.entries.filter((entry) => isVisibleEntry(entry));
+        const entries = visible.map(decorateXingjiEntry);
+        // 还在长、但还没到门槛的条目单独给出来：让用户看见过程，但不把它们算成「看出」。
+        const candidates = profile.entries
+          .filter((entry) => entry?.status !== "rejected" && !isVisibleEntry(entry))
+          .map(decorateXingjiEntry);
+        const pendingDays = [...new Set(profile.pending.map((item) => String(item?.day || "").trim()).filter(Boolean))].sort();
+        totalPending += profile.pending.length;
+        totalVisible += entries.length;
+        totalCandidates += candidates.length;
+        // 空白也是结果：说清「还在攒」，比硬凑一条强。
+        agents.push({
+          agentId,
+          name: readAgentDisplayName(AGENTS_DIR, agentId) || agentId,
+          entries,
+          candidates,
+          pending: profile.pending.length,
+          pendingDays: pendingDays.length,
+          pendingFirst: pendingDays[0] || "",
+          pendingLast: pendingDays[pendingDays.length - 1] || "",
+          lastRollupAt: profile.lastRollupAt,
+          waiting: entries.length === 0,
+        });
+      }
+      agents.sort((a, b) => b.entries.length - a.entries.length
+        || b.pending - a.pending
+        || b.candidates.length - a.candidates.length
+        || a.name.localeCompare(b.name));
+      return c.json({
+        ok: true,
+        enabled: settings.xingjiEnabled === true,
+        injectionEnabled: settings.xingjiInjectionEnabled === true,
+        agents,
+        totals: {
+          agents: agents.length,
+          pending: totalPending,
+          visible: totalVisible,
+          candidates: totalCandidates,
+        },
+        thresholds: {
+          positives: XINGJI_MIN_POSITIVES,
+          distinctDays: XINGJI_MIN_DISTINCT_DAYS,
+          likelyPositives: XINGJI_LIKELY_POSITIVES,
+          likelyDistinctDays: XINGJI_LIKELY_DISTINCT_DAYS,
+          // 偏离是低频事件，门槛单独一档；跨度不再当门槛，只在条目的 stats 里展示。
+          deviation: {
+            positives: XINGJI_DEVIATION_MIN_POSITIVES,
+            distinctDays: XINGJI_DEVIATION_MIN_DISTINCT_DAYS,
+            likelyPositives: XINGJI_DEVIATION_LIKELY_POSITIVES,
+            likelyDistinctDays: XINGJI_DEVIATION_LIKELY_DISTINCT_DAYS,
+          },
+        },
+        injectMaxEntries: XINGJI_INJECT_MAX_ENTRIES,
+        range: {
+          earliest: scanSummary?.firstDay || "",
+          latest: latestFinished,
+        },
+      });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "读取失败" });
+    }
+  });
+
+  // 人工纠错：她说「这条不对」就拉黑，或者直接改描述。拉黑不删证据，留着可回溯。
+  app.post("/api/xingji/entry", async (c) => {
+    try {
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      const agentId = String(body.agentId || "").trim();
+      const entryId = String(body.entryId || "").trim();
+      if (!agentId || !entryId) return c.json({ ok: false, error: "缺少伙伴或条目" });
+      const action = String(body.action || "").trim();
+      const data = getData();
+      let patch = null;
+      if (action === "reject") {
+        patch = { status: "rejected", rejectedAt: new Date().toISOString(), rejectedReason: String(body.reason || "").slice(0, 200) };
+      } else if (action === "edit") {
+        const behavior = String(body.behavior || "").trim().slice(0, 120);
+        const situation = String(body.situation || "").trim().slice(0, 120);
+        if (!behavior && !situation) return c.json({ ok: false, error: "改什么都没填" });
+        patch = {};
+        if (behavior) patch.behavior = behavior;
+        if (situation) patch.situation = situation;
+        patch.editedByUser = true;
+      } else {
+        return c.json({ ok: false, error: "动作不对" });
+      }
+      const updated = await data.updateXingjiEntry(agentId, entryId, patch);
+      if (!updated) return c.json({ ok: false, error: "没找到这条" });
+      await data.appendXingjiLog({ agentId, entryId, type: `entry-${action}`, detail: patch.rejectedReason || patch.behavior || "" });
+      return c.json({ ok: true, entry: decorateXingjiEntry(updated) });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "保存失败" });
+    }
+  });
+
+  // 手动归纳一次：不等周节奏，想看看现在能归出什么的时候用。
+  app.post("/api/xingji/rollup", async (c) => {
+    try {
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      const agentId = String(body.agentId || "").trim();
+      if (!agentId) return c.json({ ok: false, error: "缺少伙伴" });
+      if (activeXingjiRollups.has(agentId)) return c.json({ ok: false, error: "正在整理这位伙伴，等一下" });
+      activeXingjiRollups.add(agentId);
+      try {
+        const result = await rollupXingjiForAgent({ agentId, force: true });
+        return c.json({ ok: true, result });
+      } finally {
+        activeXingjiRollups.delete(agentId);
+      }
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "归纳失败" });
+    }
+  });
+
+  // __shiguangji-app_DEV_ONLY__
+  // 调试用：把一段现成提示词交给当前模型通道跑一次，只看输出。
+  // 只在本地研究阶段用，不对外暴露、不写任何账；发布打包时整块剔除。
+  app.post("/api/xingji/debug-sample", async (c) => {
+    try {
+      if (!mcInstance) return c.json({ ok: false, error: "插件路由未初始化" });
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      const prompt = String(body.prompt || "");
+      if (!prompt) return c.json({ ok: false, error: "缺 prompt" });
+      const raw = await mcInstance.sample([{ role: "user", content: prompt }], {
+        maxTokens: Number(body.maxTokens) || 2000,
+        temperature: 0.2,
+        timeoutMs: 90000,
+        callPurpose: "xingji-debug-sample",
+        reasoningLevel: "off",
+      });
+      return c.json({ ok: true, raw });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "调用失败" });
+    }
+  });
+  // __shiguangji-app_DEV_ONLY_END__
+
+  // 导入预扫结果：App 沙箱读不到归档会话时，在外部用同一套 lib 扫完再送进来。
+  // 只存按天分桶的事件卡，不存原文；与页面内扫描写的是同一个字段。
+  app.post("/api/xingji/scan-import", async (c) => {
+    try {
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      const days = body.days && typeof body.days === "object" ? body.days : null;
+      if (!days || !Object.keys(days).length) return c.json({ ok: false, error: "没有可导入的扫描结果" });
+      const saved = await getData().saveXingjiScan({
+        days,
+        scannedAt: String(body.scannedAt || new Date().toISOString()),
+        sessionCount: Number(body.sessionCount) || 0,
+        eventCount: Number(body.eventCount) || 0,
+      });
+      logInfo(`拾性预扫导入：${saved.dayCount} 天，${Number(body.eventCount) || 0} 张事件卡`);
+      return c.json({ ok: true, dayCount: saved.dayCount });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "导入失败" });
+    }
+  });
+
+  // 清空拾性重跑：把条目、观察、事件卡、日采完成标记一起清掉。
+  // 只给「换了筛选规则要重新跑一遍」这种场合用，不动做册、心情线和其他数据。
+  // 默认只清拾性自己的账（xingji.dat），settings 与心情线一概不碰。
+  app.post("/api/xingji/reset", async (c) => {
+    try {
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      if (body.confirm !== true) return c.json({ ok: false, error: "这个操作会清空全部拾性档案，需要 confirm: true" });
+      const job = getData().getXingjiJob();
+      if (job && ["queued", "running", "scanning"].includes(job.status)) {
+        return c.json({ ok: false, error: "还有一项拾性补档在跑，等它结束或者先让它停下" });
+      }
+      const result = await getData().resetXingji();
+      logWarn(`拾性重跑：档案已清空（条目 ${result.entries} 条、观察 ${result.pending} 条、事件卡 ${result.scanDays} 天）`);
+      return c.json({ ok: true, result });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "清空失败" });
+    }
+  });
+
+  // 历史补档：从某天补到某天，只补拾性，不碰做册总结。后台串行跑，不卡页面。
+  app.post("/api/xingji/backfill", async (c) => {
+    try {
+      logInfo("拾性补档：收到启动请求");
+      const body = (await c.req.json().catch(() => ({}))) || {};
+      const settings = getData().getSettings();
+      if (settings.xingjiEnabled !== true) return c.json({ ok: false, error: "先在设置里打开「拾性」" });
+      const boundary = normalizeBoundaryHour(settings.dayBoundaryHour);
+      const latestFinished = finishedLifeDayKey(new Date(), boundary);
+
+      let dates = [];
+      if (Array.isArray(body.dates) && body.dates.length) {
+        dates = [...new Set(body.dates.map((d) => String(d || "").trim()).filter(Boolean))].sort();
+      } else {
+        const from = String(body.from || "").trim() || "2026-05-01";
+        const to = String(body.to || "").trim() || latestFinished;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+          return c.json({ ok: false, error: "日期格式不对" });
+        }
+        const enumerated = enumerateDates(from, to);
+        if (!enumerated) return c.json({ ok: false, error: "日期区间不对，或者超过 180 天" });
+        dates = enumerated;
+      }
+      const invalid = dates.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || d > latestFinished);
+      if (invalid) return c.json({ ok: false, error: `${invalid} 还没结束，只能补已经翻篇的日子` });
+
+      const data = getData();
+      await markOrphanedXingjiJob(data);
+      const job = await data.createXingjiJob({ dates, skipScan: body.skipScan === true });
+      logInfo(`拾性补档：任务已建（${dates.length} 天，${dates[0] || ""} → ${dates[dates.length - 1] || ""}）`);
+      startXingjiJob(job.id);
+      return c.json({ ok: true, job });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "补档没启动起来" });
+    }
+  });
+
+  app.get("/api/xingji/job", async (c) => {
+    try {
+      const data = getData();
+      let job = data.getXingjiJob();
+      // 内存里的任务随 App 重载消失，盘上的状态却会停在 running/scanning。
+      // 这里没有活跃 Promise 就是真实的孤任务，先标记中断，页面才能给「接着补」的出口。
+      job = await markOrphanedXingjiJob(data);
+      return c.json({ ok: true, job });
+    } catch (e) {
+      return c.json({ ok: false, error: e?.message || "读取失败" });
+    }
+  });
 
   // 某月伙伴心情速览：{ date: { agentId: [decorated entries] } }，附 agents 名映射
   app.get("/api/partner-moods", async (c) => {

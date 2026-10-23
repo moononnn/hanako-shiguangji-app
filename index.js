@@ -7,6 +7,7 @@ import { setAgentCatalog } from './lib/day-summary.js';
 import { attachInject } from './lib/inject-app.js';
 import { registerDaybookTools } from './lib/app-tools.js';
 import { configurePublicTodayPublisher, writePublicToday } from './lib/public-today.js';
+import { configurePublicGreetingsPublisher, publishPublicGreetings } from './lib/public-greetings.js';
 import { setHostResources } from './lib/session-model.js';
 import { TodoReminderScheduler, setTodoReminderScheduler } from './lib/todo-reminder-scheduler.js';
 import { registerTodoCompleteService } from './lib/todo-complete.js';
@@ -22,9 +23,13 @@ export async function apply(ctx) {
   const data = configureSharedUserData(ctx.dataDir);
   configureUserNameStore(ctx.dataDir);
   configurePublicTodayPublisher(ctx);
+  // greetings 与 today 同一条通道、各自判重；发布失败只安静收场，绝不影响保存与对话。
+  configurePublicGreetingsPublisher(ctx);
   data.onPublicContextChange = () => {
     try { writePublicToday({ dataDir: ctx.dataDir, data }); }
     catch (error) { logWarn(`保存后的共享情境更新失败：${error?.message || error}`); }
+    try { publishPublicGreetings({ data }); }
+    catch (error) { logWarn(`保存后的节日问候共享失败：${error?.message || error}`); }
   };
   // 先把宿主的 resources 句柄递给扩展：扩展自己的 ctx 里没有它，但两者同进程。
   setHostResources(ctx.resources);
@@ -66,6 +71,7 @@ export async function apply(ctx) {
   // 会话模型改由 inject-app.js 的 primeSessionModel 预取。
   const timer = setTimeout(async () => {
     writePublicToday({ dataDir: ctx.dataDir, data, force: true });
+    publishPublicGreetings({ data, force: true });
     void reminder.restoreAppSchedules();
     void focusReminder.restore();
     try {
@@ -80,6 +86,9 @@ export async function apply(ctx) {
   const refresh = setInterval(() => {
     try { writePublicToday({ dataDir: ctx.dataDir, data }); }
     catch (error) { logWarn(`共享情境刷新失败：${error?.message || error}`); }
+    // 问候台账跟着定时补一次：完成确认那侧没有通道，靠这里按内容指纹把变化送出去。
+    try { publishPublicGreetings({ data }); }
+    catch (error) { logWarn(`节日问候共享刷新失败：${error?.message || error}`); }
     void reminder.restoreAppSchedules(); // 补排已过期的失败重试；未知结果只对账，不盲目重建。
     void focusReminder.restore();
   }, 60 * 1000);

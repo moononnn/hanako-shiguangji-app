@@ -12,6 +12,7 @@ import {
   shouldInject,
   buildInjectionText,
   buildDeepSeekContext,
+  buildWeatherAlertContext,
   decideWeatherMention,
   weatherFactKey,
 } from "../lib/inject.js";
@@ -20,19 +21,30 @@ import { getBuiltinFestivals, isWorkday } from "../lib/festivals.js";
 import { getFestivalHintPool, pickFestivalHint, didMentionFestival } from "../lib/festival-hints.js";
 import { finishedLifeDayKey, lifeDayKey, resolveSummaryAgentId } from "../lib/day-summary.js";
 import { readHanaUserName, resolveHanaUserName } from "../lib/user-name.js";
+import { pickInjectableEntries } from "../lib/xingji.js";
 import {
   ensureWeatherFresh,
+  ensureWeatherForecastFresh,
   getConfiguredWeatherFetcher,
   getWeatherForInject,
   normalizeWeatherResult,
   resolveWeatherLocation,
   weatherCacheIsFresh,
   weatherCacheMatches,
+  weatherForecastCacheIsFresh,
+  weatherForecastCacheMatches,
 } from "../lib/weather.js";
+import {
+  collectWeatherEvents,
+  decideWeatherAlert,
+  didMentionWeatherEvent,
+  markWeatherEventReported,
+} from "../lib/weather-alert.js";
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
 import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
 import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/session-model.js";
 import { schedulePublicToday } from "../lib/public-today.js";
+import { schedulePublicGreetings } from "../lib/public-greetings.js";
 
 const tracker = new InjectionTracker();
 // 峰谷单独注入时，注入状态里不夹带峰谷字段（两套 schema 不互相冒充），
@@ -48,6 +60,18 @@ function scheduleWeatherPrefetch(data, settings) {
   if (nowTs - weatherPrefetchAt < WEATHER_PREFETCH_THROTTLE_MS) return;
   weatherPrefetchAt = nowTs;
   void ensureWeatherFresh({ data, settings, onError: () => {} }).catch(() => {});
+}
+
+// 预报缓存过期时的后台补查：预报刷新比当前天气频（默认 1 小时），
+// 但也不每轮都去撞，5 分钟内最多发起一次。
+let weatherForecastPrefetchAt = 0;
+const WEATHER_FORECAST_PREFETCH_THROTTLE_MS = 5 * 60 * 1000;
+
+function scheduleWeatherForecastPrefetch(data, settings) {
+  const nowTs = Date.now();
+  if (nowTs - weatherForecastPrefetchAt < WEATHER_FORECAST_PREFETCH_THROTTLE_MS) return;
+  weatherForecastPrefetchAt = nowTs;
+  void ensureWeatherForecastFresh({ data, settings, onError: () => {} }).catch(() => {});
 }
 let nowProvider = () => new Date(); // 可覆写的时钟（测试用），生产保持真实当前时间
 
@@ -146,6 +170,22 @@ function getActiveBranchAssistantTexts(context, afterTimestamp) {
   return texts;
 }
 
+// 问候确认完成后入对外台账：判不出是谁就不入账（绝不写空值或 unknown 占位），
+// 入账后排一次去抖发布。扩展侧没有 publicData 通道（那是 App 入口才有的），
+// 排不进去就交给 App 自己的定时刷新按内容指纹补发，两边都不会把主流程带崩。
+function recordFestivalGreetingCompletion({ data, event, ctx, festival, date, now } = {}) {
+  try {
+    const agentId = resolveAgentId(event, ctx);
+    if (!data || !agentId || !festival || !date) return;
+    void data
+      .recordFestivalGreeting({ agentId, date, festival, completedAt: now || new Date() })
+      .then(() => schedulePublicGreetings({ data, now: new Date() }))
+      .catch(() => {});
+  } catch {
+    // 台账写不进去不影响会话
+  }
+}
+
 function observeFestivalGreeting(pi) {
   pi.on("message_end", (event, ctx) => {
     try {
@@ -155,6 +195,8 @@ function observeFestivalGreeting(pi) {
       const sessionId = ctx?.sessionManager?.getSessionId?.() || null;
       if (!sessionId) return;
       const data = getData(ctx);
+      // 天气提醒的确认与节日问候分开记账，但共用这一条 message_end 钩子。
+      confirmWeatherAlertMention(data, sessionId, message);
       const state = tracker.get(sessionId) || data.getInjectionState(sessionId);
       const name = state?.festivalGreetingName;
       const date = state?.festivalGreetingPromptedDate;
@@ -163,6 +205,7 @@ function observeFestivalGreeting(pi) {
       const completed = { ...state, festivalGreetingCompleteDate: date };
       tracker.set(sessionId, completed);
       persistInjectionState(data, sessionId, completed);
+      recordFestivalGreetingCompletion({ data, event, ctx, festival: name, date, now: nowProvider() });
     } catch {
       // 观察回复失败不影响会话；未确认时保持待提醒，下一轮再自然提示。
     }
@@ -173,6 +216,28 @@ function observeFestivalGreeting(pi) {
 function persistDeepSeekState(data, sessionId, dsState) {
   if (!data || !sessionId || !dsState) return;
   data.setDeepSeekPeakState(sessionId, dsState).catch(() => {});
+}
+
+// 天气提醒的会话状态落盘：同样 fire-and-forget，与峰谷/情境各自一份 schema。
+function persistWeatherAlertState(data, sessionId, alertState) {
+  if (!data || !sessionId || !alertState) return;
+  data.setWeatherAlertState(sessionId, alertState).catch(() => {});
+}
+
+// 观察伙伴这一轮到底有没有把天气提醒说出口：说过了就记成已提，不再追着念。
+// 与节日问候共用同一个 message_end 钩子：这里只做确认，不注册新钩子。
+function confirmWeatherAlertMention(data, sessionId, message) {
+  try {
+    if (!data || !sessionId) return;
+    const state = data.getWeatherAlertState?.(sessionId);
+    const pending = state?.waPending;
+    if (!pending || !pending.key) return;
+    const text = getAssistantVisibleText(message);
+    if (!didMentionWeatherEvent(text, { keywords: pending.keywords || [] })) return;
+    persistWeatherAlertState(data, sessionId, markWeatherEventReported(state, { key: pending.key }));
+  } catch {
+    // 观察失败不影响会话；没确认提及时保留待补报，下一轮再试。
+  }
 }
 
 function getData(context = null) {
@@ -216,6 +281,12 @@ export default function registerShiguangjiInject(pi) {
         : []);
       const partnerInjectionDisabled = !!currentAgentId && disabledAgentIds.has(currentAgentId);
       const injectionEnabled = settings.injectionEnabled !== false && !partnerInjectionDisabled;
+      // 拾性档案接回对话：独立开关，且跟随情境注入总开关与按伙伴屏蔽。
+      // 全部默认关——观察归观察，注入归注入，后者必须由人显式打开。
+      const xingjiInjectionEnabled = settings.xingjiInjectionEnabled === true && injectionEnabled === true && !!currentAgentId;
+      const xingjiEntries = xingjiInjectionEnabled
+        ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
+        : [];
       const currentModel = resolveCurrentModel(event, ctx, sessionId, currentAgentId);
       const dataRev = data.getDataRev();
       // 对外快照独立于「情境注入」开关：那个开关只管往 Hana 会话里注入，
@@ -308,6 +379,31 @@ export default function registerShiguangjiInject(pi) {
         })
         : { should: false, reason: "peak-disabled", notice: null, state: null };
 
+      // 天气提醒：独立一路判定，跟「窗外天气」播报分开。
+      // 只有真值得留意的才开口（恶劣天气、大风、明显降温/升温），说过的不再重复。
+      const weatherAlertEnabled = settings.weatherAlertEnabled !== false && settings.weatherEnabled !== false;
+      let weatherAlertDecision = { should: false, reason: "alert-disabled", notice: null, state: null };
+      if (weatherAlertEnabled) {
+        const alertState = data.getWeatherAlertState?.(sessionId) || null;
+        const forecastCache = data.getWeatherForecastCache?.() || null;
+        const forecastFresh = weatherForecastCacheMatches(forecastCache, settings) &&
+          weatherForecastCacheIsFresh(forecastCache, settings, now);
+        if (!forecastFresh) {
+          // 预报过期/没有：后台补一次，本轮不拿旧数据硬判（免得拿早上那版预报说晚上有雨）。
+          scheduleWeatherForecastPrefetch(data, settings);
+        } else {
+          const currentWeather = readFreshWeather(data, settings, now);
+          const events = collectWeatherEvents({
+            forecast: forecastCache.forecast,
+            now,
+            currentTemp: currentWeather ? currentWeather.temp : null,
+            settings,
+          });
+          weatherAlertDecision = decideWeatherAlert({ events, lastState: alertState, now });
+          persistWeatherAlertState(data, sessionId, weatherAlertDecision.state);
+        }
+      }
+
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);
       const todayKey = dateKeyOf(now);
@@ -399,7 +495,8 @@ export default function registerShiguangjiInject(pi) {
         injectionEnabled: true,
       };
       const deepseekForced = deepseekDecision.should;
-      if (!decision.should && !deepseekForced) {
+      const weatherAlertForced = weatherAlertDecision.should;
+      if (!decision.should && !deepseekForced && !weatherAlertForced) {
         if (legacyRecovery) {
           const legacyWeather = readFreshWeather(data, settings, now);
           if (legacyWeather) {
@@ -412,12 +509,14 @@ export default function registerShiguangjiInject(pi) {
         persistDeepSeekState(data, sessionId, deepseekDecision.state);
         return undefined;
       }
-      if (deepseekForced) {
+      if (deepseekForced || weatherAlertForced) {
         decisionState.lastInjectAt = now.getTime();
         decision = {
           ...decision,
           should: true,
-          reason: `deepseek-${deepseekDecision.reason}`,
+          reason: weatherAlertForced
+            ? `weather-alert-${weatherAlertDecision.reason}`
+            : `deepseek-${deepseekDecision.reason}`,
           newState: decisionState,
         };
       }
@@ -460,7 +559,7 @@ export default function registerShiguangjiInject(pi) {
       }
       const weatherForInjection = weatherDecision.should ? weather : null;
 
-      const text = buildInjectionText({
+      const scenarioText = buildInjectionText({
         now,
         builtinFestivals: builtinForInjection,
         userEvents,
@@ -476,12 +575,22 @@ export default function registerShiguangjiInject(pi) {
           userName,
         },
         weather: weatherForInjection,
+        xingjiEntries,
         deepseekNotice: deepseekDecision.notice,
         includeTime: settings.injectMode !== "economical",
         force: decision.reason === "new-session" || decision.reason === "day-changed" || decision.reason === "injection-enabled",
         periodEndedYesterday,
         festivalHint,
       });
+
+      // 天气提醒独立成段，附在情境后面：它有自己的判定和措辞，不混进「窗外天气」那块。
+      const weatherAlertText = weatherAlertForced
+        ? buildWeatherAlertContext(weatherAlertDecision.notice, userName)
+        : "";
+      let text = scenarioText;
+      if (weatherAlertText) {
+        text = scenarioText ? `${scenarioText}\n\n${weatherAlertText}` : weatherAlertText;
+      }
 
       if (!text) {
         tracker.set(sessionId, decisionState);
@@ -503,7 +612,7 @@ export default function registerShiguangjiInject(pi) {
 
       // 内容 hash 去重：同一会话同一内容不重复注入
       const hash = crypto.createHash("sha1").update(text).digest("hex");
-      if (lastState && lastState.lastHash === hash && !deepseekForced && decision.reason !== "day-changed" && decision.reason !== "settings-changed" && decision.reason !== "injection-enabled" && decision.reason !== "festival-greeting-pending") {
+      if (lastState && lastState.lastHash === hash && !deepseekForced && !weatherAlertForced && decision.reason !== "day-changed" && decision.reason !== "settings-changed" && decision.reason !== "injection-enabled" && decision.reason !== "festival-greeting-pending") {
         const dedupedState = { ...decisionState, lastHash };
         tracker.set(sessionId, dedupedState);
         persistInjectionState(data, sessionId, dedupedState);
@@ -521,13 +630,14 @@ export default function registerShiguangjiInject(pi) {
 
       return {
         message: {
-          customType: "shiguangji-today-context",
+          customType: weatherAlertForced && !scenarioText ? "shiguangji-weather-alert" : "shiguangji-today-context",
           content: text,
           display: false,
           details: {
           injector: "shiguangji",
           reason: decision.reason,
           deepseekNotice: deepseekForced,
+          weatherAlert: weatherAlertForced,
           summaryCount: recent.entries.length,
           summaryExpanded: recent.expanded,
         },
@@ -552,6 +662,7 @@ function buildInjectionContextKey(settings = {}) {
     injectionDisabledAgentIds: Array.isArray(settings.injectionDisabledAgentIds)
       ? [...settings.injectionDisabledAgentIds].map(String).sort()
       : [],
+    xingjiInjectionEnabled: settings.xingjiInjectionEnabled === true,
   });
 }
 

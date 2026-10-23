@@ -155,6 +155,7 @@
     transition: all .18s; letter-spacing: 1px;
   }
   .nav-tabs button:hover { color: var(--primary-deep); background: var(--primary-soft); }
+  .nav-tabs button small, .set-label small, .xingji-hero-title small { font-size: 11px; letter-spacing: 0; opacity: .7; margin-left: 3px; font-weight: normal; }
   .nav-tabs button.active {
     background: var(--primary); color: #fff; box-shadow: var(--shadow);
   }
@@ -507,6 +508,141 @@
   }
   .mood-timeline .mood-tl-del:hover { color: var(--accent-deep); }
   .mood-timeline .tl-empty-note { color: var(--muted); font-size: 11px; }
+
+  /* ── 拾性 ── */
+  .xingji-page { max-width: 1080px; margin: 0 auto; }
+  .xingji-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 0 0 14px; }
+  .xingji-hero-main { min-width: 0; }
+  .xingji-hero-title { font-size: 20px; color: var(--primary-deep); letter-spacing: 2px; }
+  .xingji-hero-tip { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; line-height: 1.75; max-width: 640px; }
+  .xingji-hero-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .xingji-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0 0 16px; }
+  .xingji-stat { padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+  .xingji-stat b { display: block; font-size: 24px; line-height: 1.1; color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .xingji-stat span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .xingji-stat.is-accent b { color: var(--accent-deep); }
+  .xingji-stat.is-warm b { color: #b97a45; }
+  .xingji-layout { display: grid; grid-template-columns: minmax(0, 1fr) 296px; gap: 16px; align-items: start; }
+  .xingji-main { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .xingji-agent-card { padding: 16px 18px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); }
+  .xingji-agent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .xingji-agent-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .xingji-avatar { position: relative; flex: none; width: 38px; height: 38px; border-radius: 13px; display: inline-flex; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary-deep); font-size: 15px; overflow: hidden; }
+  .xingji-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .xingji-agent-card.tone-1 .xingji-avatar { background: var(--accent-soft); color: var(--accent-deep); }
+  .xingji-agent-card.tone-2 .xingji-avatar { background: var(--warm-soft); color: #b97a45; }
+  .xingji-agent-name { font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: .5px; }
+  .xingji-agent-meta { margin-top: 3px; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+  .xingji-pill { flex: none; padding: 3px 9px; border-radius: 99px; font-size: 11px; letter-spacing: .5px; background: var(--primary-soft); color: var(--primary-deep); }
+  .xingji-pill.warm { background: var(--warm-soft); color: #b97a45; }
+  .xingji-pill.quiet { background: #f4efe4; color: var(--muted); }
+  .xingji-section-label { display: flex; align-items: center; gap: 8px; margin: 14px 0 6px; color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+  .xingji-section-label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .xingji-entry { padding: 11px 0 2px; border-top: 1px dashed var(--line); }
+  .xingji-entry:first-of-type { border-top: 0; padding-top: 2px; }
+  .xingji-entry-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .xingji-level { padding: 2px 8px; border-radius: 99px; font-size: 10.5px; background: var(--primary-soft); color: var(--primary-deep); }
+  .xingji-level.likely { background: var(--accent-soft); color: var(--accent-deep); }
+  .xingji-kind-tag { padding: 2px 8px; border-radius: 99px; font-size: 10.5px; background: var(--warn-soft, var(--primary-soft)); color: var(--warn-deep, var(--primary-deep)); }
+  .xingji-relation-tag { padding: 2px 8px; border-radius: 99px; font-size: 10.5px; background: #f4efe4; color: var(--muted); }
+  .xingji-relation-tag.is-written { background: var(--primary-soft); color: var(--primary-deep); }
+  .xingji-entry-line { font-size: 13.5px; line-height: 1.8; margin-top: 5px; }
+  .xingji-situation { color: var(--muted); }
+  .xingji-arrow { margin: 0 7px; color: var(--accent); }
+  .xingji-behavior { font-weight: 600; color: var(--ink); }
+  .xingji-entry-meta { margin-top: 4px; color: var(--muted); font-size: 11.5px; }
+  .xingji-evidence { margin-top: 5px; }
+  .xingji-evidence summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .xingji-evidence ul { margin: 6px 0 0; padding-left: 18px; }
+  .xingji-evidence li { font-size: 12px; line-height: 1.75; color: var(--muted); }
+  .xingji-evidence li.xingji-neg { opacity: .72; }
+  .xingji-reject { margin-top: 7px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 11.5px; cursor: pointer; padding: 3px 9px; border-radius: 99px; text-decoration: none; }
+  .xingji-reject:hover { border-color: var(--accent); color: var(--accent-deep); background: var(--accent-soft); }
+  .xingji-candidates { margin-top: 12px; padding: 10px 12px 4px; background: #fbf7ee; border: 1px dashed #e6d9c4; border-radius: 14px; }
+  .xingji-candidates summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; color: #9a7c52; font-size: 12.5px; font-weight: 600; }
+  .xingji-candidates summary::-webkit-details-marker { display: none; }
+  .xingji-candidates summary::before { content: "›"; display: inline-block; transition: transform .15s; }
+  .xingji-candidates[open] summary::before { transform: rotate(90deg); }
+  .xingji-candidates-tip { margin: 6px 0 2px; color: var(--muted); font-size: 11.5px; line-height: 1.65; }
+  .xingji-candidate { padding: 9px 0; border-top: 1px dashed #eadfcd; }
+  .xingji-candidate:first-of-type { border-top: 0; }
+  .xingji-meter-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 7px; }
+  .xingji-meter { min-width: 0; }
+  .xingji-meter-label { display: flex; align-items: baseline; justify-content: flex-start; gap: 4px; color: var(--muted); font-size: 10.5px; }
+  .xingji-meter-label b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .xingji-meter-track { height: 5px; margin-top: 3px; border-radius: 99px; background: #efe6d6; overflow: hidden; }
+  .xingji-meter-fill { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--warm-light), var(--warm)); }
+  .xingji-agent-foot { margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .xingji-agent-foot p { flex: 1 1 280px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .xingji-agent-foot .btn { flex: none; }
+  .xingji-empty { padding: 16px 2px 6px; color: var(--muted); font-size: 12.5px; line-height: 1.8; }
+  .xingji-rail { display: flex; flex-direction: column; gap: 12px; position: sticky; top: 16px; }
+  .xingji-guide { padding: 16px; background: linear-gradient(160deg, #f4faf5, #fbf7ee 70%); border: 1px solid #dfeade; border-radius: 18px; box-shadow: var(--shadow); }
+  .xingji-guide h3 { font-size: 13px; color: var(--primary-deep); letter-spacing: 1px; margin-bottom: 10px; }
+  .xingji-guide ol { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .xingji-guide li { position: relative; padding-left: 24px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .xingji-guide li b { display: block; color: var(--ink); font-size: 12.5px; font-weight: 600; margin-bottom: 1px; }
+  .xingji-guide-num { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--primary-soft); color: var(--primary-deep); font-size: 10px; font-weight: 600; }
+  .xingji-example { margin-top: 12px; padding: 10px 11px; background: #fffdf8; border: 1px solid var(--line); border-radius: 12px; }
+  .xingji-example-label { display: inline-block; padding: 1px 6px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-deep); font-size: 10px; }
+  .xingji-example p { margin-top: 6px; color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+  .xingji-example b { color: var(--ink); font-weight: 600; }
+  .xingji-privacy { padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+  .xingji-job-slot:empty { display: none; }
+  .xingji-job-done { margin: 0 0 12px; padding: 8px 12px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; background: var(--primary-soft); border: 1px solid #d8e8dd; border-radius: 12px; color: var(--primary-deep); font-size: 12px; }
+  .xingji-job-card { margin: 0 0 14px; padding: 14px 16px; background: linear-gradient(135deg, #f4faf5, #fffdf8); border: 1px solid #d8e8dd; border-radius: 18px; box-shadow: var(--shadow); }
+  .xingji-job-card.is-warn { background: linear-gradient(135deg, #fdf4ec, #fffdf8); border-color: #edd9c2; }
+  .xingji-job-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .xingji-job-title { font-size: 14px; font-weight: 600; color: var(--primary-deep); letter-spacing: .5px; }
+  .xingji-job-card.is-warn .xingji-job-title { color: #a96d3f; }
+  .xingji-job-sub { color: var(--muted); font-size: 11.5px; }
+  .xingji-job-steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 9px 0 7px; }
+  .xingji-job-step { padding: 2px 8px; border-radius: 99px; background: #f1ede4; color: var(--muted); font-size: 10.5px; }
+  .xingji-job-step.is-done { background: var(--primary-soft); color: var(--primary-deep); }
+  .xingji-job-step.is-active { background: var(--primary); color: #fff; }
+  .xingji-job-bar { height: 6px; border-radius: 99px; background: #e9e2d5; overflow: hidden; }
+  .xingji-job-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--primary-light), var(--primary)); transition: width .4s ease; }
+  .xingji-job-bar.is-indeterminate i { width: 34% !important; animation: xingji-indeterminate 1.4s ease-in-out infinite; }
+  @keyframes xingji-indeterminate { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+  .xingji-job-line { margin-top: 7px; color: var(--ink); font-size: 12px; line-height: 1.65; }
+  .xingji-job-hint { margin-top: 2px; color: var(--muted); font-size: 11.5px; line-height: 1.6; }
+  .xingji-job-actions { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 9px; }
+  .xingji-empty-page { padding: 22px 20px; text-align: center; }
+  .xingji-empty-page h3 { font-size: 16px; color: var(--ink); letter-spacing: 1px; margin-bottom: 6px; }
+  .xingji-empty-page p { color: var(--muted); font-size: 12.5px; line-height: 1.8; max-width: 560px; margin: 0 auto; }
+  .xingji-empty-page .btn { margin-top: 12px; }
+  .xingji-disabled { border-color: #eadfcd; background: linear-gradient(160deg, #fdf7ee, #fffdf8); }
+  .xingji-disabled .xingji-empty-page h3 { color: #a96d3f; }
+  .xingji-dialog-lead { color: var(--ink); font-size: 13px; line-height: 1.8; }
+  .xingji-range { display: flex; flex-direction: column; gap: 8px; }
+  .xingji-range-label { color: var(--muted); font-size: 12px; }
+  .xingji-range .seg { align-self: flex-start; flex-wrap: wrap; }
+  .xingji-range-note { color: var(--muted); font-size: 11.5px; line-height: 1.7; }
+  .xingji-cost-note { padding: 10px 12px; background: #fbf7ee; border: 1px solid var(--line); border-radius: 12px; }
+  .xingji-cost-note p { color: var(--muted); font-size: 12px; line-height: 1.7; }
+  .xingji-cost-note p + p { margin-top: 4px; }
+  .xingji-cost-note b { color: var(--ink); }
+  .xingji-dialog-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .xingji-dialog-error { color: #b26d78; font-size: 12px; line-height: 1.6; min-height: 1em; }
+  .xingji-dialog-error:empty { display: none; }
+  .xingji-backfill-panel { width: min(520px, calc(100vw - 40px)); }
+  @media (max-width: 920px) {
+    .xingji-layout { grid-template-columns: minmax(0, 1fr); }
+    .xingji-rail { position: static; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .xingji-rail { grid-template-columns: minmax(0, 1fr); }
+    .xingji-hero { align-items: flex-start; }
+    .xingji-agent-foot { align-items: flex-start; }
+    .xingji-meter-row { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 420px) {
+    .xingji-stats { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .xingji-job-bar.is-indeterminate i { animation: none; width: 100% !important; opacity: .4; }
+    .xingji-candidates summary::before { transition: none; }
+  }
 
   /* ── 心情线 ── */
   .moodline-overview {
@@ -1109,6 +1245,7 @@
   .set-desc { font-size: 12px; color: var(--muted); margin-bottom: 10px; line-height: 1.7; }
   .set-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; font-size: 14px; flex-wrap: wrap; }
   .set-label { width: 86px; flex: none; color: var(--ink); }
+  .set-label-sub { width: auto; color: var(--muted); font-size: 13px; }
   .set-tip { font-size: 12px; color: var(--muted); line-height: 1.6; }
   /* 反馈入口：检查更新下线后只剩一栏，双栏外壳一并收掉 */
   .uc-fb-body { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 30px; }
@@ -1517,6 +1654,7 @@
   <button id="tab-focus" onclick="switchTab('focus')">专注</button>
   <button id="tab-summary" onclick="switchTab('summary')">时光册</button>
   <button id="tab-moodline" onclick="switchTab('moodline')">心情线</button>
+  <button id="tab-xingji" onclick="switchTab('xingji')">拾性<small>（实验性）</small></button>
 </div>
 
 <!-- 日历页 -->
@@ -1601,6 +1739,54 @@
   </div>
 </div>
 
+<!-- 拾性页：从一个名字下反复出现的行为里，慢慢看出 ta 是什么样 -->
+<div id="panel-xingji" class="hidden">
+  <div class="xingji-page">
+    <div class="xingji-hero">
+      <div class="xingji-hero-main">
+        <h2 class="xingji-hero-title">拾性<small>（实验性）</small></h2>
+        <p class="xingji-hero-tip">不评价性格，也不猜心。只把 ta 反复做过的动作，连同当时的原话，慢慢攒成一条条看得见的做法；再拿这些做法跟你给 ta 写的性格设定对一遍，看哪些已经活出来了，哪些是设定里没写、但 ta 本来就这样。</p>
+      </div>
+      <div class="xingji-hero-actions">
+        <button class="btn primary" type="button" id="xingji-backfill-btn" onclick="openXingjiBackfill()">补记以前的</button>
+        <button class="btn" type="button" onclick="switchTab('calendar')">回到日历</button>
+      </div>
+    </div>
+
+    <div class="xingji-stats" id="xingji-stats">
+      <div class="xingji-stat"><b id="xingji-stat-agents">–</b><span>位伙伴在看</span></div>
+      <div class="xingji-stat is-warm"><b id="xingji-stat-pending">–</b><span>段观察还没归类</span></div>
+      <div class="xingji-stat is-accent"><b id="xingji-stat-standing">–</b><span>条已经长成</span></div>
+    </div>
+
+    <div id="xingji-job-slot"></div>
+
+    <div class="xingji-layout">
+      <div class="xingji-main" id="xingji-body">
+        <div class="moodline-card"><div class="moodline-empty">正在翻这些日子…</div></div>
+      </div>
+      <aside class="xingji-rail" aria-label="拾性说明">
+        <section class="xingji-guide">
+          <h3>一条是怎么长出来的</h3>
+          <ol>
+            <li><span class="xingji-guide-num">1</span><b>每天翻篇时</b>从往来里挑几个瞬间，记下「什么情况下、ta 怎么做」。</li>
+            <li><span class="xingji-guide-num">2</span><b>攒够才成条</b>同一个做法至少落在 3 个不同日子、跨满 21 天，才写进档案。</li>
+            <li><span class="xingji-guide-num">3</span><b>你说了算</b>每条都能点开原话；觉得不对就拉掉，不会影响伙伴。</li>
+          </ol>
+          <div class="xingji-example">
+            <span class="xingji-example-label">一条长这样</span>
+            <p><span>被催的时候</span> → <b>先应一声，再按自己的节奏做完</b></p>
+            <p>后面挂着几次原话，来自不同的日子。</p>
+          </div>
+        </section>
+        <section class="xingji-privacy">
+          拾性只在本机记账，默认不会把这里写下的东西塞回对话，也不影响伙伴怎么回应你。
+        </section>
+      </aside>
+    </div>
+  </div>
+</div>
+
 <!-- 专注页：计时与日常记录连在一起，不另造任务清单 -->
 <div id="panel-focus" class="hidden">
   <div class="focus-overview">
@@ -1640,6 +1826,39 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- 拾性补记：先说清范围、花费和能不能中途离开，再开始 -->
+<div class="set-modal" id="xingji-backfill-modal" hidden>
+  <div class="set-modal-mask" onclick="closeXingjiBackfill()"></div>
+  <div class="set-modal-panel xingji-backfill-panel" role="dialog" aria-modal="true" aria-labelledby="xingji-backfill-title">
+    <div class="set-modal-head">
+      <span class="set-modal-title" id="xingji-backfill-title">补记以前的时光</span>
+      <button class="set-modal-close" type="button" onclick="closeXingjiBackfill()" title="关闭">×</button>
+    </div>
+    <div class="set-modal-body">
+      <p class="xingji-dialog-lead">拾性平时只在每天翻篇时慢慢看。补记会把以前的会话翻一遍，再逐天请模型看，补上错过的那些日子。</p>
+      <div class="xingji-range" id="xingji-range-block">
+        <span class="xingji-range-label" id="xingji-range-label">补哪一段</span>
+        <div class="seg" id="xingji-range-seg">
+          <button class="seg-btn active" type="button" data-range="30" onclick="setXingjiRange('30')">最近 30 天</button>
+          <button class="seg-btn" type="button" data-range="90" onclick="setXingjiRange('90')">最近 90 天</button>
+          <button class="seg-btn" type="button" data-range="all" onclick="setXingjiRange('all')">从最早开始</button>
+        </div>
+        <p class="xingji-range-note" id="xingji-range-note"></p>
+      </div>
+      <div class="xingji-cost-note">
+        <p><b>翻会话不花钱。</b>逐天观察会调用模型；有你们往来的日子才会问，每位伙伴一天最多一次。</p>
+        <p id="xingji-cost-estimate"></p>
+        <p>已经补过的日子会跳过，不会重复问模型。</p>
+      </div>
+      <div class="xingji-dialog-foot">
+        <button class="btn" type="button" onclick="closeXingjiBackfill()">先不补</button>
+        <button class="btn primary" type="button" id="xingji-backfill-start" onclick="startXingjiBackfill()">开始补记</button>
+      </div>
+      <p class="xingji-dialog-error" id="xingji-backfill-error"></p>
+    </div>
+  </div>
+</div>
 
 <div class="set-modal" id="confirm-modal" hidden>
   <div class="set-modal-mask" onclick="closeConfirm()"></div>
@@ -1777,6 +1996,22 @@
           </div>
         </div>
         <p class="set-tip" id="partner-mood-tip">打开后，每天翻篇时会为做册选中的伙伴整理一条「际遇心情线」，跟你的心情线并排回看：它记的是伙伴那天经历了什么（被夸、被谢、被晾、被需要），每个点都带着能回看的证据，猜不出来就不写。自动情绪发现关着时它也不会跑。</p>
+        <div class="set-row" id="xingji-row">
+          <span class="set-label">拾性<small>（实验性）</small></span>
+          <div class="seg" id="xingji-seg">
+            <button class="seg-btn active" data-val="false">关</button>
+            <button class="seg-btn" data-val="true">开</button>
+          </div>
+        </div>
+        <p class="set-tip" id="xingji-tip">实验性功能，默认关。打开后会自动收集：每天翻篇时，拾性从你和伙伴的往来里挑几个瞬间，记成两条线：「一贯的做法」记 ta 反复在做的事，「反常的一刻」记 ta 这次没按平时的样子来。记的时候会拿你写的性格设定对照一下，标出这条是设定里写过的、还是设定里没写但 ta 一贯如此。只记看得见的动作，不猜心理，每条都挂着原话；样本不够时只会标成「还在长」，不会写成结论，宁可缺也不硬凑。</p>
+        <div class="set-row" id="xingji-inject-row">
+          <span class="set-label set-label-sub">把做法接回对话</span>
+          <div class="seg" id="xingji-inject-seg">
+            <button class="seg-btn active" data-val="false">关</button>
+            <button class="seg-btn" data-val="true">开</button>
+          </div>
+        </div>
+        <p class="set-tip" id="xingji-inject-tip">默认关。打开后，每次情境注入会把 ta 那几条一贯的做法写进对话背景，让 ta 照自己平时的样子来。只接做法，「反常的一刻」永远不接——那是记给你看的，不是让 ta 重复的事。关掉情境注入总开关、或把这位伙伴单独屏蔽时，这里也不会生效。</p>
         <div class="set-row" id="boundary-row">
           <span class="set-label">一天何时翻篇</span>
           <select id="boundary-select" class="set-select">
@@ -1847,6 +2082,14 @@
         </div>
         <p class="set-tip" id="weather-legacy-note"></p>
         <p class="set-tip">天气会按区县中心点查询，精度到区域附近，不代表具体门牌。Open-Meteo 免费查询，无需配置。</p>
+        <div class="set-row">
+          <span class="set-label">天气提醒</span>
+          <div class="seg" id="weather-alert-seg">
+            <button class="seg-btn active" data-val="true">开</button>
+            <button class="seg-btn" data-val="false">关</button>
+          </div>
+        </div>
+        <p class="set-tip">只在值得留意时才开口：恶劣天气、大风、明显降温或升温。提醒会在聊天里自然带一句，不发系统通知；同一件事只提一次。</p>
         <button class="btn" id="weather-test-btn" onclick="testWeather()">测试一下</button>
         <span class="summary-msg" id="weather-test-msg"></span>
       </div>
@@ -2596,7 +2839,7 @@ var todoReminderManual = false;
 var todoReminderAutofilled = false;
 var todoReminderAutofilling = false;
 var dayEventCache = {};
-var appSettings = { showPeriod: true, injectionEnabled: true, weatherEnabled: true, moodDiscoveryMode: 'economical', partnerMoodEnabled: false, deepseekPeakEnabled: true }; // 全局设置缓存（启动时从后端同步）
+var appSettings = { showPeriod: true, injectionEnabled: true, weatherEnabled: true, weatherAlertEnabled: true, moodDiscoveryMode: 'economical', partnerMoodEnabled: false, deepseekPeakEnabled: true }; // 全局设置缓存（启动时从后端同步）
 var focusSnapshot = { active: null, sessions: [], groups: [], favoriteGoals: [], favoriteGoalConfigs: {}, focusConfig: null, stats: null, taskOptions: [] };
 var focusSelectedTaskId = '';
 var focusSelectedCompanionId = '';
@@ -2924,9 +3167,12 @@ function switchTab(tab) {
   document.getElementById('panel-focus').classList.toggle('hidden', tab !== 'focus');
   document.getElementById('panel-summary').classList.toggle('hidden', tab !== 'summary');
   document.getElementById('panel-moodline').classList.toggle('hidden', tab !== 'moodline');
+  document.getElementById('panel-xingji').classList.toggle('hidden', tab !== 'xingji');
+  if (tab !== 'xingji') stopXingjiPoll();
   if (tab === 'calendar') loadMonth();
   if (tab === 'focus') loadFocus();
   if (tab === 'summary') loadSummaries();
+  if (tab === 'xingji') loadXingji();
   if (tab === 'moodline') {
     if (!moodLineAnchorDate) moodLineAnchorDate = selectedDate || todayMoodLineDate();
     loadMoodLine();
@@ -4487,6 +4733,615 @@ function deleteMood(id) {
       else toast(res.error || '没删掉');
     }).catch(function () { toast('没删掉，检查一下连接'); });
   });
+}
+
+// ── 拾性（性格补全）──
+// 页面只做三件事：把门槛说人话、把正在长的东西摆出来、让补记和整理随时看得见。
+var xingjiState = {
+  data: null,
+  job: null,
+  // deviation 是另一档门槛（2 条 / 2 天），页面上分开报，不跟做法混着算。
+  thresholds: {
+    positives: 3,
+    distinctDays: 2,
+    deviation: { positives: 2, distinctDays: 2 },
+  },
+  range: { earliest: '', latest: '' },
+  backfill: { range: '30', dates: null, resume: false },
+  busy: {},
+  pollTimer: null,
+  toastOnComplete: false,
+};
+
+function xingjiShiftDate(date, delta) {
+  var dt = new Date(String(date || '') + 'T12:00:00');
+  if (Number.isNaN(dt.getTime())) dt = new Date();
+  dt.setDate(dt.getDate() + Number(delta || 0));
+  return dk(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
+}
+
+function xingjiDateText(date) {
+  var dt = new Date(String(date || '') + 'T12:00:00');
+  if (Number.isNaN(dt.getTime())) return String(date || '');
+  return (dt.getMonth() + 1) + ' 月 ' + dt.getDate() + ' 日';
+}
+
+function xingjiTimeText(iso) {
+  if (!iso) return '';
+  var dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return '';
+  var now = new Date();
+  var same = dt.getFullYear() === now.getFullYear() && dt.getMonth() === now.getMonth() && dt.getDate() === now.getDate();
+  var hm = ('0' + dt.getHours()).slice(-2) + ':' + ('0' + dt.getMinutes()).slice(-2);
+  return same ? ('今天 ' + hm) : ((dt.getMonth() + 1) + ' 月 ' + dt.getDate() + ' 日 ' + hm);
+}
+
+function xingjiDaysBetween(from, to) {
+  var a = new Date(String(from || '') + 'T12:00:00');
+  var b = new Date(String(to || '') + 'T12:00:00');
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return 0;
+  return Math.round((b.getTime() - a.getTime()) / 86400000) + 1;
+}
+
+function xingjiLevelLabel(level) {
+  if (level === 'likely') return '常见';
+  if (level === 'possible') return '看得出';
+  return '还在看';
+}
+
+function xingjiJobActive() {
+  var job = xingjiState.job;
+  return !!(job && (job.status === 'queued' || job.status === 'running' || job.status === 'scanning'));
+}
+
+function xingjiMeter(label, value, target) {
+  var v = Math.max(0, Number(value) || 0);
+  var t = Math.max(1, Number(target) || 1);
+  var pct = Math.min(100, Math.round(v / t * 100));
+  return '<div class="xingji-meter"><div class="xingji-meter-label"><span>' + label + '</span><b>' + v + '/' + t + '</b></div>'
+    + '<div class="xingji-meter-track"><i class="xingji-meter-fill" style="width:' + pct + '%"></i></div></div>';
+}
+
+function xingjiEvidenceHtml(entry) {
+  var evidence = Array.isArray(entry.positives) ? entry.positives : [];
+  var negatives = Array.isArray(entry.negatives) ? entry.negatives : [];
+  if (!evidence.length && !negatives.length) return '';
+  var html = '<details class="xingji-evidence"><summary>看原话</summary><ul>';
+  evidence.forEach(function (item) {
+    html += '<li>' + esc(item.date) + '　' + esc(item.text) + '</li>';
+  });
+  negatives.forEach(function (item) {
+    html += '<li class="xingji-neg">' + esc(item.date) + '　（这次不是）' + esc(item.text) + '</li>';
+  });
+  return html + '</ul></details>';
+}
+
+function xingjiRejectButton(agentId, entryId) {
+  return '<button type="button" class="xingji-reject" onclick="rejectXingjiEntry(\'' + esc(agentId) + '\',\'' + esc(entryId) + '\')">这条不对</button>';
+}
+
+function xingjiRelationTag(entry) {
+  var relation = String((entry && entry.relation) || '');
+  // 老档案没这一栏，就不硬贴标签；新数据才分「设定里有」和「设定里没写」。
+  if (relation === 'unwritten') return '<span class="xingji-relation-tag">设定里没写</span>';
+  if (relation === 'described') return '<span class="xingji-relation-tag is-written">设定里写着</span>';
+  return '';
+}
+
+function xingjiEntryHtml(agent, entry) {
+  var stats = entry.stats || {};
+  var html = '<article class="xingji-entry">';
+  html += '<div class="xingji-entry-top"><span class="xingji-level ' + esc(entry.level) + '">' + esc(xingjiLevelLabel(entry.level)) + '</span>';
+  if (xingjiIsDeviation(entry)) html += '<span class="xingji-kind-tag">反常</span>';
+  html += xingjiRelationTag(entry);
+  html += '</div>';
+  html += '<p class="xingji-entry-line"><span class="xingji-situation">' + esc(entry.situation) + '</span><span class="xingji-arrow">→</span><span class="xingji-behavior">' + esc(entry.behavior) + '</span></p>';
+  html += '<p class="xingji-entry-meta">' + (stats.positives || 0) + ' 条证据 · 落在 ' + (stats.distinctDays || 0) + ' 个日子 · 跨 ' + (stats.spanDays || 0) + ' 天';
+  if (stats.negatives) html += ' · 也有 ' + stats.negatives + ' 次不是这样';
+  html += '</p>';
+  html += xingjiEvidenceHtml(entry);
+  html += xingjiRejectButton(agent.agentId, entry.id);
+  return html + '</article>';
+}
+
+function xingjiIsDeviation(entry) {
+  return String((entry && entry.kind) || '') === 'deviation';
+}
+
+function xingjiThresholdsFor(entry) {
+  var t = xingjiState.thresholds || {};
+  return xingjiIsDeviation(entry) ? (t.deviation || t) : t;
+}
+
+function xingjiCandidateHtml(agent, entry) {
+  var stats = entry.stats || {};
+  var t = xingjiThresholdsFor(entry);
+  var deviation = xingjiIsDeviation(entry);
+  var html = '<article class="xingji-candidate">';
+  html += '<p class="xingji-entry-line"><span class="xingji-situation">' + esc(entry.situation) + '</span><span class="xingji-arrow">→</span><span class="xingji-behavior">' + esc(entry.behavior) + '</span></p>';
+  html += '<div class="xingji-meter-row">';
+  html += xingjiMeter('证据', stats.positives || 0, t.positives);
+  html += xingjiMeter('不同日子', stats.distinctDays || 0, t.distinctDays);
+  html += '</div>';
+  html += xingjiEvidenceHtml(entry);
+  html += xingjiRejectButton(agent.agentId, entry.id);
+  return html + '</article>';
+}
+
+function xingjiAvatarHtml(agent) {
+  var initial = Array.from(String(agent.name || '伙伴'))[0] || '伙';
+  return '<span class="xingji-avatar" aria-hidden="true"><span>' + esc(initial) + '</span>'
+    + '<img hidden data-xingji-avatar="' + esc(agent.agentId) + '" alt=""></span>';
+}
+
+function xingjiLoadAvatars() {
+  var imgs = document.querySelectorAll('img[data-xingji-avatar]');
+  for (var i = 0; i < imgs.length; i++) {
+    (function (img) {
+      if (img.dataset.loading) return;
+      img.dataset.loading = 'true';
+      var id = img.dataset.xingjiAvatar;
+      if (!focusAvatarCache.has(id)) {
+        focusAvatarCache.set(id, apiFetch('api/focus/avatar/' + encodeURIComponent(id), { signal: AbortSignal.timeout(5000) }).then(function (res) {
+          if (!res.ok) throw new Error('avatar unavailable');
+          return res.blob();
+        }).then(function (blob) { return URL.createObjectURL(blob); }).catch(function () { return ''; }));
+      }
+      focusAvatarCache.get(id).then(function (src) {
+        if (!src) return;
+        img.onload = function () { img.hidden = false; };
+        img.onerror = function () { img.hidden = true; img.removeAttribute('src'); };
+        img.src = src;
+      });
+    })(imgs[i]);
+  }
+}
+
+function renderXingjiAgent(agent, index) {
+  var entries = Array.isArray(agent.entries) ? agent.entries : [];
+  var candidates = Array.isArray(agent.candidates) ? agent.candidates : [];
+  var pending = Number(agent.pending) || 0;
+  var pendingDays = Number(agent.pendingDays) || 0;
+  var tone = index % 3;
+  var status = entries.length ? ('看出 ' + entries.length + ' 条') : (candidates.length ? (candidates.length + ' 条还在长') : (pending ? '在攒观察' : '还没遇到'));
+  var statusClass = entries.length ? '' : (candidates.length ? ' warm' : ' quiet');
+  var meta = [];
+  if (agent.lastRollupAt) meta.push('最近整理 ' + xingjiTimeText(agent.lastRollupAt));
+  else meta.push('还没整理过');
+  var html = '<section class="xingji-agent-card tone-' + tone + '">';
+  html += '<header class="xingji-agent-head"><div class="xingji-agent-who">';
+  html += xingjiAvatarHtml(agent);
+  html += '<div><div class="xingji-agent-name">' + esc(agent.name) + '</div><div class="xingji-agent-meta">' + esc(meta.join(' · ')) + '</div></div>';
+  html += '</div><span class="xingji-pill' + statusClass + '">' + esc(status) + '</span></header>';
+
+  // 一贯做法与反常的一刻分开摆：前者是 ta 的习惯，后者只是一次样本，
+  // 混在一列里会让低频的偏离看起来像「应当重复的做法」。
+  var patternEntries = entries.filter(function (entry) { return !xingjiIsDeviation(entry); });
+  var deviationEntries = entries.filter(xingjiIsDeviation);
+  var patternCandidates = candidates.filter(function (entry) { return !xingjiIsDeviation(entry); });
+  var deviationCandidates = candidates.filter(xingjiIsDeviation);
+
+  if (patternEntries.length) {
+    html += '<div class="xingji-section-label">一贯的做法</div>';
+    patternEntries.forEach(function (entry) { html += xingjiEntryHtml(agent, entry); });
+  }
+
+  if (deviationEntries.length) {
+    html += '<div class="xingji-section-label">反常的几回</div>';
+    html += '<p class="xingji-candidates-tip">这几处 ta 跟平时不一样。这里只是记下来给你看，不是要 ta 重复做的事。</p>';
+    deviationEntries.forEach(function (entry) { html += xingjiEntryHtml(agent, entry); });
+  }
+
+  if (patternCandidates.length) {
+    var open = (patternEntries.length || deviationEntries.length) ? '' : ' open';
+    html += '<details class="xingji-candidates"' + open + '>';
+    html += '<summary>还在长 · ' + (patternCandidates.length + deviationCandidates.length) + ' 条还不算数</summary>';
+    html += '<p class="xingji-candidates-tip">这些是过程，还没到「写进档案」的门槛。可以看看，觉得不对也能先拉掉。</p>';
+    if (patternCandidates.length) patternCandidates.forEach(function (entry) { html += xingjiCandidateHtml(agent, entry); });
+    if (deviationCandidates.length) {
+      html += '<div class="xingji-section-label">其中的反常</div>';
+      deviationCandidates.forEach(function (entry) { html += xingjiCandidateHtml(agent, entry); });
+    }
+    html += '</details>';
+  } else if (deviationCandidates.length) {
+    html += '<details class="xingji-candidates" open>';
+    html += '<summary>还在长 · ' + deviationCandidates.length + ' 条还不算数</summary>';
+    html += '<p class="xingji-candidates-tip">这些是过程，还没到「写进档案」的门槛。</p>';
+    deviationCandidates.forEach(function (entry) { html += xingjiCandidateHtml(agent, entry); });
+    html += '</details>';
+  }
+
+  if (!entries.length && !candidates.length && !pending) {
+    html += '<p class="xingji-empty">还没有遇到能反复出现的做法。等你们多相处几天，这里会自己长出来。</p>';
+  }
+
+  html += '<div class="xingji-agent-foot">';
+  if (pending) {
+    html += '<p>还有 <b style="color:var(--ink)">' + pending + '</b> 段观察没归类' + (pendingDays ? ('，来自 ' + pendingDays + ' 个日子') : '') + '。整理一次会问一次模型，看看它们能不能拼成一条。</p>';
+    var rollupDisabled = '';
+    if (xingjiJobActive()) rollupDisabled = ' disabled title="补记正在跑，等它跑完再整理"';
+    else if (!(xingjiState.data && xingjiState.data.enabled === true)) rollupDisabled = ' disabled title="先在设置里打开拾性"';
+    html += '<button type="button" class="btn" onclick="rollupXingjiAgent(\'' + esc(agent.agentId) + '\', this)"' + rollupDisabled + '>整理这些观察</button>';
+  } else if (entries.length || candidates.length) {
+    html += '<p>最近没有新的观察。等下一次翻篇，拾性会自己接着看。</p>';
+  } else {
+    html += '<p>拾性会在每天翻篇后自己看，不用手动整理。</p>';
+  }
+  html += '</div></section>';
+  return html;
+}
+
+function renderXingji(res) {
+  var box = document.getElementById('xingji-body');
+  if (!box) return;
+  if (!res || !res.ok) {
+    box.innerHTML = '<div class="moodline-card"><div class="xingji-empty-page"><p>没读到拾性档案，可能是连接还没缓过来。</p><button type="button" class="btn" onclick="loadXingji()">再试一次</button></div></div>';
+    return;
+  }
+  xingjiState.thresholds = res.thresholds || xingjiState.thresholds;
+  xingjiState.range = res.range || xingjiState.range;
+  var agents = Array.isArray(res.agents) ? res.agents : [];
+  var totals = res.totals || {};
+  var totalPending = Number(totals.pending);
+  var totalVisible = Number(totals.visible);
+  if (!Number.isFinite(totalPending)) totalPending = agents.reduce(function (n, a) { return n + (Number(a.pending) || 0); }, 0);
+  if (!Number.isFinite(totalVisible)) totalVisible = agents.reduce(function (n, a) { return n + ((a.entries || []).length); }, 0);
+  var statAgents = document.getElementById('xingji-stat-agents');
+  var statPending = document.getElementById('xingji-stat-pending');
+  var statStanding = document.getElementById('xingji-stat-standing');
+  if (statAgents) statAgents.textContent = String(agents.length);
+  if (statPending) statPending.textContent = String(totalPending);
+  if (statStanding) statStanding.textContent = String(totalVisible);
+
+  if (!res.enabled) {
+    box.innerHTML = '<div class="moodline-card xingji-disabled"><div class="xingji-empty-page"><h3>拾性还关着</h3><p>关着的时候不会继续观察，但已经记下的东西还在。打开后，ta 会在每天翻篇时慢慢接着看；默认只在本机记账，不会把内容接回对话。</p><button type="button" class="btn primary" onclick="openXingjiSettings()">去设置里打开</button></div></div>'
+      + agents.map(function (agent, index) { return renderXingjiAgent(agent, index); }).join('');
+    xingjiLoadAvatars();
+    return;
+  }
+  if (!agents.length) {
+    box.innerHTML = '<div class="moodline-card"><div class="xingji-empty-page"><h3>还没开始记</h3><p>等今天翻篇，拾性会从你和伙伴的往来里挑几个瞬间。第一天通常只有几段观察，不会马上成条；这里会慢慢长出东西来。</p><button type="button" class="btn primary" onclick="openXingjiBackfill()">补记以前的</button></div></div>';
+    return;
+  }
+  box.innerHTML = agents.map(function (agent, index) { return renderXingjiAgent(agent, index); }).join('');
+  xingjiLoadAvatars();
+}
+
+function xingjiJobStats(job) {
+  var dates = Array.isArray(job.dates) ? job.dates : [];
+  var done = Array.isArray(job.done) ? job.done : [];
+  var failed = Array.isArray(job.failed) ? job.failed : [];
+  return { dates: dates, done: done, failed: failed, total: dates.length, finished: done.length };
+}
+
+function xingjiJobSteps(phase) {
+  var order = ['scan', 'model', 'rollup'];
+  var labels = ['翻会话', '逐天看', '整理成条'];
+  var index = order.indexOf(phase);
+  if (index < 0) index = 0;
+  return '<div class="xingji-job-steps">' + labels.map(function (label, i) {
+    var cls = i < index ? ' is-done' : (i === index ? ' is-active' : '');
+    return '<span class="xingji-job-step' + cls + '">' + label + '</span>';
+  }).join('') + '</div>';
+}
+
+function renderXingjiJob() {
+  var slot = document.getElementById('xingji-job-slot');
+  if (!slot) return;
+  var job = xingjiState.job;
+  if (!job) { slot.innerHTML = ''; return; }
+  var s = xingjiJobStats(job);
+  var html = '';
+  if (job.status === 'scanning' || job.status === 'queued') {
+    var sp = job.scanProgress || {};
+    var total = Number(sp.total) || 0;
+    var index = Number(sp.index) || 0;
+    var pct = total ? Math.min(100, Math.round(index / total * 100)) : 0;
+    html += '<section class="xingji-job-card">';
+    html += '<div class="xingji-job-head"><span class="xingji-job-title">正在补记以前的日子</span><span class="xingji-job-sub">' + esc(s.dates[0] || '') + ' → ' + esc(s.dates[s.dates.length - 1] || '') + '</span></div>';
+    html += xingjiJobSteps('scan');
+    html += '<div class="xingji-job-bar' + (total ? '' : ' is-indeterminate') + '"><i style="width:' + (total ? pct : 34) + '%"></i></div>';
+    html += '<p class="xingji-job-line" role="status">' + (total ? ('已经翻到第 ' + index + '/' + total + ' 个会话，挑出 ' + (Number(sp.events) || 0) + ' 个瞬间') : '正在列出要翻的会话…') + '</p>';
+    html += '<p class="xingji-job-hint">这一步只读本机会话，不调用模型，也不花钱。可以离开这一页，补记会在后台继续。</p>';
+    html += '</section>';
+  } else if (job.status === 'running') {
+    var phase = job.phase === 'rollup' ? 'rollup' : 'model';
+    var pct2 = s.total ? Math.min(100, Math.round(s.finished / s.total * 100)) : 0;
+    html += '<section class="xingji-job-card">';
+    html += '<div class="xingji-job-head"><span class="xingji-job-title">正在补记以前的日子</span><span class="xingji-job-sub">' + esc(s.dates[0] || '') + ' → ' + esc(s.dates[s.dates.length - 1] || '') + '</span></div>';
+    html += xingjiJobSteps(phase);
+    html += '<div class="xingji-job-bar"><i style="width:' + pct2 + '%"></i></div>';
+    if (phase === 'rollup') {
+      html += '<p class="xingji-job-line" role="status">' + s.total + ' 天都看完了，正在把观察整理成条目…</p>';
+    } else {
+      html += '<p class="xingji-job-line" role="status">已检查 ' + s.finished + '/' + s.total + ' 天' + (job.currentDate ? (' · 正在看 ' + esc(job.currentDate)) : '') + '</p>';
+    }
+    html += '<p class="xingji-job-hint">逐天观察会调用模型，有你们往来的日子才会问，每位伙伴一天最多一次。可以离开这一页，进度会留在上面。</p>';
+    html += '</section>';
+  } else if (job.status === 'interrupted') {
+    var failedSet = {};
+    s.failed.forEach(function (item) { if (item && item.date) failedSet[item.date] = true; });
+    var remaining = s.dates.filter(function (date) { return s.done.indexOf(date) < 0 || failedSet[date]; });
+    html += '<section class="xingji-job-card is-warn">';
+    html += '<div class="xingji-job-head"><span class="xingji-job-title">上次补记断在第 ' + s.finished + ' 天</span><span class="xingji-job-sub">' + esc(job.currentDate || (job.interruptedAt ? xingjiTimeText(job.interruptedAt) : '')) + '</span></div>';
+    var statusLine = remaining.length
+      ? ('已经检查过 ' + s.finished + ' 天，还有 ' + remaining.length + ' 天要补。')
+      : ('已经检查过 ' + s.finished + ' 天，只差把观察整理成条。');
+    html += '<p class="xingji-job-line">' + statusLine + '可能是 App 重载或关掉了；已经补好的不会重来。</p>';
+    html += '<div class="xingji-job-actions">';
+    if (remaining.length) html += '<button type="button" class="btn primary" onclick="openXingjiBackfill({resume:true})">接着补 ' + remaining.length + ' 天</button>';
+    html += '<button type="button" class="btn" onclick="openXingjiBackfill()">重新选范围</button></div>';
+    html += '</section>';
+  } else if (job.status === 'failed') {
+    html += '<section class="xingji-job-card is-warn">';
+    html += '<div class="xingji-job-head"><span class="xingji-job-title">补记断了</span><span class="xingji-job-sub">' + esc(job.error || '原因不明') + '</span></div>';
+    html += '<p class="xingji-job-line">已经检查过 ' + s.finished + '/' + s.total + ' 天。可以重新补一次，已经补好的日子不会重复观察。</p>';
+    html += '<div class="xingji-job-actions"><button type="button" class="btn primary" onclick="openXingjiBackfill({resume:true})">接着补</button><button type="button" class="btn" onclick="openXingjiBackfill()">重新选范围</button></div>';
+    html += '</section>';
+  } else if (job.status === 'completed') {
+    var finishedAt = job.finishedAt ? new Date(job.finishedAt).getTime() : 0;
+    if (finishedAt && Date.now() - finishedAt < 12 * 3600 * 1000) {
+      html += '<div class="xingji-job-done"><span>上次补记完成</span><span class="xingji-job-sub">' + esc(xingjiTimeText(job.finishedAt)) + ' · 检查了 ' + s.finished + ' 天' + (s.failed.length ? ('，有 ' + s.failed.length + ' 处没补上') : '') + '</span></div>';
+    }
+  }
+  slot.innerHTML = html;
+}
+
+function stopXingjiPoll() {
+  if (xingjiState.pollTimer) { clearInterval(xingjiState.pollTimer); xingjiState.pollTimer = null; }
+}
+
+function pollXingjiJob() {
+  if (xingjiState.pollTimer) return;
+  xingjiState.pollTimer = setInterval(function () {
+    api('/api/xingji/job').then(function (res) {
+      var job = res && res.job ? res.job : null;
+      var wasActive = xingjiJobActive();
+      xingjiState.job = job;
+      renderXingjiJob();
+      if (!job || !xingjiJobActive()) {
+        stopXingjiPoll();
+        if (job && job.status === 'completed') {
+          if (xingjiState.toastOnComplete) {
+            xingjiState.toastOnComplete = false;
+            toast('补记跑完了');
+          }
+          loadXingji();
+        } else if (wasActive && job && (job.status === 'interrupted' || job.status === 'failed')) {
+          toast('补记断在半路，可以接着补');
+          loadXingji();
+        }
+      }
+    }).catch(function () {});
+  }, 3500);
+}
+
+function loadXingji() {
+  var box = document.getElementById('xingji-body');
+  if (!box) return;
+  Promise.all([
+    api('/api/xingji').catch(function () { return null; }),
+    api('/api/xingji/job').catch(function () { return null; }),
+  ]).then(function (rows) {
+    var res = rows[0];
+    var jobRes = rows[1];
+    xingjiState.job = jobRes && jobRes.job ? jobRes.job : null;
+    renderXingjiJob();
+    if (res && res.ok) {
+      xingjiState.data = res;
+      renderXingji(res);
+    } else {
+      box.innerHTML = '<div class="moodline-card"><div class="xingji-empty-page"><p>没读到拾性档案，可能是连接还没缓过来。</p><button type="button" class="btn" onclick="loadXingji()">再试一次</button></div></div>';
+    }
+    if (xingjiJobActive()) pollXingjiJob();
+  });
+}
+
+function rollupXingjiAgent(agentId, btn) {
+  if (!agentId || xingjiState.busy[agentId]) return;
+  xingjiState.busy[agentId] = true;
+  var oldText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '整理中…'; }
+  var done = function () {
+    xingjiState.busy[agentId] = false;
+    if (btn) { btn.disabled = false; btn.textContent = oldText; }
+  };
+  api('/api/xingji/rollup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentId: agentId }),
+  }).then(function (res) {
+    done();
+    if (!res || !res.ok) { toast((res && res.error) || '没整理成，再试一次'); return; }
+    var r = res.result || {};
+    if (r.ok === false) { toast(r.error || '没整理成，再试一次'); return; }
+    var consumed = Number(r.consumed) || 0;
+    var remaining = Number(r.remaining);
+    if (r.skipped) {
+      if (r.reason === 'no-pending') toast('还没有要整理的观察');
+      else if (r.reason === 'no-entry') toast('这次没归出新的条目，观察先留着');
+      else toast('这次先没整理');
+    } else if (!consumed) {
+      toast('这次没归出新的条目，观察先留着');
+    } else {
+      var msg = '整理了 ' + consumed + ' 段观察';
+      if (Number.isFinite(remaining)) msg += '，还剩 ' + remaining + ' 段没归类';
+      toast(msg);
+    }
+    loadXingji();
+  }).catch(function () {
+    done();
+    toast('没整理成，检查一下连接');
+  });
+}
+
+function rejectXingjiEntry(agentId, entryId) {
+  // 不用原生 confirm：App 页面里可能被拦掉，表现成点了没反应。拉黑可逆，直接执行。
+  api('/api/xingji/entry', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentId: agentId, entryId: entryId, action: 'reject' }),
+  }).then(function (res) {
+    if (res && res.ok) {
+      toast('记下了，这条不算了');
+      loadXingji();
+    } else {
+      toast((res && res.error) || '没记上，再试一次');
+    }
+  }).catch(function () {
+    toast('没记上，再试一次');
+  });
+}
+
+function xingjiLatestDay() {
+  return (xingjiState.range && xingjiState.range.latest) || todayMoodLineDate();
+}
+
+function xingjiEarliestDay() {
+  var latest = xingjiLatestDay();
+  var earliest = xingjiState.range && xingjiState.range.earliest;
+  var floor = xingjiShiftDate(latest, -179);
+  if (earliest && earliest > floor && earliest <= latest) return earliest;
+  return floor;
+}
+
+function xingjiBackfillFromTo() {
+  var latest = xingjiLatestDay();
+  var mode = xingjiState.backfill.range;
+  if (mode === 'all') {
+    var allFrom = xingjiEarliestDay();
+    return { from: allFrom <= latest ? allFrom : latest, to: latest };
+  }
+  var days = Number(mode) || 30;
+  return { from: xingjiShiftDate(latest, -(days - 1)), to: latest };
+}
+
+function xingjiBackfillPreview() {
+  var note = document.getElementById('xingji-range-note');
+  var estimate = document.getElementById('xingji-cost-estimate');
+  var seg = document.getElementById('xingji-range-seg');
+  var label = document.getElementById('xingji-range-label');
+  if (!note || !estimate) return;
+  var b = xingjiState.backfill;
+  var agentCount = Math.max(1, ((xingjiState.data && xingjiState.data.agents) || []).length);
+  if (b.dates && b.dates.length) {
+    if (seg) seg.classList.add('hidden');
+    if (label) label.textContent = '接着上次补';
+    note.textContent = '要补的 ' + b.dates.length + ' 天：' + xingjiDateText(b.dates[0]) + ' 到 ' + xingjiDateText(b.dates[b.dates.length - 1]) + '。已经补好的日子不会重来。';
+    estimate.textContent = '最多约 ' + (b.dates.length * agentCount) + ' 次观察调用；没有往来的日子会跳过。';
+    return;
+  }
+  if (seg) seg.classList.remove('hidden');
+  if (label) label.textContent = '补哪一段';
+  var range = xingjiBackfillFromTo();
+  var days = xingjiDaysBetween(range.from, range.to);
+  note.textContent = '从 ' + xingjiDateText(range.from) + ' 到 ' + xingjiDateText(range.to) + '，共 ' + days + ' 天。';
+  estimate.textContent = '最多约 ' + (days * agentCount) + ' 次观察调用（' + agentCount + ' 位伙伴）；没有往来的日子会跳过。';
+}
+
+function setXingjiRange(mode) {
+  xingjiState.backfill.range = mode;
+  xingjiState.backfill.dates = null;
+  xingjiState.backfill.resume = false;
+  var seg = document.getElementById('xingji-range-seg');
+  if (seg) {
+    var btns = seg.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('active', btns[i].getAttribute('data-range') === mode);
+  }
+  xingjiBackfillPreview();
+}
+
+function openXingjiBackfill(opts) {
+  if (xingjiJobActive()) {
+    toast('正在补记，进度就在页面上方');
+    var slot = document.getElementById('xingji-job-slot');
+    if (slot) slot.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
+  }
+  if (!xingjiState.data) {
+    toast('正在读拾性档案，等一下再点');
+    loadXingji();
+    return;
+  }
+  if (xingjiState.data.enabled !== true) {
+    toast('拾性还关着，先去设置里打开');
+    openXingjiSettings();
+    return;
+  }
+  var options = opts || {};
+  var job = xingjiState.job;
+  var dates = null;
+  if (options.resume && job && Array.isArray(job.dates) && Array.isArray(job.done)) {
+    var doneSet = {};
+    job.done.forEach(function (d) { doneSet[d] = true; });
+    var failedSet = {};
+    (Array.isArray(job.failed) ? job.failed : []).forEach(function (item) {
+      if (item && item.date) failedSet[item.date] = true;
+    });
+    dates = job.dates.filter(function (d) { return !doneSet[d] || failedSet[d]; });
+  }
+  xingjiState.backfill.dates = dates && dates.length ? dates : null;
+  xingjiState.backfill.resume = !!(dates && dates.length);
+  xingjiState.backfill.range = '30';
+  var seg = document.getElementById('xingji-range-seg');
+  if (seg) {
+    var btns = seg.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('active', btns[i].getAttribute('data-range') === '30');
+  }
+  var err = document.getElementById('xingji-backfill-error');
+  if (err) err.textContent = '';
+  xingjiBackfillPreview();
+  var modal = document.getElementById('xingji-backfill-modal');
+  if (modal) modal.hidden = false;
+}
+
+function closeXingjiBackfill() {
+  var modal = document.getElementById('xingji-backfill-modal');
+  if (modal) modal.hidden = true;
+}
+
+function startXingjiBackfill() {
+  var btn = document.getElementById('xingji-backfill-start');
+  var err = document.getElementById('xingji-backfill-error');
+  if (err) err.textContent = '';
+  var body = {};
+  if (xingjiState.backfill.dates && xingjiState.backfill.dates.length) {
+    body.dates = xingjiState.backfill.dates.slice();
+  } else {
+    var range = xingjiBackfillFromTo();
+    body.from = range.from;
+    body.to = range.to;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '正在提交…'; }
+  api('/api/xingji/backfill', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (res) {
+    if (btn) { btn.disabled = false; btn.textContent = '开始补记'; }
+    if (!res || !res.ok) {
+      if (err) err.textContent = (res && res.error) || '没启动起来，再试一次';
+      return;
+    }
+    xingjiState.job = res.job || xingjiState.job;
+    xingjiState.toastOnComplete = true;
+    closeXingjiBackfill();
+    renderXingjiJob();
+    if (xingjiState.data) renderXingji(xingjiState.data);
+    toast('开始补记了，进度会显示在页面上方');
+    pollXingjiJob();
+  }).catch(function () {
+    if (btn) { btn.disabled = false; btn.textContent = '开始补记'; }
+    if (err) err.textContent = '没启动起来，检查一下连接';
+  });
+}
+
+function openXingjiSettings() {
+  openSettingsModal();
+  setTimeout(function () {
+    var row = document.getElementById('xingji-row');
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, 160);
 }
 
 // ── 心情线 ──
@@ -6481,6 +7336,9 @@ function syncWeatherSettingsUi(enabled) {
   if (clear) clear.disabled = !active;
   var test = document.getElementById('weather-test-btn');
   if (test) test.disabled = !active;
+  // 天气本身关了，预报也就没了，提醒跟着一起停。
+  var alertBtns = document.querySelectorAll('#weather-alert-seg .seg-btn');
+  for (var i = 0; i < alertBtns.length; i++) alertBtns[i].disabled = !active;
   if (!active) {
     var msg = document.getElementById('weather-test-msg');
     if (msg) msg.textContent = '';
@@ -6708,6 +7566,8 @@ function loadSettings() {
     setSeg('mood-discovery-seg', s.moodDiscoveryMode || 'economical');
     syncMoodDiscoveryTip(s.moodDiscoveryMode || 'economical');
     setSeg('partner-mood-seg', s.partnerMoodEnabled === true);
+    setSeg('xingji-seg', s.xingjiEnabled === true);
+  setSeg('xingji-inject-seg', s.xingjiInjectionEnabled === true);
     setSeg('peak-seg', s.deepseekPeakEnabled !== false);
     setSeg('summary-shared-seg', s.summaryShared === true);
     var boundary = document.getElementById('boundary-select');
@@ -6725,6 +7585,7 @@ function loadSettings() {
     }
     setSeg('period-seg', s.showPeriod !== false);
     setSeg('weather-seg', s.weatherEnabled !== false);
+    setSeg('weather-alert-seg', s.weatherAlertEnabled !== false);
     renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
     renderInjectionAgents(s.summaryAgents || [], s.injectionDisabledAgentIds);
     renderWeatherRegion(s.weatherArea || null, s.weatherLocation || '');
@@ -6779,11 +7640,14 @@ function saveAllSettings() {
     autoSummary: segVal('autosum-seg') === 'true',
     moodDiscoveryMode: segVal('mood-discovery-seg') || 'economical',
     partnerMoodEnabled: segVal('partner-mood-seg') === 'true',
+    xingjiEnabled: segVal('xingji-seg') === 'true',
+    xingjiInjectionEnabled: segVal('xingji-inject-seg') === 'true',
     deepseekPeakEnabled: segVal('peak-seg') !== 'false',
     dayBoundaryHour: +document.getElementById('boundary-select').value,
     summaryShared: segVal('summary-shared-seg') === 'true',
     showPeriod: segVal('period-seg') === 'true',
     weatherEnabled: segVal('weather-seg') !== 'false',
+    weatherAlertEnabled: segVal('weather-alert-seg') !== 'false',
   }, weatherPatch);
   var summaryAgentIds = getSummaryAgentIdsFromUI();
   if (summaryAgentIds !== undefined) body.summaryAgentIds = summaryAgentIds;
@@ -6804,13 +7668,17 @@ function saveAllSettings() {
       setSeg('mood-discovery-seg', appSettings.moodDiscoveryMode || 'economical');
       syncMoodDiscoveryTip(appSettings.moodDiscoveryMode || 'economical');
       setSeg('partner-mood-seg', appSettings.partnerMoodEnabled === true);
+      setSeg('xingji-seg', appSettings.xingjiEnabled === true);
+      setSeg('xingji-inject-seg', appSettings.xingjiInjectionEnabled === true);
       setSeg('peak-seg', appSettings.deepseekPeakEnabled !== false);
       setSeg('weather-seg', appSettings.weatherEnabled !== false);
+      setSeg('weather-alert-seg', appSettings.weatherAlertEnabled !== false);
       syncInjectionUi(appSettings.injectionEnabled !== false);
       updateQuickInjectionToggle();
       syncWeatherSettingsUi(appSettings.weatherEnabled !== false);
       loadMonth(); loadToday();
       if (selectedDate) selectDay(selectedDate);
+      if (!document.getElementById('panel-xingji').classList.contains('hidden')) loadXingji();
       toast('设置都保存好了');
     } else toast(res.error || '没存上');
   });

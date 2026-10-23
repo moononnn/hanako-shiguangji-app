@@ -60,7 +60,6 @@ import {
   formatMessagesForPrompt,
   groupMessagesByAgent,
   groupSummaryMessages,
-  isHanabrewInstalled,
   isSummaryAgent,
   lifeDayKey,
   lifeDayRange,
@@ -1928,7 +1927,7 @@ test("总结伙伴列表：忽略孤儿访客和 Hana 已删除助手", () => {
   assert.deepEqual(listSummaryAgents(root).map((agent) => agent.agentId), ["hanako"]);
 });
 
-test("总结分组：仅在花酿已安装且有来访身份时合并逻辑伙伴", (t) => {
+test("总结分组：有来访身份即可合并逻辑伙伴，不依赖旧花酿源码", (t) => {
   const hanaHome = tmpDir("hanabrew-summary");
   const root = path.join(hanaHome, "agents");
   const previousAppData = process.env.APPDATA;
@@ -1946,22 +1945,17 @@ test("总结分组：仅在花酿已安装且有来访身份时合并逻辑伙�
   fs.writeFileSync(path.join(visitorA, "AGENTS.md"), identity);
   fs.writeFileSync(path.join(visitorB, "AGENTS.md"), identity);
   assert.equal(parseHanabrewVisitorName(identity), "阿青");
-  assert.equal(isHanabrewInstalled(root), false);
-  assert.equal(resolveSummaryPartner(root, "hanabrew-visitor-a").agentId, "hanabrew-visitor-a");
+  assert.equal(resolveSummaryPartner(root, "hanabrew-visitor-a").agentId, `hanabrew-character-${encodeURIComponent("阿青")}`);
   assert.equal(groupSummaryMessages([
     { agentId: "hanabrew-visitor-a", role: "assistant", text: "甲" },
     { agentId: "hanabrew-visitor-b", role: "assistant", text: "乙" },
-  ], { agentsDir: root }).length, 2);
-
-  fs.mkdirSync(path.join(hanaHome, "plugins", "hanabrew"), { recursive: true });
-  fs.writeFileSync(path.join(hanaHome, "plugins", "hanabrew", "manifest.json"), "{}");
+  ], { agentsDir: root }).length, 1);
   fs.mkdirSync(path.join(appData, "hanabrew"), { recursive: true });
   fs.writeFileSync(path.join(appData, "hanabrew", "state.json"), JSON.stringify({
     visitors: [{ agentId: "hanabrew-visitor-a", characterName: "阿青", status: "active" }],
     pendingVisitorCleanup: ["hanabrew-visitor-b"],
     lastVisitorDeparture: { characterName: "阿青" },
   }));
-  assert.equal(isHanabrewInstalled(root), true);
   const repeatedOpening = "这是一段超过八十字的角色开场情境，用来验证多个临时来访身份合并后，相同的长开场不会在总结证据里重复堆叠，避免模型把同一件事误判成发生了很多次，也让最终档案更清楚。";
   const groups = groupSummaryMessages([
     { agentId: "hanabrew-visitor-a", role: "assistant", text: repeatedOpening },
