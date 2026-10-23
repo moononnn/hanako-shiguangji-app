@@ -2,6 +2,51 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 天气提醒（2026-10-22，本地开发）
+
+- 改动：新增 `lib/weather-alert.js`（事件判定 + 去重状态）；`lib/weather.js` 增加小时/日预报查询（`forecast_days=2`，含 `precipitation_probability`、`wind_gusts_10m`）与独立预报缓存（默认 1 小时 TTL，与当前天气缓存分开）；`lib/data.js` 新增 `weatherAlertEnabled`、`weatherForecastIntervalHours` 设置项与 `weather-forecast-cache.dat` / `weather-alert.dat` 两个加密存储；`extensions/inject.js` 新增独立一路注入（命中时强制触发行程，段落附在情境之后，自带「这段比情境材料更新」的来源说明），确认逻辑与节日问候共用同一条 `message_end` 钩子（不新增第二个钩子，避免覆盖）；`lib/inject.js` 新增 `buildWeatherAlertContext`；`routes/ui.js` 与设置页新增「天气提醒」开关（天气本身关闭时一并停用）。
+- 判定门槛：温差 ≥ 8°C、降水概率 ≥ 60% 且有降水、阵风 ≥ 50 km/h、恶劣天气码取中雨以上/雪/雷暴/冰雹/冻雨/雾（小雨与普通阵雨不算恶劣）。事件指纹带目标日期，同一件事只提一次；伙伴接住即记为已提，一直不接住最多补报一次后放弃。
+- 定向命令：`node --test --test-reporter=tap tests/weather-alert.test.js` → **17/17 通过**。相邻回归 `tests/inject-extension.test.js tests/weather-clock.test.js tests/injection-guidance.test.js tests/public-today.test.js tests/public-today-app.test.js tests/data-context.test.js tests/inject-due-nudge.test.js` → **77/77 通过**；`tests/core.test.js tests/routes.test.js` → **164/164 通过**；合并跑 `tests/weather-alert.test.js tests/inject-extension.test.js tests/app-entry.test.js` → **40/40 通过**。
+- 真实接口核对（成都武侯区坐标，Open-Meteo 实拉）：`hourly.time/temperature_2m/weather_code/precipitation_probability/wind_gusts_10m` 与 `daily.precipitation_probability_max/wind_gusts_10m_max` 字段都正常返回，时区字符串与本地时间一致，事件判定符合预期。
+- 真实数据带出一个排序问题并已修：初版按「严重程度」排，结果「明天凌晨中雨」压过了「今天下午降水概率 75%」，与「先说马上要来的」相反。改为先按时间锚点排（小时级用当小时，全天用当天中午），同一时刻才看严重程度；补了一条回归用例锁住这个顺序。
+- 过程中修掉一处真实回归：最初把天气提醒注册成第二个 `message_end` 钩子，而测试侧的假 `pi` 只保留单个 handler，导致节日问候的完成确认被覆盖（`扩展：节日问候保持待完成直到助手可见回复提到节日` 失败）。改为与节日共用一条钩子、各自记账后复验通过。
+- 语法：`node --check` 通过 lib/weather-alert.js、lib/weather.js、lib/data.js、lib/inject.js、lib/inject-app.js、extensions/inject.js、routes/ui.js、lib/page-template.js。`node tools/build-page.mjs` 生成 383.7 KB 的 `ui/panel.html`，旧路径/凭证拼接检查干净、App 凭证头存在。宿主静态校验 `validate-app.mjs --dir <App 源码目录> --json` → `ok: true`，0 errors、1 个常规动态依赖警告。
+- 未验证：真实宿主里的注入效果（伙伴到底会不会自然带这一句、语气对不对）需要实机跑一轮；未跑全量回归；未改 manifest.version、README、description，未提交、push 或发布。
+
+## 对外契约 greetings（节日问候完成台账，2026-10-21，本地开发）
+
+- 改动：`lib/data.js` 新增加密台账 `festival-greetings.dat`（`EncryptedStore`，与 injection state 同级）+ `FESTIVAL_GREETING_RETENTION_DAYS` / `festivalGreetingWindowStart` / `listFestivalGreetings` / `recordFestivalGreeting`，按伙伴/日期/节日去重、写入时就把 7 天窗口外的旧记录清掉、上限 200 条、判不出 agentId 不入账；新建 `lib/public-greetings.js` 组契约、算 7 天窗口、去抖发布；`lib/public-today.js` 只新增 `enqueuePublicPublish`（与 today 共用同一条 publishQueue，today 那条代码未动）；`extensions/inject.js` 在 `observeFestivalGreeting` 确认完成那一段补记台账并排去抖发布，身份沿用现成 `resolveAgentId`；`index.js` 绑定通道并在启动、保存后、每分钟定时各发一次。契约文档 `PUBLIC-GREETINGS.md`。未改 manifest.version / README / today 契约实现。
+- 测试：`tests/public-greetings.test.js` 新增 14 条（完成入账与 agentId、未提及不算完成（含只写在 `<mood>` 里）、toolUse 中断不算、判不出身份跳过、跨天与 7 天窗口、去抖只发一次、撤权后补发、发布失败只记一条警告且不动本地、无通道静默返回、台账读坏发空表）。定向 `node --test --test-reporter=tap tests/public-greetings.test.js` → **14/14 通过**。
+- 相邻回归：`tests/app-entry.test.js tests/public-today-app.test.js tests/public-today.test.js tests/app-save-publication.test.js tests/inject-extension.test.js tests/injection-guidance.test.js tests/festival-hints.test.js tests/data-context.test.js`（含新文件）→ **96/96 通过**。全量 `node --test --test-concurrency=1 --test-reporter=tap tests/*.test.js` → **700/700 通过**，0 失败/取消/跳过。
+- 现有测试的两处口径调整：`tests/app-entry.test.js`（启动现在发 today + greetings 两个 key）与 `tests/app-save-publication.test.js`（两个 key 同通道，不再按发布顺序取最后一条，改为按 key 取 today）。两处都只是因为多了一个 key，业务断言未改。
+- 未验证：真实宿主里 `ctx.publicData.list` 的返回形状按现有 today 那条的用法照搬（`{entries:[{key}]}`），没在实机上核对过；跨午夜的边角（23:59 提示、00:01 才说出口）记的是提示那天的 date；扩展侧没有 publicData 通道，完成确认后的那次发布实际要等 App 侧定时刷新才送出去（内容指纹去抖，不丢）。未改版本号、未提交、push 或发布。
+
+## 拾性与性格设定做对照（2026-10-19，本地开发）
+
+- 改动：`lib/xingji.js` 新增 `XINGJI_RELATIONS` / `normalizeRelation` / `dominantRelation`；日采提示词把 `identityText` 从「这些已经写过的不算新发现，请不要复述」的排除清单，改成对照物，要求模型给每条观察标 `relation: described|unwritten`，并写死「只问写过没有，不问符不符合」；`parseObservationOutput` 只收这两个值，其余（包括「违背」这类写法）一律留空；`pushEvidence` 与 `applyRollup` 把 `relation` 跟着证据一起存，老证据不添字段；`dominantRelation` 按证据多少算条目归属，一条带 relation 的都没有就返回空串。`routes/ui.js` 的 `decorateXingjiEntry` 透出 `relation`。页面标签（`lib/page-template.js` → `ui/panel.html`）：“设定里写着 / 设定里没写”，老档案不贴；拾性页标题和设置说明同步改口径。不注入、不改存储结构、不改版本号。
+- 定向命令：`node --test --test-reporter=tap tests/xingji.test.js tests/xingji-data.test.js` → **47/47 通过**（新增 4 条：relation 只认两个值、证据带标存盘、老数据不添字段、按多数证据算归属）；相邻回归 `tests/routes.test.js tests/core.test.js tests/inject-extension.test.js tests/injection-guidance.test.js` → **191/191 通过**。`node --check` 通过 lib/xingji.js、routes/ui.js、lib/page-template.js。`node tools/build-page.mjs` 生成 382.9 KB 的 `ui/panel.html`，旧路径/凭证拼接干净、App 凭证头存在。
+- 实际提示词回显已核：设定段现在是「只用来对照……两边不一样很正常」，输出 schema 带 `relation`，规则里有「不问符不符合」。
+- 未验证：真实模型对新提示词的产出质量（会不会把「写着温柔但直接指错」稳定标成 unwritten），需要下次日采或补档实跑；页面标签只做了构建与源码核对，没开真实页面截图复验。
+
+## 拾性分两档 + 做法接回对话（2026-10-19，本地开发）
+
+- 改动：`lib/xingji.js` 删掉 `XINGJI_MIN_SPAN_DAYS` / `XINGJI_LIKELY_SPAN_DAYS`，改成 `XINGJI_MIN_DISTINCT_DAYS=2`、`XINGJI_LIKELY_DISTINCT_DAYS=5`，并新增偏离档 `XINGJI_DEVIATION_*`（2/2 起，4/4 到 likely）；条目与观察新增 `kind`（pattern/deviation），`normalizeEntryKind` 把旧数据归为 pattern；`applyRollup` 拒绝把两种 kind 合进同一条目；新增 `pickInjectableEntries`（只接 pattern、只取等级最高 3 条）与 `buildXingjiInjectionText`（ta 第一人称口吻，不写「请注意/禁止/必须」）。`extensions/inject.js` 在 `xingjiInjectionEnabled` 打开且情境注入总开关与按伙伴屏蔽都放行时才取条目，并加进注入上下文指纹，改开关能立即刷新。删除从未有界面入口的 `xingjiInjectionDisabledAgentIds`，按伙伴屏蔽统一复用 `injectionDisabledAgentIds`。
+- 定向命令：`node --test --test-reporter=tap tests/xingji.test.js tests/xingji-data.test.js`，**43/43 通过**（新增 8 条：跨度不再卡门槛、两天成条、偏离档更松、kind 归一化、日采认 kind 且一天只留一条偏离、注入只接做法、条数封顶、注入口吻）。相邻回归 `tests/inject-extension.test.js tests/injection-guidance.test.js tests/routes.test.js tests/core.test.js tests/moodline-legend.test.js`，**200/200 通过**；`tests/data-context.test.js tests/app-save-publication.test.js tests/app-entry.test.js tests/public-today.test.js`，**29/29 通过**。
+- 语法：`node --check` 通过 lib/xingji.js、lib/data.js、lib/inject.js、extensions/inject.js、routes/ui.js、lib/page-template.js。构建 `node tools/build-page.mjs` 生成 382.2 KB 的 `ui/panel.html`，旧路径/凭证拼接干净；产物 3 段内联脚本语法检查 0 失败。
+- 真实档案回算（只读解密 `xingji.dat`，未改数据）：106 条条目在新门槛下可见 **45 条**，旧门槛下 25 条；`likely` 16 条。逐位可见数（此处按伙伴出现顺序编号，不写真名）：10/14、14/19、5/18、6/20、5/11、5/15；另有两位 0/6、0/3（这两人的条目数本身就只有 6 条和 3 条，多为 1~2 条证据，达不到任何门槛）。开启注入后每位够门槛的伙伴各选出 3 条做法条目，措辞已逐条核对。
+- 未验证：真实对话中的注入效果（模型是否会照这几句调整说法）需要开了开关实跑才能确认；偏离条目的抽取质量要看接下来几天的日采产出，本轮没有真实偏离样本可测。
+
+## 拾性页重做、归档全量补档与归纳截断修复（2026-10-18，本地开发）
+
+- 覆盖：拾性页从产物补回 `lib/page-template.js` 源；页面改为统计 + 候选条目 + 三条门槛进度（证据/不同日子/跨度）+ 按伙伴手动整理 + 带范围与费用说明的补记弹窗 + 扫描/逐天/整理三阶段进度 + 中断/失败恢复；归纳输出预算从 900 提到 1800，解析容忍 O1/字符串/observations 别名与尾逗号；补档任务在 App 重载后标记 interrupted，可接着补。
+- 归档扫描：宿主 `session:list` 在请求上下文里用 `scope:all + lifecycle:all` 可列出 2122 个会话（1834 个 archived），但 `session:entries` 拒绝 archived 路径；App 沙箱的 fs 也碰不到 Hana 家目录。本次用本机脚本直接枚举 `agents/<id>/sessions` 及 `archived` 子目录（按同一套 `findCharacterEvents` 预筛、每伙伴每天最多 8 张事件卡），把 7140 个候选瞬间写成预扫结果；App 补档在 `listAllSessionFiles` 为空时优先沿用已有预扫结果，不覆盖全量桶。
+- 定向命令：`node --test --test-reporter=tap tests/xingji.test.js tests/xingji-data.test.js tests/routes.test.js tests/core.test.js`，**200/200 通过**，0 失败/取消/跳过。`node --check` 通过 routes/ui.js、lib/xingji.js、lib/data.js、lib/day-summary.js、lib/page-template.js；`git diff --check` 通过。
+- 构建：`node tools/build-page.mjs` 生成 379.5 KB 的 `ui/panel.html`，旧路径/凭证拼接检查干净、App 凭证头存在；产物 3 段内联脚本用 `vm.Script` 语法检查，0 失败。
+- 实机全量补档：`POST /api/xingji/backfill {from:"2026-05-31",to:"2026-10-17",skipScan:true}` 在后台跑完，**140 天、0 天失败**；`GET /api/xingji` 首轮返回 8 位伙伴、totals `8/507/16/35`（8 位在看、507 段待归类、16 条长成、35 条还在长）。2026-10-19 追加一轮归纳后 totals 为 `8/312/30/81`；再把其中一位伙伴的四组近义切面合并去重后为 `8/312/25/81`（逐位同序为 6/8/259、11/8/47、5/6/2、1/19/3、1/14/1、1/17/0、0/6/0、0/3/0）。
+- 数据覆盖：2122 个会话文件、1834 个归档会话；138 个有料日子，最早 2026-06-01、最晚 2026-10-18；7136~7140 张事件卡（扫描时新会话使数字略有增长）。此前 170 天只是补记日期范围，本次才是把归档文件真正扫了一遍。
+- 页面布局：Edge headless 经本机代理加载真实页面，核对桌面 1400px 与 500px 布局；390px 用 CDP `Emulation.setDeviceMetricsOverride` 实测 `innerWidth=390`、`document.documentElement.scrollWidth=390`、`body.scrollWidth=390`，无横向溢出。
+- 未跑全量回归；全量补档按用户明确要求在后台执行，真实模型调用已发生（140 天逐日观察 + 8 位伙伴归纳）；未改 manifest.version/README/description，未提交、push 或发布。
+
 ## 提个醒专注通知联动（2026-10-14，本地开发）
 
 - 覆盖专注开始/结束走提个醒服务、陪读身份透传、明确缺服务时原生回退、静默 `suppressed` 终态、超时/未分类服务错误与原生异常落 `unknown` 不补发、重复回调与落盘状态，以及原生通知不双弹。
@@ -359,3 +404,10 @@ App 新建会话被强制设为私有，不进入主列表；消息接纳不证�
 路径与中文名来自当前宿主资料/语言资源，未冒充实屏验收。新增权限的重载确认界面标题为「审查权限变更」，批准按钮为「允许并重新加载」（当前 zh.json:3540–3541）；不能由开发工具代点。
 
 待审阅并重载后，还需实机验收：真实工具可见性与调用、共享快照即时刷新/撤权、通知实际显示、自动做册真实跨凌晨/重启和任务取消恢复。测试从未触发真实提醒。
+
+## 拾性剔噪（2026-10-19）
+
+- 拾性纯逻辑：48/48 通过（tests/xingji.test.js）。新增 11 条覆盖内部思考块剥离、长篇降兜底、同类型均匀取样、通用习惯横向对比、单伙伴基线、行为描述拦截、解析层丢弃、抽样剥块、提示词条件句。
+- 拾性数据层 + 注入扩展：79/79 通过（xingji.test.js + xingji-data.test.js + inject-extension.test.js）。
+- 路由主测试：49/49 通过（tests/routes.test.js）。
+- 未验证：真实模型下的日采与周归纳效果，需在页面重跑历史后人工比对；内置基线的 29%~35% 阈值来自当前这批历史，模型换排版习惯后要重测。
