@@ -8,6 +8,7 @@ import { attachInject } from './lib/inject-app.js';
 import { registerDaybookTools } from './lib/app-tools.js';
 import { configurePublicTodayPublisher, writePublicToday } from './lib/public-today.js';
 import { configurePublicGreetingsPublisher, publishPublicGreetings } from './lib/public-greetings.js';
+import { configurePublicAlertsPublisher, publishPublicAlerts } from './lib/public-alerts.js';
 import { setHostResources } from './lib/session-model.js';
 import { TodoReminderScheduler, setTodoReminderScheduler } from './lib/todo-reminder-scheduler.js';
 import { registerTodoCompleteService } from './lib/todo-complete.js';
@@ -25,11 +26,16 @@ export async function apply(ctx) {
   configurePublicTodayPublisher(ctx);
   // greetings 与 today 同一条通道、各自判重；发布失败只安静收场，绝不影响保存与对话。
   configurePublicGreetingsPublisher(ctx);
+  // alerts 也一样：天气提醒的「事件」摊给聊天类 App，谁提、几时提由那边自己管。
+  configurePublicAlertsPublisher(ctx);
   data.onPublicContextChange = () => {
     try { writePublicToday({ dataDir: ctx.dataDir, data }); }
     catch (error) { logWarn(`保存后的共享情境更新失败：${error?.message || error}`); }
     try { publishPublicGreetings({ data }); }
     catch (error) { logWarn(`保存后的节日问候共享失败：${error?.message || error}`); }
+    // 天气、地点、提醒开关都可能在这条路上变，事件清单跟着重发一次。
+    try { publishPublicAlerts({ data }); }
+    catch (error) { logWarn(`保存后的天气提醒共享失败：${error?.message || error}`); }
   };
   // 先把宿主的 resources 句柄递给扩展：扩展自己的 ctx 里没有它，但两者同进程。
   setHostResources(ctx.resources);
@@ -72,6 +78,7 @@ export async function apply(ctx) {
   const timer = setTimeout(async () => {
     writePublicToday({ dataDir: ctx.dataDir, data, force: true });
     publishPublicGreetings({ data, force: true });
+    publishPublicAlerts({ data, force: true });
     void reminder.restoreAppSchedules();
     void focusReminder.restore();
     try {
@@ -89,6 +96,9 @@ export async function apply(ctx) {
     // 问候台账跟着定时补一次：完成确认那侧没有通道，靠这里按内容指纹把变化送出去。
     try { publishPublicGreetings({ data }); }
     catch (error) { logWarn(`节日问候共享刷新失败：${error?.message || error}`); }
+    // 预报缓存在后台惰性刷新，没有回调口；这里按指纹补，事件没变不会真发。
+    try { publishPublicAlerts({ data }); }
+    catch (error) { logWarn(`天气提醒共享刷新失败：${error?.message || error}`); }
     void reminder.restoreAppSchedules(); // 补排已过期的失败重试；未知结果只对账，不盲目重建。
     void focusReminder.restore();
   }, 60 * 1000);

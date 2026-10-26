@@ -13,6 +13,14 @@
 - 全量：`node --test --test-concurrency=1 "tests/*.test.js"` → **743 条全部通过**，0 失败/取消/跳过。
 - 实机：第一版重载后，下一轮 Code 会话的注入已按新路子到达（只有【今日时光】09:45 加一句页脚，没有历史档案，也没有天气/待办）；改完界面后再次重载并校对设置页两屏与配色。
 
+## 对外契约 alerts（2026-10-24，本地开发）
+
+- 范围：新增 `lib/public-alerts.js`（把 `collectWeatherEvents` 的结果摊平）、`PUBLIC-ALERTS.md`、`tests/public-alerts.test.js`；`index.js` 绑定发布通道并挂进三条发布时机（装载首轮、数据变更、每分钟刷新）；`weather-alert.js` 导出 `KIND_LABELS` 供两边共用。
+- 顺带修的真 bug：`collectWeatherEvents` 用 `num(currentTemp) ?? num(temps[0])` 取基准温度，而 `Number(null) === 0`，当前天气取不到时基准被当成 0°C，任何 8°C 以上温度都会误报“比现在高 8 度”。现在 null/空串一律回退到预报首个小时。
+- 定向：`node --test --test-concurrency=1 tests/public-alerts.test.js tests/weather-alert.test.js` → **27/27 通过**。
+- 全量：`node --test --test-concurrency=1 "tests/*.test.js"` → **727 条全部通过**，0 失败/取消/跳过。
+- 未做：未重载，未实机看共享快照；`alerts` 是否真被茶话会读到，需要两边都重载后验。
+
 ## 天气提醒（2026-10-22，本地开发）
 
 - 改动：新增 `lib/weather-alert.js`（事件判定 + 去重状态）；`lib/weather.js` 增加小时/日预报查询（`forecast_days=2`，含 `precipitation_probability`、`wind_gusts_10m`）与独立预报缓存（默认 1 小时 TTL，与当前天气缓存分开）；`lib/data.js` 新增 `weatherAlertEnabled`、`weatherForecastIntervalHours` 设置项与 `weather-forecast-cache.dat` / `weather-alert.dat` 两个加密存储；`extensions/inject.js` 新增独立一路注入（命中时强制触发行程，段落附在情境之后，自带「这段比情境材料更新」的来源说明），确认逻辑与节日问候共用同一条 `message_end` 钩子（不新增第二个钩子，避免覆盖）；`lib/inject.js` 新增 `buildWeatherAlertContext`；`routes/ui.js` 与设置页新增「天气提醒」开关（天气本身关闭时一并停用）。
