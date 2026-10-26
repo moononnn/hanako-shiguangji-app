@@ -2,6 +2,17 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## Code 页单独一套注入（2026-10-26，本地开发）
+
+- 范围：新增 `lib/code-mode.js`（项目清单与归一化）、`lib/session-kind.js`（`session:get` 的 `namespace` 判断，30 分钟正缓存 / 1 分钟负缓存）、`tests/code-mode.test.js`；`lib/inject.js` 给 `buildInjectionText` 加 `codeMode` 页脚（普通路径不变）；`extensions/inject.js` 增加 Code 页分支（每轮带时间，内容只取勾选项，同一分钟同内容不重发，换班预告不被去重吃掉）；`lib/inject-app.js` 预取分区并递进扩展，Code 页没选天气就跳过天气预取；`lib/data.js` 新增 `codeInjectionEnabled` / `codeInjectionItems`。
+- 设置面：聊天窗口与 Code 页共用一组，顶部一个「聊天窗口 / Code 页」切换键（薄荷绿 / 雾蓝双底色，提示条、面板底色、按钮填充一起变），不挂多余标签。Code 那屏只有总闸和六个勾选项，不再摆快捷预设；峰谷从共用行改成聊天那屏的开关，Code 页只看勾选，两屏各管各的。原来独立的「伙伴收到的今日情境」分组收进聊天那屏，再少一个分组。
+- 总管关系：拆成两个互不影响的开关，主页头部并排两个胶囊按钮（薄荷绿「聊天情境」、雾蓝「Code 情境」），各自 POST `injectionEnabled` / `codeInjectionEnabled`，与设置里两屏的那两个开关同源。峰谷仍不算情境，两屏各看自己的开关/勾选。
+- 默认值：总闸开、清单只留峰谷关照，其余项默认关；Code 页没有「退回普通窗口」那一档了，想全带就逐项勾上。
+- 定向：`node --test --test-concurrency=1 --test-reporter=tap tests/code-mode.test.js` → **16/16 通过**（含适配层分区递送、路由存取、页面产物两屏结构、峰谷分屏不牵连、两开关互不影响）。
+- 相邻回归：`tests/inject-extension.test.js tests/injection-guidance.test.js tests/data-context.test.js` → **28/28**；`tests/routes.test.js` → **49/49**；`tests/app-entry.test.js tests/core.test.js` → **118/118**。
+- 全量：`node --test --test-concurrency=1 "tests/*.test.js"` → **743 条全部通过**，0 失败/取消/跳过。
+- 实机：第一版重载后，下一轮 Code 会话的注入已按新路子到达（只有【今日时光】09:45 加一句页脚，没有历史档案，也没有天气/待办）；改完界面后再次重载并校对设置页两屏与配色。
+
 ## 天气提醒（2026-10-22，本地开发）
 
 - 改动：新增 `lib/weather-alert.js`（事件判定 + 去重状态）；`lib/weather.js` 增加小时/日预报查询（`forecast_days=2`，含 `precipitation_probability`、`wind_gusts_10m`）与独立预报缓存（默认 1 小时 TTL，与当前天气缓存分开）；`lib/data.js` 新增 `weatherAlertEnabled`、`weatherForecastIntervalHours` 设置项与 `weather-forecast-cache.dat` / `weather-alert.dat` 两个加密存储；`extensions/inject.js` 新增独立一路注入（命中时强制触发行程，段落附在情境之后，自带「这段比情境材料更新」的来源说明），确认逻辑与节日问候共用同一条 `message_end` 钩子（不新增第二个钩子，避免覆盖）；`lib/inject.js` 新增 `buildWeatherAlertContext`；`routes/ui.js` 与设置页新增「天气提醒」开关（天气本身关闭时一并停用）。

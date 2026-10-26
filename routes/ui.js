@@ -52,6 +52,7 @@ import {
   extractMessageText,
 } from "../lib/day-summary.js";
 import { selectRecentSummaries } from "../lib/recent-summaries.js";
+import { CODE_INJECTION_ITEMS, normalizeCodeInjectionItems } from "../lib/code-mode.js";
 import {
   MOODS,
   buildSignalAwareEvidence,
@@ -589,6 +590,10 @@ function publicSettings(s) {
     weatherIntervalHours: s.weatherIntervalHours || 3,
     weatherAlertEnabled: s.weatherAlertEnabled !== false,
     deepseekPeakEnabled: s.deepseekPeakEnabled !== false,
+    // Code 页那一套：总闸与项目清单（清单直接给页面渲染用）
+    codeInjectionEnabled: s.codeInjectionEnabled !== false,
+    codeInjectionItems: normalizeCodeInjectionItems(s.codeInjectionItems),
+    codeInjectionItemOptions: CODE_INJECTION_ITEMS,
     // 当前模型档关不掉思考时，页面要提醒用户「消耗明显更多，建议换一个能关思考的档」。
     thinkingUnstoppable: isThinkingUnstoppable(s),
     thinkingModelKey: currentModelKey(s),
@@ -1398,6 +1403,19 @@ export default function registerRoutes(app, ctx) {
       if (body.weatherEnabled !== undefined) patch.weatherEnabled = !!body.weatherEnabled;
       if (body.weatherAlertEnabled !== undefined) patch.weatherAlertEnabled = !!body.weatherAlertEnabled;
       if (body.deepseekPeakEnabled !== undefined) patch.deepseekPeakEnabled = !!body.deepseekPeakEnabled;
+      if (body.codeInjectionEnabled !== undefined) patch.codeInjectionEnabled = !!body.codeInjectionEnabled;
+      if (body.codeInjectionItems !== undefined) {
+        const raw = body.codeInjectionItems;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+          return c.json({ ok: false, error: "Code 页注入项格式不对" });
+        }
+        // 只收清单里的布尔项；没传的键保留默认（只留峰谷），不把未选的项当默认开。
+        const picked = {};
+        for (const item of CODE_INJECTION_ITEMS) {
+          if (raw[item.id] !== undefined) picked[item.id] = !!raw[item.id];
+        }
+        patch.codeInjectionItems = normalizeCodeInjectionItems(picked);
+      }
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {
           patch.weatherArea = null;

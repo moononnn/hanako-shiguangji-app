@@ -42,6 +42,8 @@ import {
 } from "../lib/weather-alert.js";
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
 import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
+import { resolveCodeInjection } from "../lib/code-mode.js";
+import { isCodeSession } from "../lib/session-kind.js";
 import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/session-model.js";
 import { schedulePublicToday } from "../lib/public-today.js";
 import { schedulePublicGreetings } from "../lib/public-greetings.js";
@@ -281,14 +283,11 @@ export default function registerShiguangjiInject(pi) {
         : []);
       const partnerInjectionDisabled = !!currentAgentId && disabledAgentIds.has(currentAgentId);
       const injectionEnabled = settings.injectionEnabled !== false && !partnerInjectionDisabled;
-      // 拾性档案接回对话：独立开关，且跟随情境注入总开关与按伙伴屏蔽。
-      // 全部默认关——观察归观察，注入归注入，后者必须由人显式打开。
-      const xingjiInjectionEnabled = settings.xingjiInjectionEnabled === true && injectionEnabled === true && !!currentAgentId;
-      const xingjiEntries = xingjiInjectionEnabled
-        ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
-        : [];
       const currentModel = resolveCurrentModel(event, ctx, sessionId, currentAgentId);
       const dataRev = data.getDataRev();
+      // Code 页是干活的地方：那边走另一套精简注入，别把日记、生理期和做好的回顾
+      // 塞进改代码的那一轮。分区判不出来一律按普通窗口走（见 lib/session-kind.js）。
+      const inCode = isCodeSession(ctx?.sessionNamespace);
       // 对外快照独立于「情境注入」开关：那个开关只管往 Hana 会话里注入，
       // 这份快照是给别的消费方读的，关掉注入也照常维护。
       maybeRefreshPublicToday({
@@ -298,6 +297,24 @@ export default function registerShiguangjiInject(pi) {
         now,
         dataRev,
       });
+      if (inCode) {
+        return decideCodeModeInjection({
+          data,
+          settings,
+          now,
+          sessionId,
+          currentAgentId,
+          currentModel,
+          partnerInjectionDisabled,
+          diskPeakState: data.getDeepSeekPeakState(sessionId),
+        });
+      }
+      // 拾性档案接回对话：独立开关，且跟随情境注入总开关与按伙伴屏蔽。
+      // 全部默认关——观察归观察，注入归注入，后者必须由人显式打开。
+      const xingjiInjectionEnabled = settings.xingjiInjectionEnabled === true && injectionEnabled === true && !!currentAgentId;
+      const xingjiEntries = xingjiInjectionEnabled
+        ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
+        : [];
       const contextKey = buildInjectionContextKey(settings);
       const trackedState = tracker.get(sessionId);
       const storedInjectionState = trackedState || data.getInjectionState(sessionId);
@@ -648,6 +665,118 @@ export default function registerShiguangjiInject(pi) {
       return undefined;
     }
   });
+}
+
+// ── Code 页注入 ──
+// 跟普通窗口共用一个 tracker、一份峰谷状态，区别只在「带哪些块」和「每轮都带时间」。
+// 为什么不走 shouldInject 的间隔：Code 页里「现在几点」得是这一轮的现在；
+// 同一分钟内容相同会被 hash 挡掉，所以不用节流，也不会每分钟刷一条新消息。
+function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentId, currentModel, partnerInjectionDisabled, diskPeakState }) {
+  const previous = tracker.get(sessionId) || data.getInjectionState(sessionId) || null;
+
+  // 总闸关掉 = 那边一句话都不带，连峰谷也停。这正是「一键关掉 Code 页所有注入词」。
+  const { enabled: codeEnabled, items } = resolveCodeInjection(settings);
+  if (!codeEnabled || partnerInjectionDisabled) {
+    const state = { ...(previous || {}), codeMode: true, injectionEnabled: false, lastInjectAt: now.getTime() };
+    tracker.set(sessionId, state);
+    if (!previous || previous.injectionEnabled !== false) persistInjectionState(data, sessionId, state);
+    return undefined;
+  }
+
+  // 峰谷在这屏只认勾选：聊天那屏的峰谷开关管聊天，Code 页自己勾了才带。
+  const peakEnabled = items.peak === true;
+  const peakDecision = peakEnabled
+    ? decideDeepSeekNotice({ model: currentModel, now, lastState: peakTracker.get(sessionId) || diskPeakState || null })
+    : { should: false, reason: "peak-off", notice: null, state: null };
+  if (peakDecision.state) {
+    peakTracker.set(sessionId, peakDecision.state);
+    persistDeepSeekState(data, sessionId, peakDecision.state);
+  }
+
+  // 只收集真正要带的东西：没选的块连算都不算，省得白读一遍总结和天气。
+  const builtin = items.special ? getBuiltinFestivals(now) : [];
+  const userEvents = items.special ? data.eventsOnDate(now).filter((e) => e.type !== "period") : [];
+  const periods = items.special && settings.showPeriod !== false
+    ? data.periodsWithDayOn(now).filter((p) => !p.predicted).map((p) => p.event)
+    : [];
+  const workday = items.special ? isWorkday(now) : false;
+  const todos = items.todos ? filterDueTodos(data.listEvents(), now) : [];
+  const weather = items.weather ? readFreshWeather(data, settings, now) : null;
+  const userName = readHanaUserName() || "对方";
+  const summaryAgentId = items.archive ? resolveSummaryAgentId(getAgentsDir(), currentAgentId) : "";
+  // Code 页不做话题关联展开，也不请人做「历史档案」那套日期推演：只带最近几天，够用就收。
+  const recent = items.archive
+    ? selectRecentSummaries(data.listSummaryEntries(), {
+        now,
+        boundaryHour: settings.dayBoundaryHour,
+        currentAgentId: summaryAgentId,
+        shared: settings.summaryShared === true,
+        userName,
+        prompt: "",
+      })
+    : { entries: [], expanded: false };
+  const xingjiEntries = items.xingji && settings.xingjiInjectionEnabled === true && currentAgentId
+    ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
+    : [];
+  // 天气也走同一份冷却：同一件天气事实在 Code 页说过，不用每轮再说一次。
+  const weatherDecision = decideWeatherMention({ weather, lastState: previous, now });
+  const weatherForInjection = weatherDecision.should ? weather : null;
+
+  const text = buildInjectionText({
+    now,
+    builtinFestivals: builtin,
+    userEvents,
+    periods,
+    isWorkday: workday,
+    todosDue: todos,
+    recentSummaries: recent.entries,
+    recentSummaryOptions: {
+      currentAgentId: summaryAgentId,
+      shared: settings.summaryShared === true,
+      proactiveDate: finishedLifeDayKey(now, settings.dayBoundaryHour),
+      userName,
+    },
+    xingjiEntries,
+    weather: weatherForInjection,
+    deepseekNotice: peakDecision.notice,
+    includeTime: true,
+    force: true, // Code 页至少要把这一轮的时间递上去
+    codeMode: true,
+  });
+  if (!text) return undefined;
+
+  const hash = crypto.createHash("sha1").update(text).digest("hex");
+  const state = {
+    ...(previous || {}),
+    codeMode: true,
+    injectionEnabled: true,
+    lastInjectAt: now.getTime(),
+    lastDateKey: lifeDayKey(now, settings.dayBoundaryHour),
+    lastHash: hash,
+  };
+  if (weatherForInjection) {
+    state.weatherLastMentionAt = now.getTime();
+    state.weatherLastFactKey = weatherDecision.factKey;
+  }
+  // 换班预告这类硬触发不许被去重吃掉；其余同一分钟同一份内容就不再塞第二遍。
+  const unchanged = previous?.codeMode === true && previous?.lastHash === hash && !peakDecision.should;
+  tracker.set(sessionId, state);
+  if (unchanged) return undefined;
+  persistInjectionState(data, sessionId, state);
+
+  return {
+    message: {
+      customType: "shiguangji-code-context",
+      content: text,
+      display: false,
+      details: {
+        injector: "shiguangji",
+        reason: peakDecision.should ? `deepseek-${peakDecision.reason}` : "code-mode",
+        codeMode: true,
+        deepseekNotice: !!peakDecision.should,
+      },
+    },
+  };
 }
 
 function buildInjectionContextKey(settings = {}) {
