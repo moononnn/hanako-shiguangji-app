@@ -2,6 +2,15 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 子代理会话不注入、待办横幅不跟过去（2026-10-26，本地开发）
+
+- 范围：`lib/session-kind.js` 新增 `isSubagentSessionPath`（判据只靠会话路径里的 `subagent-sessions` 段，两侧分隔符都认、大小写不敏感）；`lib/inject-app.js` 在 `agent/before-start` 入口、拿到 sessionId 之后立即判，子代理会话直接返回 undefined，不读会话快照、不预取模型、不查分区、不拉天气，Code 页那套精简注入也一并跳过；`lib/todo-banner.js` 的 `rememberActiveSession` 先认子代理路径，那边说完话不覆盖她的活跃窗口、也不凭空占位。
+- 判据来源：宿主的钩子只给 `{sessionId, sessionPath}`，子代理会话 `session:get` 一律返回 `Session manifest not found`，只能看路径（`subagent-threads.json` 的 `childSessionPath` 与本机 `agents\<伙伴>\subagent-sessions\direct\` 目录两侧一致）。
+- 定向：`node --test tests/inject-subagent.test.js tests/todo-banner.test.js tests/todo-reminder-app.test.js` → **35/35 通过**；其中新增 4 条（路径正负例、子代理会话一次宿主查询都不发、普通会话照常拿到今日时光、子代理不覆盖活跃会话记录）。
+- 全量：`node --test`（源码根目录，含 `lib/feedback/tests/`）→ **781 条全部通过**，51 个测试文件，0 失败/取消/跳过。
+- 实机：重载后派了一个真实子代理，`debug.log` 记下 `注入跳过: 子代理会话 01a176a6-…`，同一会话没有任何「注入命中」行；改动前同类会话会记 `注入命中: 301 字 | reason=new-session | 伙伴=? | 窗口=?`。
+- 未验证：待办横幅那条只有单元测试覆盖，没等到一次真实的到点提醒去核对挂载位置；宿主日后若改掉子代理会话目录名，该判定会失效（失效时日志表现为子代理又出现「伙伴=? 窗口=?」）。
+
 ## Code 页单独一套注入（2026-10-26，本地开发）
 
 - 范围：新增 `lib/code-mode.js`（项目清单与归一化）、`lib/session-kind.js`（`session:get` 的 `namespace` 判断，30 分钟正缓存 / 1 分钟负缓存）、`tests/code-mode.test.js`；`lib/inject.js` 给 `buildInjectionText` 加 `codeMode` 页脚（普通路径不变）；`extensions/inject.js` 增加 Code 页分支（每轮带时间，内容只取勾选项，同一分钟同内容不重发，换班预告不被去重吃掉）；`lib/inject-app.js` 预取分区并递进扩展，Code 页没选天气就跳过天气预取；`lib/data.js` 新增 `codeInjectionEnabled` / `codeInjectionItems`。

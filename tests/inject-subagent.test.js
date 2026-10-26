@@ -49,20 +49,20 @@ function makeHost(data) {
 }
 
 const SUBAGENT_PATH =
-  "C:\\Users\\laotv\\.hanako\\agents\\hanako\\subagent-sessions\\direct\\2026-10-26T05-20-00-000Z_01a176aa-1111-2222-3333-444455556666.jsonl";
+  "C:\\hana\\agents\\hanako\\subagent-sessions\\direct\\2026-10-26T05-20-00-000Z_01a176aa-1111-2222-3333-444455556666.jsonl";
 
 test("子代理路径判定：两侧分隔符、大小写都认，普通会话不吃这套", () => {
   assert.equal(isSubagentSessionPath(SUBAGENT_PATH), true);
   assert.equal(
-    isSubagentSessionPath("C:/Users/laotv/.hanako/agents/hanako/subagent-sessions/direct/a.jsonl"),
+    isSubagentSessionPath("/srv/hana/agents/hanako/subagent-sessions/direct/a.jsonl"),
     true
   );
   assert.equal(
-    isSubagentSessionPath("C:\\Users\\laotv\\.hanako\\agents\\hanako\\SUBAGENT-SESSIONS\\direct\\a.jsonl"),
+    isSubagentSessionPath("C:\\hana\\agents\\hanako\\SUBAGENT-SESSIONS\\direct\\a.jsonl"),
     true
   );
   assert.equal(
-    isSubagentSessionPath("C:\\Users\\laotv\\.hanako\\agents\\hanako\\sessions\\2026-10-26T05-00-00-000Z_a.jsonl"),
+    isSubagentSessionPath("C:\\hana\\agents\\hanako\\sessions\\2026-10-26T05-00-00-000Z_a.jsonl"),
     false
   );
   // 只是文件名里带这串字，不是段，不算子代理。
@@ -97,7 +97,7 @@ test("适配层：同一套钩子，普通会话照样拿到今日时光", async
   const out = await hooks["agent/before-start"]({
     session: {
       sessionId: "sess_subagent_control",
-      sessionPath: "C:\\Users\\laotv\\.hanako\\agents\\hanako\\sessions\\2026-10-26T05-20-00-000Z_01a176bb.jsonl",
+      sessionPath: "C:\\hana\\agents\\hanako\\sessions\\2026-10-26T05-20-00-000Z_01a176bb.jsonl",
     },
     model: { provider: "openai", id: "gpt-5.6" },
   });
