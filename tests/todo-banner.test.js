@@ -41,6 +41,19 @@ test("活跃会话：记下最近开口的那个，太久没动就当没有", ()
   __resetTodoBanner();
 });
 
+test("活跃会话：子代理在那边开口，不算她的地方", () => {
+  __resetTodoBanner();
+  rememberActiveSession("C:\\agents\\hanako\\sessions\\a.jsonl", 1000);
+  // 派出去干活的小助手说完话，不能把她的活跃窗口换成那条临时会话。
+  rememberActiveSession("C:\\agents\\hanako\\subagent-sessions\\direct\\b.jsonl", 2000);
+  assert.equal(currentActiveSession(2000), "C:\\agents\\hanako\\sessions\\a.jsonl");
+  // 之前没记过任何会话时，子代理也不该凭空占位。
+  __resetTodoBanner();
+  rememberActiveSession("C:\\agents\\hanako\\subagent-sessions\\direct\\b.jsonl", 3000);
+  assert.equal(currentActiveSession(3000), "");
+  __resetTodoBanner();
+});
+
 test("文案：优先用系统通知那份，过长截到 200 字符", () => {
   const long = todoBannerContent({ window: "16:00 准点", title: "浇水", body: "x".repeat(500) });
   assert.equal(long.text.length, 200);
