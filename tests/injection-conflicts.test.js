@@ -300,7 +300,9 @@ test("Code：峰谷文案只讲费用事实，不带梗、不铺陈朋友视角"
   assert.ok(!code.includes("梁文峰") && !code.includes("梁文谷"), "Code 页不带梗");
   assert.ok(!code.includes("我替你看着"), "不要朋友铺陈");
   assert.match(code, /答完/, "预告是答完正题之后再说");
-  assert.match(code, /不要打断/);
+  // Code 页只收措辞，不收要求本身：仍必须说出口。
+  assert.ok(!code.includes("话题合适"), "不许再留「话题合适才提」的口子");
+  assert.ok(!code.includes("专心处理问题就先不提"), "不许再写「忙就先不提」");
 
   // 老调用方（两个参数）行为不变：聊天那屏仍是原来那份
   const chat = buildDeepSeekContext(notice, "小满");
@@ -308,7 +310,7 @@ test("Code：峰谷文案只讲费用事实，不带梗、不铺陈朋友视角"
   assert.ok(chat.includes("梁文峰"), "聊天那屏的梗还在");
 });
 
-test("峰谷结尾与块同一档：预告/detected 硬，entered 软", () => {
+test("峰谷结尾与块同一档：开场/补报/预告一律硬要求说出口", () => {
   const base = {
     period: "peak",
     periodLabel: "高峰时段",
@@ -324,11 +326,15 @@ test("峰谷结尾与块同一档：预告/detected 硬，entered 软", () => {
   assert.match(detected, /请在本轮回复里自然带一句/);
   assert.match(detected, /要在本轮回复里带出一句/, "detected 这轮就要说，结尾不能打折");
 
+  // entered 是「错过预告后的补报」，同样是到点提醒本身。
+  // 实测教训（2026-10-27）：这里原先把 entered 归成「软性、话题不搭就不带」，
+  // 结果 Code 页开场明明注入了峰谷却一句不说，与「开峰谷提醒就是为了知道当下时段」相违。
   const entered = buildInjectionText({ now, force: true, deepseekNotice: { ...base, kind: "entered" } });
-  assert.match(entered, /如果这轮对话话题合适/);
-  assert.ok(!entered.includes("请在本轮回复里"), "entered 不该下死命令");
-  assert.match(entered, /是软性的/);
-  assert.ok(!entered.includes("要在本轮回复里带出一句"), "结尾不能和块打架");
+  assert.match(entered, /请在本轮回复里自然带一句/, "entered 也要下硬要求");
+  assert.ok(!entered.includes("如果这轮对话话题合适"), "不许再留「话题合适才提」这种口子");
+  assert.ok(!entered.includes("是软性的"), "entered 不再是软性补报");
+  assert.match(entered, /要在本轮回复里带出一句/, "结尾要和块同一档");
+  assert.match(entered, /哪怕当前只是闲聊也要自然带出一句/, "开场/补报都要硬带");
 });
 
 test("情境到期时峰谷提醒可以并进来，计时按普通刷新走", async () => {

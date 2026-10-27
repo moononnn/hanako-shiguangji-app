@@ -579,6 +579,62 @@ test("注入文本：DeepSeek 峰谷关照要求闲聊也硬带一句", () => {
   assert.ok(toneTexts[2].includes("梁文峰") && toneTexts[2].includes("梁文谷"), toneTexts[2]);
 });
 
+// 实机回归（2026-10-27 21:46）：注入写明 21:08 谷时，回复却说「现在已经过了晚上十一点」。
+// 病根是拿时刻又按记忆里的旧深夜错峰规则换算了一道。文案必须拦住换算，但不能否认材料里写明的时刻。
+test("注入文本：峰谷关照拦钟点换算，不否认材料里写明的时刻", () => {
+  const notice = {
+    kind: "entered",
+    period: "valley",
+    periodLabel: "谷时段",
+    toneIndex: 0,
+  };
+  const chatText = buildInjectionText({
+    now: new Date("2026-10-27T21:08:00+08:00"),
+    deepseekNotice: notice,
+  });
+  // 材料里已有真实时刻，文案不得声称「没给你当前时刻」（那会让模型连真实时刻也不信）。
+  assert.ok(chatText.includes("21:08"), chatText);
+  assert.ok(!chatText.includes("本关照没给你当前时刻"), chatText);
+  // 只认当前时段名，不许改口。
+  assert.ok(chatText.includes("只认「谷时段」这个结论"), chatText);
+  assert.ok(chatText.includes("不得改口"), chatText);
+  // 拦的是自己再换算：拿旧规则反推、说「已经过了 X 点」。
+  assert.ok(chatText.includes("不要自己再换算"), chatText);
+  assert.ok(chatText.includes("不得拿记忆里的旧规则反推") || chatText.includes("不要拿记忆里的旧规则反推"), chatText);
+  assert.ok(chatText.includes("已经过了 X 点"), chatText);
+
+  // Code 页那套文案同样要拦，且仍保留技术任务优先的落点。
+  const codeText = buildInjectionText({
+    now: new Date("2026-10-27T21:08:00+08:00"),
+    deepseekNotice: notice,
+    codeMode: true,
+    force: true,
+  });
+  assert.ok(codeText.includes("只认「谷时段」这个结论"), codeText);
+  assert.ok(codeText.includes("不要自己再换算"), codeText);
+  // Code 页仍必须说出口（只收措辞，不收要求本身）。
+  assert.ok(codeText.includes("必须把当前时段说出口"), codeText);
+});
+
+// 实机回归（2026-10-27）：那段会话只注入了 3 次峰谷关照，回复里却提了 4 次，
+// 多出的全是技术回答答完之后另起一句「顺带一句」补上去的。文案要直接盯住这个句式和位置。
+test("注入文本：峰谷关照不许在回答末尾另起一句补提", () => {
+  const text = buildInjectionText({
+    now: new Date("2026-10-27T21:08:00+08:00"),
+    deepseekNotice: {
+      kind: "entered",
+      period: "valley",
+      periodLabel: "谷时段",
+      toneIndex: 0,
+    },
+  });
+  assert.ok(text.includes("这轮就算没收到新的峰谷关照，也不能凭上文记忆再提"), text);
+  // 具体盯住实采到的尾巴句式。
+  assert.ok(text.includes("顺带一句"), text);
+  assert.ok(text.includes("另外说一句"), text);
+  assert.ok(text.includes("尤其是末尾那一句"), text);
+});
+
 test("注入文本：逾期待办只报次数，不逐条刷屏；今天到期照常列出", () => {
   // D1=2026-08-28：到期日为 08-27 是逾期，08-28 是今天；未来待办由调用方过滤，不在本函数职责内。
   const text = buildInjectionText({
