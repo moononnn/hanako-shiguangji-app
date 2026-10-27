@@ -85,7 +85,7 @@ test("Code 页文案只留时间与一句页脚，不带历史档案的日期硬
   assert.match(text, /【今日时光】2026年10月26日星期一 09:10/);
   assert.match(text, /以上是此刻的时间与背景/);
   assert.ok(!text.includes("日期硬约束"), "Code 页不该背一套日期宪法");
-  assert.ok(!text.includes("上面这些是你手上关于今天"), "也不该带普通窗口那份事实边界长句");
+  assert.ok(!text.includes("以上是这次带给你的今日背景"), "也不该带普通窗口那份事实边界长句");
 });
 
 test("Code 页时间块关掉时：一个块都没有就整轮不注入", () => {

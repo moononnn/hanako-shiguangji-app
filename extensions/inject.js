@@ -43,9 +43,6 @@ import {
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
 import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
 import {
-  normalizeCodeInjectIntervalHours,
-  normalizeCodeInjectMode,
-  normalizeCodeInjectionItems,
   resolveCodeInjection,
 } from "../lib/code-mode.js";
 import { isCodeSession } from "../lib/session-kind.js";
@@ -225,6 +222,32 @@ function persistDeepSeekState(data, sessionId, dsState) {
   data.setDeepSeekPeakState(sessionId, dsState).catch(() => {});
 }
 
+// 峰谷「本窗口已报过」只有两份真身：内存 peakTracker → 盘上 deepseekPeak。
+// 旧版本顺带把 ds 字段写进了情境注入状态，那份只在两处都空时当迁移来源读一次，
+// 绝不能反过来用陈旧的情境状态盖挠新的峰谷状态（那是「关情境→预告→开情境重复预告」的根源）。
+function peakStateFromInjectionState(state) {
+  if (!state || state.dsActive === undefined) return null;
+  return {
+    dsActive: state.dsActive === true,
+    dsModelKey: String(state.dsModelKey || ""),
+    dsPeriod: state.dsPeriod || null,
+    dsPreviewKey: String(state.dsPreviewKey || ""),
+    dsPreviewKeys: Array.isArray(state.dsPreviewKeys) ? [...state.dsPreviewKeys] : [],
+    dsLastSeenAt: Number(state.dsLastSeenAt) || 0,
+  };
+}
+
+function resolvePeakLastState(sessionId, diskPeakState, injectionState) {
+  return peakTracker.get(sessionId) || diskPeakState || peakStateFromInjectionState(injectionState);
+}
+
+// 每次峰谷判定后都回写两处：内存档防重启丢，盘上档防进程内清空。
+function commitPeakState(data, sessionId, dsState) {
+  if (!dsState) return;
+  peakTracker.set(sessionId, dsState);
+  persistDeepSeekState(data, sessionId, dsState);
+}
+
 // 天气提醒的会话状态落盘：同样 fire-and-forget，与峰谷/情境各自一份 schema。
 function persistWeatherAlertState(data, sessionId, alertState) {
   if (!data || !sessionId || !alertState) return;
@@ -291,7 +314,8 @@ export default function registerShiguangjiInject(pi) {
       const currentModel = resolveCurrentModel(event, ctx, sessionId, currentAgentId);
       const dataRev = data.getDataRev();
       // Code 页是干活的地方：那边走另一套精简注入，别把日记、生理期和做好的回顾
-      // 塞进改代码的那一轮。分区判不出来一律按普通窗口走（见 lib/session-kind.js）。
+      // 塞进改代码的那一轮。分区查不清时适配层已经跳过本轮（见 lib/session-kind.js），
+      // 走到这里的分区只有 home / app / code 三种，这里只需分「是不是 Code」。
       const inCode = isCodeSession(ctx?.sessionNamespace);
       // 对外快照独立于「情境注入」开关：那个开关只管往 Hana 会话里注入，
       // 这份快照是给别的消费方读的，关掉注入也照常维护。
@@ -303,6 +327,7 @@ export default function registerShiguangjiInject(pi) {
         dataRev,
       });
       if (inCode) {
+        // Code 页不听聊天那张屏蔽名单（partnerInjectionDisabled），只看它自己那套配置。
         return decideCodeModeInjection({
           data,
           settings,
@@ -310,20 +335,19 @@ export default function registerShiguangjiInject(pi) {
           sessionId,
           currentAgentId,
           currentModel,
-          partnerInjectionDisabled,
           diskPeakState: data.getDeepSeekPeakState(sessionId),
         });
       }
       // 拾性档案接回对话：独立开关，且跟随情境注入总开关与按伙伴屏蔽。
       // 全部默认关——观察归观察，注入归注入，后者必须由人显式打开。
+      // （真正挑条目放到「确实要注入」之后，情境没到期就不白读一份档案。）
       const xingjiInjectionEnabled = settings.xingjiInjectionEnabled === true && injectionEnabled === true && !!currentAgentId;
-      const xingjiEntries = xingjiInjectionEnabled
-        ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
-        : [];
       const contextKey = buildInjectionContextKey(settings);
       const trackedState = tracker.get(sessionId);
       const storedInjectionState = trackedState || data.getInjectionState(sessionId);
       const diskDs = data.getDeepSeekPeakState(sessionId);
+      // 峰谷只看自己那两处状态；旧版写在情境状态里的 ds 字段只当迁移来源。
+      const peakLastState = resolvePeakLastState(sessionId, diskDs, storedInjectionState);
       const legacyRecovery = !storedInjectionState && !!diskDs;
       // 普通注入状态与 DeepSeek 峰谷状态是两套 schema，不能互相冒充。
       // 没有完整注入状态的旧版本，只用当前时刻建立一次保守冷却，避免升级/重启首轮重复刷屏。
@@ -338,7 +362,6 @@ export default function registerShiguangjiInject(pi) {
           injectionEnabled: true,
         };
       }
-      const deepseekLastState = storedInjectionState || diskDs || null;
       if (lastState && lastState.contextKey !== contextKey) {
         logContextKeyChange(sessionId, lastState.contextKey, contextKey);
       }
@@ -373,10 +396,9 @@ export default function registerShiguangjiInject(pi) {
         const peakOnly = decideDeepSeekNotice({
           model: currentModel,
           now,
-          lastState: peakTracker.get(sessionId) || diskDs || null,
+          lastState: peakLastState,
         });
-        peakTracker.set(sessionId, peakOnly.state);
-        persistDeepSeekState(data, sessionId, peakOnly.state);
+        commitPeakState(data, sessionId, peakOnly.state);
         if (!peakOnly.should) return undefined;
         return {
           message: {
@@ -397,9 +419,11 @@ export default function registerShiguangjiInject(pi) {
         ? decideDeepSeekNotice({
           model: currentModel,
           now,
-          lastState: deepseekLastState,
+          lastState: peakLastState,
         })
         : { should: false, reason: "peak-disabled", notice: null, state: null };
+      // 判一次就回写一次：内存档和盘上档一起走，别让某一处独自陈旧下去。
+      commitPeakState(data, sessionId, deepseekDecision.state);
 
       // 天气提醒：独立一路判定，跟「窗外天气」播报分开。
       // 只有真值得留意的才开口（恶劣天气、大风、明显降温/升温），说过的不再重复。
@@ -469,17 +493,6 @@ export default function registerShiguangjiInject(pi) {
       // 待办：周期规则按实际日期展开成实例；先统一日期口径，避免旧 MM-DD 被字符串比较误判。
       const todos = filterDueTodos(data.listEvents(), now);
 
-      // 节日引导变体：读已用索引，预先 pick 一个未用过的（随机不重复）；注入成功后才回写
-      let festivalHint = null;
-      for (const f of builtin) {
-        if (hasPendingFestivalGreeting && !festivalHint && getFestivalHintPool(f.name)) {
-          const used = data.getUsedFestivalHintIndexes(f.name);
-          const picked = pickFestivalHint(f.name, used);
-          if (picked) festivalHint = { name: f.name, text: picked.text, index: picked.index, nextUsed: picked.nextUsed, dayInfo: { baseName: f.baseName, holidayDay: f.holidayDay, holidayTotal: f.holidayTotal } };
-          break;
-        }
-      }
-
       const hasSpecialDay =
         builtin.length > 0 ||
         userEvents.length > 0 ||
@@ -509,38 +522,69 @@ export default function registerShiguangjiInject(pi) {
           newState: { ...lastState, lastInjectAt: now.getTime(), lastDateKey: (decision.newState && decision.newState.lastDateKey) || lastState.lastDateKey },
         };
       }
-      const decisionState = {
-        ...decision.newState,
-        ...deepseekDecision.state,
-        contextKey,
-        lastDataRev: dataRev,
-        injectionEnabled: true,
-      };
+      const scenarioDue = decision.should;
       const deepseekForced = deepseekDecision.should;
       const weatherAlertForced = weatherAlertDecision.should;
-      if (!decision.should && !deepseekForced && !weatherAlertForced) {
+
+      // 峰谷/天气提醒自己到点触发，跟情境频率不共用一个计时器。
+      // 情境没到期时它们各发一条通知：不读总结、不读天气、不碰情境的 lastInjectAt/lastHash，
+      // 也不推进天气软提及冷却——否则一次换班预告就等于把当天那份情境往前推了 4 小时。
+      if (!scenarioDue) {
+        const state = { ...decision.newState, contextKey, lastDataRev: dataRev, injectionEnabled: true };
         if (legacyRecovery) {
+          // 旧版只落了峰谷状态：第一次恢复时垫一次保守的天气冷却，避免升级后立刻重复刷屏。
           const legacyWeather = readFreshWeather(data, settings, now);
           if (legacyWeather) {
-            decisionState.weatherLastMentionAt = now.getTime();
-            decisionState.weatherLastFactKey = weatherFactKey(legacyWeather);
+            state.weatherLastMentionAt = now.getTime();
+            state.weatherLastFactKey = weatherFactKey(legacyWeather);
           }
         }
-        tracker.set(sessionId, decisionState);
-        if (legacyRecovery) persistInjectionState(data, sessionId, decisionState);
-        persistDeepSeekState(data, sessionId, deepseekDecision.state);
-        return undefined;
-      }
-      if (deepseekForced || weatherAlertForced) {
-        decisionState.lastInjectAt = now.getTime();
-        decision = {
-          ...decision,
-          should: true,
-          reason: weatherAlertForced
-            ? `weather-alert-${weatherAlertDecision.reason}`
-            : `deepseek-${deepseekDecision.reason}`,
-          newState: decisionState,
+        tracker.set(sessionId, state);
+        if (legacyRecovery || !trackedState) persistInjectionState(data, sessionId, state);
+        const person = readHanaUserName() || "对方";
+        const notices = [
+          deepseekForced ? buildDeepSeekContext(deepseekDecision.notice, person) : "",
+          weatherAlertForced ? buildWeatherAlertContext(weatherAlertDecision.notice, person, { standalone: true }) : "",
+        ].filter(Boolean);
+        if (!notices.length) return undefined;
+        return {
+          message: {
+            customType: weatherAlertForced && !deepseekForced
+              ? "shiguangji-weather-alert"
+              : deepseekForced && !weatherAlertForced
+                ? "shiguangji-deepseek-peak"
+                : "shiguangji-notice",
+            content: notices.join("\n\n"),
+            display: false,
+            details: {
+              injector: "shiguangji",
+              reason: [
+                deepseekForced ? `deepseek-${deepseekDecision.reason}` : "",
+                weatherAlertForced ? `weather-alert-${weatherAlertDecision.reason}` : "",
+              ].filter(Boolean).join("+"),
+              deepseekNotice: deepseekForced,
+              weatherAlert: weatherAlertForced,
+              summaryCount: 0,
+              noticeOnly: true,
+            },
+          },
         };
+      }
+
+      // 情境自己到期：按原普通刷新计时，峰谷/天气提醒能带就并进来。
+      const decisionState = { ...decision.newState, contextKey, lastDataRev: dataRev, injectionEnabled: true };
+      const xingjiEntries = xingjiInjectionEnabled
+        ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
+        : [];
+      // 节日引导变体：读已用索引，预先 pick 一个未用过的（随机不重复）；注入成功后才回写
+      let festivalHint = null;
+      for (const f of builtin) {
+        if (hasPendingFestivalGreeting && !festivalHint && getFestivalHintPool(f.name)) {
+          const used = data.getUsedFestivalHintIndexes(f.name);
+          const picked = pickFestivalHint(f.name, used);
+          if (picked) festivalHint = { name: f.name, text: picked.text, index: picked.index, nextUsed: picked.nextUsed, dayInfo: { baseName: f.baseName, holidayDay: f.holidayDay, holidayTotal: f.holidayTotal } };
+          break;
+        }
       }
 
       // 近期总结：先按当前伙伴身份做权限过滤，再取最近 3 个已结束生活日；
@@ -617,7 +661,6 @@ export default function registerShiguangjiInject(pi) {
       if (!text) {
         tracker.set(sessionId, decisionState);
         persistInjectionState(data, sessionId, decisionState);
-        persistDeepSeekState(data, sessionId, deepseekDecision.state);
         return undefined;
       }
 
@@ -635,7 +678,8 @@ export default function registerShiguangjiInject(pi) {
       // 内容 hash 去重：同一会话同一内容不重复注入
       const hash = crypto.createHash("sha1").update(text).digest("hex");
       if (lastState && lastState.lastHash === hash && !deepseekForced && !weatherAlertForced && decision.reason !== "day-changed" && decision.reason !== "settings-changed" && decision.reason !== "injection-enabled" && decision.reason !== "festival-greeting-pending") {
-        const dedupedState = { ...decisionState, lastHash };
+        // 去重只是不塞第二条一样的消息，状态照样要存档（这次 reason 带来的 lastInjectAt/上下文指纹算数）。
+        const dedupedState = { ...decisionState, lastHash: hash };
         tracker.set(sessionId, dedupedState);
         persistInjectionState(data, sessionId, dedupedState);
         return undefined;
@@ -648,7 +692,6 @@ export default function registerShiguangjiInject(pi) {
       };
       tracker.set(sessionId, finalState);
       persistInjectionState(data, sessionId, finalState);
-      persistDeepSeekState(data, sessionId, deepseekDecision.state);
 
       return {
         message: {
@@ -657,7 +700,11 @@ export default function registerShiguangjiInject(pi) {
           display: false,
           details: {
           injector: "shiguangji",
-          reason: decision.reason,
+          reason: [
+            decision.reason,
+            deepseekForced ? `deepseek-${deepseekDecision.reason}` : "",
+            weatherAlertForced ? `weather-alert-${weatherAlertDecision.reason}` : "",
+          ].filter(Boolean).join("+"),
           deepseekNotice: deepseekForced,
           weatherAlert: weatherAlertForced,
           summaryCount: recent.entries.length,
@@ -675,17 +722,24 @@ export default function registerShiguangjiInject(pi) {
 // ── Code 页注入 ──
 // 频率跟聊天窗口同一套：适时 / 相伴 / 常在 + 回来多久后更新，都由用户选。
 // 以前 Code 页是「每轮都带时间」的特例，那条例外已经取消——它只是块更少、状态更独立。
-function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentId, currentModel, partnerInjectionDisabled, diskPeakState }) {
+//
+// 开关只认 Code 自己那一套：全局 codeInjectionEnabled + codeAgentSettings[当前伙伴] 的覆盖。
+// 聊天那屏的 injectionDisabledAgentIds 是聊天的屏蔽名单，不往这里伸手：
+// 把聊天静音的伙伴，不代表不让她在改代码的时候拿到时间。
+function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentId, currentModel, diskPeakState }) {
   const previous = tracker.get(sessionId) || data.getInjectionState(sessionId) || null;
+  // 峰谷状态同样只看自己那两处：内存 → 盘；旧版写在情境状态里的当迁移来源。
+  const peakLastState = resolvePeakLastState(sessionId, diskPeakState, previous);
 
   // 总闸关掉 = 那边一句话都不带，连峰谷也停。这正是「一键关掉 Code 页所有注入词」。
+  const codeConfig = resolveCodeInjection(settings, currentAgentId);
   const {
     enabled: codeEnabled,
     items,
     mode: codeMode,
     intervalHours: codeIntervalHours,
-  } = resolveCodeInjection(settings);
-  if (!codeEnabled || partnerInjectionDisabled) {
+  } = codeConfig;
+  if (!codeEnabled) {
     const state = { ...(previous || {}), codeMode: true, injectionEnabled: false, lastInjectAt: now.getTime() };
     tracker.set(sessionId, state);
     if (!previous || previous.injectionEnabled !== false) persistInjectionState(data, sessionId, state);
@@ -695,16 +749,14 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
   // 峰谷在这屏只认勾选：聊天那屏的峰谷开关管聊天，Code 页自己勾了才带。
   const peakEnabled = items.peak === true;
   const peakDecision = peakEnabled
-    ? decideDeepSeekNotice({ model: currentModel, now, lastState: peakTracker.get(sessionId) || diskPeakState || null })
+    ? decideDeepSeekNotice({ model: currentModel, now, lastState: peakLastState })
     : { should: false, reason: "peak-off", notice: null, state: null };
-  if (peakDecision.state) {
-    peakTracker.set(sessionId, peakDecision.state);
-    persistDeepSeekState(data, sessionId, peakDecision.state);
-  }
+  commitPeakState(data, sessionId, peakDecision.state);
 
   // 频率判定：和聊天窗口同一个 shouldInject，只是读 Code 自己那屏的设置。
   // 改了 Code 那屏的设置（方式/间隔/带哪些/时间开关）→ 下一轮立刻按新设置来，不等间隔。
-  const contextKey = buildCodeContextKey(settings);
+  // 指纹只认当前伙伴的生效配置：别的伙伴改了她自己的 Code 配置，不该让本窗口重刷。
+  const contextKey = buildCodeContextKey(settings, codeConfig);
   const decision = shouldInject({
     sessionId,
     now,
@@ -718,11 +770,33 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
   });
   // 换班预告这类硬触发不吃频率：错过那几分钟就没下次了。
   const peakForced = peakDecision.should;
+  const baseState = { ...(previous || {}), ...decision.newState, codeMode: true, injectionEnabled: true };
   if (!decision.should && !peakForced) {
-    const state = { ...(previous || {}), ...decision.newState, codeMode: true, injectionEnabled: true };
-    tracker.set(sessionId, state);
-    persistInjectionState(data, sessionId, state);
+    tracker.set(sessionId, baseState);
+    persistInjectionState(data, sessionId, baseState);
     return undefined;
+  }
+
+  if (!decision.should) {
+    // 峰谷自己到点、这屏的刷新频率还没到：只发峰谷一条，不收集其它块，
+    // 也不动 lastInjectAt/lastHash——否则一次换班预告就把下次刷新往后推了一个间隔。
+    tracker.set(sessionId, baseState);
+    persistInjectionState(data, sessionId, baseState);
+    return {
+      message: {
+        customType: "shiguangji-deepseek-peak",
+        content: buildDeepSeekContext(peakDecision.notice, readHanaUserName() || "对方", { codeMode: true }),
+        display: false,
+        details: {
+          injector: "shiguangji",
+          reason: `deepseek-${peakDecision.reason}`,
+          codeMode: true,
+          deepseekNotice: true,
+          summaryCount: 0,
+          noticeOnly: true,
+        },
+      },
+    };
   }
 
   // 只收集真正要带的东西：没选的块连算都不算，省得白读一遍总结和天气。
@@ -816,7 +890,7 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
       display: false,
       details: {
         injector: "shiguangji",
-        reason: peakForced ? `deepseek-${peakDecision.reason}` : decision.reason,
+        reason: [decision.reason, peakForced ? `deepseek-${peakDecision.reason}` : ""].filter(Boolean).join("+"),
         codeMode: true,
         deepseekNotice: !!peakForced,
       },
@@ -824,14 +898,15 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
   };
 }
 
-// Code 页自己的设置指纹：只认 Code 这屏管的东西。
-// 聊天那屏改了别的设置，不该让 Code 页跟着重刷一次。
-function buildCodeContextKey(settings = {}) {
-  const items = normalizeCodeInjectionItems(settings.codeInjectionItems);
+// Code 页自己的设置指纹：只认 Code 这屏管的东西，而且只认当前伙伴的生效配置
+// （resolveCodeInjection 已经把 codeAgentSettings[agentId] 叠上来了）。
+// 聊天那屏改了别的设置、或者别的伙伴改了她自己的 Code 配置，都不该让这屏重刷一次。
+function buildCodeContextKey(settings = {}, codeConfig = {}) {
   return JSON.stringify({
-    mode: normalizeCodeInjectMode(settings.codeInjectMode),
-    intervalHours: normalizeCodeInjectIntervalHours(settings.codeInjectIntervalHours),
-    items,
+    enabled: codeConfig.enabled !== false,
+    mode: codeConfig.mode,
+    intervalHours: codeConfig.intervalHours,
+    items: codeConfig.items || {},
     boundaryHour: settings.dayBoundaryHour,
     showPeriod: settings.showPeriod !== false,
     summaryShared: settings.summaryShared === true,

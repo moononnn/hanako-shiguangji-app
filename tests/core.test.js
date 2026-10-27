@@ -530,7 +530,7 @@ test("注入文本：DeepSeek 峰谷关照要求闲聊也硬带一句", () => {
   assert.ok(text.includes("不要再主动提起"), text);
   assert.ok(text.includes("只有真的再次换班才再说"), text);
   assert.ok(text.includes("小满"), text);
-  assert.ok(text.includes("模型峰谷关照属于硬触发"), text);
+  assert.ok(text.includes("模型峰谷关照要在本轮回复里带出一句"), text);
   assert.ok(text.includes("峰时/谷时只表示模型费用时段和是否划算"), text);
   assert.ok(text.includes("不要把它解释成交通拥堵"), text);
   assert.ok(text.includes("所有可见表达只围绕费用和聊天成本"), text);
@@ -540,9 +540,10 @@ test("注入文本：DeepSeek 峰谷关照要求闲聊也硬带一句", () => {
   assert.ok(text.includes("周末和法定节假日全天按低谷计费"), text);
   assert.ok(text.includes("不要凭记忆补充旧版错峰时段"), text);
   assert.ok(!text.includes("00:30"), text);
-  // 事实边界句挂在情境块末尾，覆盖所有分支和所有事实块：范围外的事要承认不知道。
-  assert.ok(text.includes("上面这些是你手上关于今天和"), text);
-  assert.ok(text.includes("你并不知道"), text);
+  // 边界只约束本段材料，仍承认当前对话和工具已验证的事实。
+  assert.ok(text.includes("以上是这次带给你的今日背景，到这段材料为止"), text);
+  assert.ok(text.includes("工具验证过的结果都算数"), text);
+  assert.ok(!text.includes("关于今天和小满的全部材料"), text);
   assert.ok(text.includes("不要顺着猜"), text);
 
   const enteredText = buildInjectionText({

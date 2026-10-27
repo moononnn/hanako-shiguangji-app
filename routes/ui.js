@@ -53,9 +53,12 @@ import {
 } from "../lib/day-summary.js";
 import { selectRecentSummaries } from "../lib/recent-summaries.js";
 import {
+  BLOCKED_CODE_AGENT_IDS,
   CODE_INJECTION_ITEMS,
+  CODE_INJECTION_ITEM_IDS,
   CODE_INJECT_MODES,
   VALID_CODE_INJECT_INTERVAL_HOURS,
+  normalizeCodeAgentSettings,
   normalizeCodeInjectIntervalHours,
   normalizeCodeInjectMode,
   normalizeCodeInjectionItems,
@@ -604,10 +607,66 @@ function publicSettings(s) {
     // Code 页的频率：和聊天窗口同一套语义，只是各存各的值。
     codeInjectMode: normalizeCodeInjectMode(s.codeInjectMode),
     codeInjectIntervalHours: normalizeCodeInjectIntervalHours(s.codeInjectIntervalHours),
+    // Code 页按伙伴的单独覆盖：直接给页面渲染用。里面只有注入开关和选项，没有别的秘密。
+    codeAgentSettings: normalizeCodeAgentSettings(s.codeAgentSettings),
     // 当前模型档关不掉思考时，页面要提醒用户「消耗明显更多，建议换一个能关思考的档」。
     thinkingUnstoppable: isThinkingUnstoppable(s),
     thinkingModelKey: currentModelKey(s),
   };
+}
+
+// Code 页「按伙伴」的设置表：保存时只动传上来的那几位，没提到的伙伴原样留着；
+// 每家只认 { enabled, items, mode, intervalHours } 四个字段，没传的字段不写默认值。
+// 整条传 null 表示这位伙伴恢复跟随默认（删掉整份覆盖）；
+// 单个字段传 null 表示只清这一个字段，其余字段接着留着（删到空才整条消失）。
+function mergeCodeAgentSettings(current, incoming) {
+  const next = normalizeCodeAgentSettings(current);
+  for (const key of Object.keys(incoming)) {
+    const agentId = String(key == null ? "" : key).trim();
+    if (!agentId || BLOCKED_CODE_AGENT_IDS.includes(agentId)) return { error: "伙伴 ID 不合法" };
+    const raw = incoming[key];
+    if (raw === null) { delete next[agentId]; continue; }
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { error: "Code 页伙伴设置格式不对" };
+    const entry = { ...(next[agentId] || {}) };
+    for (const field of Object.keys(raw)) {
+      const value = raw[field];
+      if (field === "enabled") {
+        if (value === null) { delete entry.enabled; continue; }
+        if (typeof value !== "boolean") return { error: "伙伴的 Code 页开关只认开或关" };
+        entry.enabled = value;
+      } else if (field === "items") {
+        if (value === null) { delete entry.items; continue; }
+        if (!value || typeof value !== "object" || Array.isArray(value)) return { error: "伙伴的 Code 页注入项格式不对" };
+        const items = { ...(entry.items || {}) };
+        for (const itemKey of Object.keys(value)) {
+          if (!CODE_INJECTION_ITEM_IDS.includes(itemKey)) return { error: `Code 页没有 ${itemKey} 这一项` };
+          if (value[itemKey] === null) { delete items[itemKey]; continue; }
+          if (typeof value[itemKey] !== "boolean") return { error: "Code 页注入项只认勾上或取消" };
+          items[itemKey] = value[itemKey];
+        }
+        if (Object.keys(items).length) entry.items = items;
+        else delete entry.items;
+      } else if (field === "mode") {
+        if (value === null) { delete entry.mode; continue; }
+        if (typeof value !== "string" || !CODE_INJECT_MODES.includes(value.trim().toLowerCase())) {
+          return { error: "Code 页带入方式只能选适时、相伴或常在" };
+        }
+        entry.mode = value.trim().toLowerCase();
+      } else if (field === "intervalHours") {
+        if (value === null) { delete entry.intervalHours; continue; }
+        if (typeof value !== "number" || !VALID_CODE_INJECT_INTERVAL_HOURS.includes(value)) {
+          return { error: "Code 页刷新间隔只能选 30 分钟、1 小时、4 小时或 8 小时" };
+        }
+        entry.intervalHours = value;
+      } else {
+        return { error: `Code 页伙伴设置里没有 ${field} 这一项` };
+      }
+    }
+    // 清到一条字段都不剩，就等于没设置，不往存盘里塞。
+    if (Object.keys(entry).length) next[agentId] = entry;
+    else delete next[agentId];
+  }
+  return { value: next };
 }
 
 const SUMMARY_JOB_MAX_DATES = 31;
@@ -1439,6 +1498,16 @@ export default function registerRoutes(app, ctx) {
           return c.json({ ok: false, error: "Code 页刷新间隔只能选 30 分钟、1 小时、4 小时或 8 小时" });
         }
         patch.codeInjectIntervalHours = hours;
+      }
+      if (body.codeAgentSettings !== undefined) {
+        const raw = body.codeAgentSettings;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+          return c.json({ ok: false, error: "Code 页伙伴设置格式不对" });
+        }
+        // 只动传上来的伙伴，没提到的保留；部分保存不会把整张表写回默认。
+        const merged = mergeCodeAgentSettings(getData().getSettings().codeAgentSettings, raw);
+        if (merged.error) return c.json({ ok: false, error: merged.error });
+        patch.codeAgentSettings = merged.value;
       }
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {
