@@ -1,6 +1,6 @@
-// 拾光记 · Code 页「按伙伴单独调」测试
-// 覆盖：稀疏覆盖的归一化、resolver 向后兼容与合并语义、原型链污染防护、
-// 数据层存取、路由校验（部分保存保留整张表 / 拒收非法值）、页面产物与草稿逻辑。
+// 拾光记 · Code 页「单独关闭」名单测试
+// 覆盖：名单归一化、resolver（总闸 / 单伙伴 / 取消关闭）、旧 codeAgentSettings 只迁 enabled:false、
+// 数据层存取与首个规范名单落地、路由校验与回读、页面产物与勾选逻辑。
 
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
@@ -12,14 +12,15 @@ import { pathToFileURL } from "node:url";
 
 import {
   DEFAULT_CODE_INJECTION_ITEMS,
-  codeAgentOverrideFor,
-  normalizeCodeAgentSettings,
+  normalizeCodeInjectionDisabledAgentIds,
+  readCodeInjectionDisabledAgentIds,
   resolveCodeInjection,
 } from "../lib/code-mode.js";
 import { UserData } from "../lib/data.js";
 import { renderPage } from "../lib/page-template.js";
 
-const BASE_DIR = path.join(os.tmpdir(), `sgj-code-agent-${Date.now()}`);
+const BASE_DIR = path.join(os.tmpdir(), `sgj-code-disabled-${Date.now()}`);
+const PAGE_HTML = renderPage("");
 let counter = 0;
 
 before(() => {
@@ -31,153 +32,179 @@ function makeData() {
   return new UserData(path.join(BASE_DIR, `case-${counter}`));
 }
 
-// ── 归一化 ──
+// ── 名单归一化 ──
 
-test("按伙伴的设置：只留认得出的字段，没动手的地方不写值", () => {
-  assert.deepEqual(normalizeCodeAgentSettings(undefined), {});
-  assert.deepEqual(normalizeCodeAgentSettings(null), {});
-  assert.deepEqual(normalizeCodeAgentSettings("坏数据"), {});
-  assert.deepEqual(normalizeCodeAgentSettings([{ enabled: false }]), {});
-  // 旧配置里那张空表就该是空表，行为跟以前一样
-  assert.deepEqual(normalizeCodeAgentSettings({}), {});
+test("名单：只收字符串 ID，去空白、去重，对象数字不当 ID", () => {
+  assert.deepEqual(normalizeCodeInjectionDisabledAgentIds(undefined), []);
+  assert.deepEqual(normalizeCodeInjectionDisabledAgentIds(null), []);
+  assert.deepEqual(normalizeCodeInjectionDisabledAgentIds("hanako"), [], "单个字符串不是名单");
+  assert.deepEqual(normalizeCodeInjectionDisabledAgentIds({ hanako: true }), [], "旧 map 形状不是名单");
 
-  const map = normalizeCodeAgentSettings({
-    hanako: { enabled: false, mode: "ALWAYS", intervalHours: "1", items: { weather: true, bogus: true } },
-    yumi: { mode: "乱写", intervalHours: 3, enabled: "关闭", items: "不是对象" },
-    xiaohua: { note: "不认识的字段" },
-  });
-  assert.deepEqual(map.hanako, { enabled: false, mode: "always", intervalHours: 1, items: { weather: true } });
-  assert.equal("yumi" in map, false, "写坏的字段一个都不该落地");
-  assert.equal("xiaohua" in map, false, "没一个认得出的字段就等于没设置");
-  assert.equal(map.hanako.items.bogus, undefined, "清单外的注入项不收");
+  assert.deepEqual(
+    normalizeCodeInjectionDisabledAgentIds([" hanako ", "hanako", "", "  ", 42, { id: "yumi" }, "yumi"]),
+    ["hanako", "yumi"],
+    "前后空白当同一个人，数字和对象不进门",
+  );
 });
 
-test("按伙伴的设置：__proto__ / constructor 之类不许进门", () => {
-  const polluted = JSON.parse('{"__proto__":{"enabled":false},"constructor":{"mode":"always"},"prototype":{"enabled":false},"hanako":{"enabled":true}}');
-  const map = normalizeCodeAgentSettings(polluted);
-  assert.deepEqual(Object.keys(map), ["hanako"], "危险键全部丢掉");
-  assert.deepEqual(map.hanako, { enabled: true });
+test("名单：__proto__ / constructor / prototype 不许进门，对象原型不受影响", () => {
+  const clean = normalizeCodeInjectionDisabledAgentIds(JSON.parse('["__proto__","constructor","prototype","hanako"]'));
+  assert.deepEqual(clean, ["hanako"]);
   assert.equal({}.enabled, undefined, "对象原型不能被改");
-  // 整张表本身被塞了 __proto__ 也不能影响判定
-  const resolved = resolveCodeInjection({ codeAgentSettings: polluted }, "__proto__");
-  assert.equal(resolved.enabled, true, "用 __proto__ 当 ID 不该改到开关");
+  assert.equal(resolveCodeInjection({ codeInjectionDisabledAgentIds: ["__proto__"] }, "__proto__").enabled, true);
 });
 
 // ── resolver ──
 
-test("resolver：不传伙伴时形状与旧行为一模一样", () => {
-  const legacy = resolveCodeInjection({});
-  assert.deepEqual(legacy, {
+test("resolver：不传伙伴时形状与旧行为一致，内容和频率只跟全局", () => {
+  const base = resolveCodeInjection({});
+  assert.deepEqual(base, {
     enabled: true,
     items: { ...DEFAULT_CODE_INJECTION_ITEMS },
     mode: "balanced",
     intervalHours: 4,
   });
-  assert.deepEqual(resolveCodeInjection(), legacy, "连不传参数也保持旧形状");
+  assert.deepEqual(resolveCodeInjection(), base, "连不传参数也保持旧形状");
 
-  const custom = { codeInjectionEnabled: false, codeInjectionItems: { weather: true }, codeInjectMode: "always", codeInjectIntervalHours: 1 };
-  assert.deepEqual(resolveCodeInjection(custom), resolveCodeInjection(custom, ""), "空 ID 等于没传");
+  const custom = {
+    codeInjectionItems: { weather: true },
+    codeInjectMode: "always",
+    codeInjectIntervalHours: 1,
+  };
   assert.deepEqual(resolveCodeInjection(custom), {
-    enabled: false,
+    enabled: true,
     items: { ...DEFAULT_CODE_INJECTION_ITEMS, weather: true },
     mode: "always",
     intervalHours: 1,
   });
 });
 
-test("resolver：总闸压在所有伙伴头上，伙伴自己的开关只能再关一次", () => {
-  const on = { codeInjectionEnabled: true, codeAgentSettings: { hanako: { enabled: true } } };
-  assert.equal(resolveCodeInjection(on, "hanako").enabled, true);
-  const off = { codeInjectionEnabled: false, codeAgentSettings: { hanako: { enabled: true } } };
-  assert.equal(resolveCodeInjection(off, "hanako").enabled, false, "总闸关着，伙伴选开也不生效");
-
-  const partnerOff = { codeInjectionEnabled: true, codeAgentSettings: { hanako: { enabled: false } } };
-  assert.equal(resolveCodeInjection(partnerOff, "hanako").enabled, false);
-  assert.equal(resolveCodeInjection(partnerOff, "yumi").enabled, true, "别的伙伴不受影响");
+test("resolver：屏蔽 A 不影响 B，A 的 ID 前后空白也算同一个", () => {
+  const settings = { codeInjectionDisabledAgentIds: ["agent-a"] };
+  assert.equal(resolveCodeInjection(settings, "agent-a").enabled, false);
+  assert.equal(resolveCodeInjection(settings, " agent-a ").enabled, false);
+  assert.equal(resolveCodeInjection(settings, "agent-b").enabled, true, "B 不能被 A 连坐");
+  assert.equal(resolveCodeInjection(settings, "").enabled, true, "认不出伙伴时只看总闸");
+  assert.equal(resolveCodeInjection(settings, "somebody").enabled, true);
 });
 
-test("resolver：内容是「全局 + 这位伙伴改过的那几项」，方式和间隔各自回退", () => {
-  const settings = {
-    codeInjectionItems: { time: true, peak: true, weather: false, todos: true },
-    codeInjectMode: "always",
-    codeInjectIntervalHours: 8,
-    codeAgentSettings: {
-      hanako: { items: { weather: true, peak: false }, mode: "economical" },
-      yumi: { intervalHours: 0.5 },
-    },
-  };
-  const hanako = resolveCodeInjection(settings, "hanako");
-  assert.deepEqual(hanako.items, { time: true, peak: false, weather: true, special: false, todos: true, archive: false, xingji: false });
-  assert.equal(hanako.mode, "economical");
-  assert.equal(hanako.intervalHours, 8, "没单独设间隔就跟全局");
+test("resolver：总闸关着就全关，名单里有谁都一样", () => {
+  const off = { codeInjectionEnabled: false, codeInjectionDisabledAgentIds: [] };
+  assert.equal(resolveCodeInjection(off, "agent-a").enabled, false);
+  assert.equal(resolveCodeInjection(off, "agent-b").enabled, false);
+  assert.equal(resolveCodeInjection(off).enabled, false);
 
-  const yumi = resolveCodeInjection(settings, "yumi");
-  assert.equal(yumi.intervalHours, 0.5);
-  assert.equal(yumi.mode, "always", "没单独设方式就跟全局");
-  assert.equal(yumi.items.todos, true, "没单独设内容就跟全局");
-
-  const unknown = resolveCodeInjection(settings, "somebody");
-  assert.equal(unknown.mode, "always");
-  assert.equal(unknown.enabled, true);
-  assert.equal(unknown.items.weather, false);
-
-  // ID 前后空白当同一个伙伴
-  assert.deepEqual(resolveCodeInjection(settings, " hanako "), hanako);
-  assert.deepEqual(codeAgentOverrideFor(settings, "hanako"), { items: { weather: true, peak: false }, mode: "economical" });
-  assert.equal(codeAgentOverrideFor(settings, "nobody"), null);
+  // 重新开总闸：名单仍然照旧生效
+  const on = { codeInjectionEnabled: true, codeInjectionDisabledAgentIds: ["agent-a"] };
+  assert.equal(resolveCodeInjection(on, "agent-a").enabled, false);
+  assert.equal(resolveCodeInjection(on, "agent-b").enabled, true);
 });
 
-test("resolver：存盘里写坏的覆盖不会把全局挤坏", () => {
-  const settings = {
-    codeInjectionItems: { weather: true },
+test("resolver：旧表里的逐伙伴参数不再生效，只认 enabled:false 的屏蔽", () => {
+  const legacy = {
+    codeInjectionItems: { time: true, peak: true, weather: false },
     codeInjectMode: "balanced",
+    codeInjectIntervalHours: 4,
     codeAgentSettings: {
-      hanako: { enabled: "关", mode: "乱写", intervalHours: 3, items: { weather: "true", bogus: true } },
+      hanako: { enabled: false, items: { weather: true }, mode: "always", intervalHours: 0.5 },
+      yumi: { enabled: true, items: { todos: true } },
     },
   };
-  assert.deepEqual(resolveCodeInjection(settings, "hanako"), {
-    enabled: true,
-    items: { ...DEFAULT_CODE_INJECTION_ITEMS, weather: true },
-    mode: "balanced",
-    intervalHours: 4,
-  });
+  const hanako = resolveCodeInjection(legacy, "hanako");
+  assert.equal(hanako.enabled, false, "旧 enabled:false 迁成屏蔽");
+  assert.equal(hanako.items.weather, false, "旧 items 不再叠加");
+  assert.equal(hanako.mode, "balanced", "旧 mode 不再生效");
+  assert.equal(hanako.intervalHours, 4, "旧 intervalHours 不再生效");
+
+  const yumi = resolveCodeInjection(legacy, "yumi");
+  assert.equal(yumi.enabled, true, "旧 enabled:true 什么都不改");
+  assert.equal(yumi.items.todos, false, "旧 enabled:true 的 items 也不生效");
+});
+
+test("名单读取：新字段只要是数组就以它为准，[] 解除屏蔽且不复活", () => {
+  const legacyMap = { hanako: { enabled: false } };
+  assert.deepEqual(
+    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap }),
+    ["hanako"],
+    "没有新字段时从旧表迁一次",
+  );
+  assert.deepEqual(
+    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap, codeInjectionDisabledAgentIds: [] }),
+    [],
+    "新 [] 优先：解除的屏蔽不能被旧表合回来",
+  );
+  assert.deepEqual(
+    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap, codeInjectionDisabledAgentIds: ["yumi"] }),
+    ["yumi"],
+  );
+  // 新字段形状写坏了等于旧配置：退回去迁一次，不至于整张名单消失
+  assert.deepEqual(
+    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap, codeInjectionDisabledAgentIds: "hanako" }),
+    ["hanako"],
+  );
 });
 
 // ── 数据层 ──
 
-test("数据层：默认空表，存稀疏覆盖，读回来还是稀疏的", async () => {
+test("数据层：默认空名单，旧 map 的 false 迁过来，旧其他字段不生效", async () => {
   const data = makeData();
-  assert.deepEqual(data.getSettings().codeAgentSettings, {}, "旧配置没有这张表时是空表");
+  assert.deepEqual(data.getSettings().codeInjectionDisabledAgentIds, [], "旧配置没有名单时是空的");
 
-  const saved = await data.updateSettings({
-    codeAgentSettings: { hanako: { enabled: false, mode: "always", items: { weather: true }, note: "多余字段" } },
+  await data.settings.update((d) => {
+    d.codeAgentSettings = {
+      hanako: { enabled: false, items: { weather: true }, mode: "always", intervalHours: 1 },
+      yumi: { enabled: true },
+      "--": { mode: "always" },
+    };
   });
-  assert.deepEqual(saved.codeAgentSettings, { hanako: { enabled: false, mode: "always", items: { weather: true } } });
-  assert.deepEqual(data.getSettings().codeAgentSettings, { hanako: { enabled: false, mode: "always", items: { weather: true } } });
+  const migrated = data.getSettings();
+  assert.deepEqual(migrated.codeInjectionDisabledAgentIds, ["hanako"]);
+  assert.equal("codeAgentSettings" in migrated, false, "API 不再暴露旧 map");
 
-  // 别的设置照常保存，这张表不被碰
-  await data.updateSettings({ autoSummary: true });
-  assert.deepEqual(data.getSettings().codeAgentSettings, { hanako: { enabled: false, mode: "always", items: { weather: true } } });
+  // 第一次不相关保存：名单落成规范数组，旧表从存盘里删掉
+  const saved = await data.updateSettings({ autoSummary: true });
+  assert.deepEqual(saved.codeInjectionDisabledAgentIds, ["hanako"], "迁移结果不能被顺手保存弄丢");
+  const raw = data.settings.read();
+  assert.equal("codeAgentSettings" in raw, false, "旧表要真删掉，不能只藏起来");
+  assert.deepEqual(raw.codeInjectionDisabledAgentIds, ["hanako"]);
 
-  // resolver 直接吃 getSettings 的结果
-  const resolved = resolveCodeInjection(data.getSettings(), "hanako");
-  assert.equal(resolved.enabled, false);
-  assert.equal(resolved.mode, "always");
-  assert.equal(resolved.items.weather, true);
-  assert.equal(resolved.items.peak, true, "没单独改的项还是全局默认");
+  // 再存一次不相关设置：名单还在
+  assert.deepEqual((await data.updateSettings({ summaryShared: true })).codeInjectionDisabledAgentIds, ["hanako"]);
 });
 
-test("数据层：写进去的垃圾不会崩，也不会变成污染源", async () => {
+test("数据层：新 [] 就是解除，旧 false 不会复活", async () => {
   const data = makeData();
-  const saved = await data.updateSettings({ codeAgentSettings: JSON.parse('{"__proto__":{"enabled":false},"hanako":"坏了"}') });
-  assert.deepEqual(saved.codeAgentSettings, {});
-  assert.equal(resolveCodeInjection(saved, "__proto__").enabled, true);
+  await data.settings.update((d) => {
+    d.codeAgentSettings = { hanako: { enabled: false } };
+    d.codeInjectionDisabledAgentIds = [];
+  });
+  assert.deepEqual(data.getSettings().codeInjectionDisabledAgentIds, [], "新 [] 遮住旧 false");
+  const saved = await data.updateSettings({ codeInjectionDisabledAgentIds: [] });
+  assert.deepEqual(saved.codeInjectionDisabledAgentIds, []);
+  assert.equal(resolveCodeInjection(data.getSettings(), "hanako").enabled, true);
+});
+
+test("数据层：名单收敛成字符串 ID，聊天名单独立", async () => {
+  const data = makeData();
+  const saved = await data.updateSettings({
+    codeInjectionDisabledAgentIds: [" hanako ", "hanako", "", 42, "__proto__", "yumi"],
+  });
+  assert.deepEqual(saved.codeInjectionDisabledAgentIds, ["hanako", "yumi"]);
+
+  // 聊天那屏的名单改了，Code 这边一个字节都不动
+  await data.updateSettings({ injectionDisabledAgentIds: ["soraru"] });
+  assert.deepEqual(data.getSettings().codeInjectionDisabledAgentIds, ["hanako", "yumi"]);
+  assert.deepEqual(resolveCodeInjection(data.getSettings(), "soraru").enabled, true, "聊天静音不牵连 Code");
+
+  // Code 名单改了，聊天那边也不动
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["hanako"] });
+  assert.deepEqual(data.getSettings().injectionDisabledAgentIds, ["soraru"]);
 });
 
 // ── 路由 ──
 
-test("路由：按伙伴的设置能存能读，部分保存保留整张表，非法值整单拒收", () => {
-  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "sgj-code-agent-route-"));
+test("路由：GET 给新名单，POST 能存能读能清空，坏格式拒收，旧表发来要求刷新", () => {
+  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "sgj-code-disabled-route-"));
   const routeUrl = pathToFileURL(path.resolve("routes/ui.js")).href;
   const childCode = `
     import registerRoutes from ${JSON.stringify(routeUrl)};
@@ -196,69 +223,45 @@ test("路由：按伙伴的设置能存能读，部分保存保留整张表，�
     const callGet = async () => (await get.handler({ json(value) { return value; } })).settings;
     const check = (cond, message) => { if (!cond) throw new Error(message); };
 
-    check(Object.keys((await callGet()).codeAgentSettings).length === 0, "旧配置应当是空表");
-
-    const saved = await callPost({ codeAgentSettings: {
-      hanako: { enabled: false, items: { weather: true }, mode: "always", intervalHours: 1 },
-    } });
-    check(saved?.ok, "按伙伴的设置没存上：" + JSON.stringify(saved));
     let settings = await callGet();
-    check(JSON.stringify(settings.codeAgentSettings.hanako) === JSON.stringify({
-      enabled: false, items: { weather: true }, mode: "always", intervalHours: 1,
-    }), "落盘的覆盖不对：" + JSON.stringify(settings.codeAgentSettings));
+    check(Array.isArray(settings.codeInjectionDisabledAgentIds), "GET 没给名单：" + JSON.stringify(settings.codeInjectionDisabledAgentIds));
+    check(settings.codeInjectionDisabledAgentIds.length === 0, "旧配置应当是空名单");
+    check(!("codeAgentSettings" in settings), "GET 还在暴露旧 map");
 
-    // 只改一个字段：其余字段和别的伙伴都不能被抹掉
-    await callPost({ codeAgentSettings: { yumi: { enabled: false } } });
-    const partial = await callPost({ codeAgentSettings: { hanako: { mode: "economical" } } });
-    check(partial?.ok, "部分保存被拒：" + JSON.stringify(partial));
+    const saved = await callPost({ codeInjectionDisabledAgentIds: [" hanako ", "hanako", "yumi"] });
+    check(saved?.ok, "名单没存上：" + JSON.stringify(saved));
     settings = await callGet();
-    check(settings.codeAgentSettings.hanako.mode === "economical", "方式没改到");
-    check(settings.codeAgentSettings.hanako.enabled === false, "没传的字段被写坏了");
-    check(settings.codeAgentSettings.hanako.items.weather === true, "注入项被写坏了");
-    check(settings.codeAgentSettings.hanako.intervalHours === 1, "间隔被写坏了");
-    check(settings.codeAgentSettings.yumi.enabled === false, "别的伙伴被抹掉了");
+    check(JSON.stringify(settings.codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "yumi"]),
+      "落盘的名单不对：" + JSON.stringify(settings.codeInjectionDisabledAgentIds));
 
-    // 存别的设置（比如主页的一键开关）不该动这张表
-    await callPost({ codeInjectionEnabled: false });
-    settings = await callGet();
-    check(settings.codeInjectionEnabled === false, "总闸没落盘");
-    check(settings.codeAgentSettings.hanako.mode === "economical", "一键开关把按伙伴的表弄丢了");
+    // 省略这个键 = 不动它（顺手保存别的设置不能把名单清空）
+    const partial = await callPost({ autoSummary: true });
+    check(partial?.ok, "只改别的设置被拒：" + JSON.stringify(partial));
+    check(JSON.stringify((await callGet()).codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "yumi"]),
+      "省略名单时不该动存着的那份");
 
-    // null = 这位伙伴恢复跟随默认，别人不受影响
-    const removed = await callPost({ codeAgentSettings: { hanako: null } });
-    check(removed?.ok, "恢复默认被拒：" + JSON.stringify(removed));
-    settings = await callGet();
-    check(!("hanako" in settings.codeAgentSettings), "恢复默认没删掉");
-    check(settings.codeAgentSettings.yumi.enabled === false, "恢复默认误伤了别的伙伴");
-
-    // 一个字段都没写的空壳等于没设置
-    await callPost({ codeAgentSettings: { soraru: {} } });
-    check(!("soraru" in (await callGet()).codeAgentSettings), "空壳不该留档");
+    // 显式 [] = 全部解除
+    const cleared = await callPost({ codeInjectionDisabledAgentIds: [] });
+    check(cleared?.ok, "清空名单被拒：" + JSON.stringify(cleared));
+    check((await callGet()).codeInjectionDisabledAgentIds.length === 0, "[] 没清空名单");
 
     const rejects = [
-      ["整张表不是对象", "nope"],
-      ["整张表是数组", []],
-      ["伙伴 ID 为空", { "  ": { enabled: false } }],
-      ["伙伴 ID 是 __proto__", JSON.parse('{"__proto__":{"enabled":false}}')],
-      ["伙伴 ID 是 constructor", { constructor: { enabled: false } }],
-      ["值是数字", { hanako: 5 }],
-      ["开关不是布尔", { hanako: { enabled: "yes" } }],
-      ["方式不认识", { hanako: { mode: "乱写" } }],
-      ["间隔不在档位上", { hanako: { intervalHours: 3 } }],
-      ["间隔是字符串", { hanako: { intervalHours: "1" } }],
-      ["注入项不是对象", { hanako: { items: "全部" } }],
-      ["注入项不认识", { hanako: { items: { bogus: true } } }],
-      ["注入项不是布尔", { hanako: { items: { weather: "true" } } }],
-      ["多余字段", { hanako: { note: "顺手塞的" } }],
+      ["名单不是数组", { codeInjectionDisabledAgentIds: "hanako" }],
+      ["名单是对象", { codeInjectionDisabledAgentIds: { hanako: true } }],
+      ["元素是数字", { codeInjectionDisabledAgentIds: ["hanako", 42] }],
+      ["元素是对象", { codeInjectionDisabledAgentIds: [{ id: "hanako" }] }],
     ];
     for (const [why, body] of rejects) {
-      const res = await callPost({ codeAgentSettings: body });
+      const res = await callPost(body);
       check(res?.ok === false, "应当拒收：" + why);
     }
-    check({}.enabled === undefined, "拒收之后对象原型是干净的");
-    settings = await callGet();
-    check(settings.codeInjectionEnabled === false, "拒收的那几次不该改到已有设置");
-    check(settings.codeAgentSettings.yumi.enabled === false, "拒收的那几次不该动已有表");
+    check((await callGet()).codeInjectionDisabledAgentIds.length === 0, "拒收的那几次不该改到名单");
+
+    // 旧页面还按老协议提交整张 map：明确失败并让她刷新，不能静默当成功
+    const legacy = await callPost({ codeAgentSettings: { hanako: { enabled: false } } });
+    check(legacy?.ok === false, "旧协议提交应当失败：" + JSON.stringify(legacy));
+    check(/刷新页面/.test(String(legacy.error || "")), "旧协议要说清刷新页面：" + legacy.error);
+    check((await callGet()).codeInjectionDisabledAgentIds.length === 0, "旧协议提交不该写进任何东西");
     console.log(JSON.stringify({ ok: true }));
   `;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", childCode], {
@@ -269,114 +272,39 @@ test("路由：按伙伴的设置能存能读，部分保存保留整张表，�
   assert.match(result.stdout, /"ok":true/);
 });
 
-// ── 页面：产物与草稿逻辑 ──
+// ── 页面：产物与勾选逻辑 ──
 
-const PAGE_HTML = renderPage("");
-
-/** 把页面里「按伙伴单独调」那一段脚本切出来，配上最小 DOM 假件跑一遍。 */
-function loadCodeAgentPage({ agents, appSettings: settings, globalItems }) {
-  const marker = "/* ── Code 页：按伙伴单独调 ── */";
-  const start = PAGE_HTML.indexOf(marker);
-  const end = PAGE_HTML.indexOf("function toggleInjectionQuick() {", start);
-  assert.ok(start > 0 && end > start, "页面里找不到按伙伴那一段脚本");
-  const slice = PAGE_HTML.slice(start, end);
-
-  const segs = {};
-  const elements = new Map();
-  const checks = ["time", "peak", "weather", "special", "todos", "archive", "xingji"].map((id) => ({
-    id,
-    checked: false,
-    disabled: false,
-    getAttribute() { return id; },
-  }));
-
-  function makeEl(id) {
-    const classes = new Set();
-    return {
-      id,
-      checked: false,
-      disabled: false,
-      value: "",
-      innerHTML: "",
-      classList: {
-        toggle(name, on) { if (on) classes.add(name); else classes.delete(name); },
-        contains(name) { return classes.has(name); },
-      },
-    };
-  }
-
-  const document = {
-    getElementById(id) {
-      if (!elements.has(id)) elements.set(id, makeEl(id));
-      return elements.get(id);
-    },
-    querySelectorAll(selector) {
-      return selector === ".code-agent-item-check" ? checks : [];
-    },
-  };
-
-  function segVal(id) { return segs[id] || ""; }
-  function setSeg(id, val) { segs[id] = String(val); }
-  function renderCodeAgentItems(items) {
-    const on = items && typeof items === "object" ? items : {};
-    for (const check of checks) {
-      check.checked = (check.id === "peak" || check.id === "time") ? on[check.id] !== false : on[check.id] === true;
-    }
-  }
-  const toasts = [];
-  // 默认区那组勾选：测试里直接换这个值，模拟「页面上刚改过、还没保存」
-  let currentGlobalItems = globalItems || {};
-
-  const factory = new Function(
-    "document", "esc", "segVal", "setSeg", "summaryAgents", "appSettings", "refreshOneSelect", "toast", "renderCodeAgentItems", "codeInjectionItemsFromUI",
-    `${slice}
-    return {
-      switchCodeAgentTarget: switchCodeAgentTarget,
-      resetCodeAgentOverride: resetCodeAgentOverride,
-      applyCodeAgentSettingsFromServer: applyCodeAgentSettingsFromServer,
-      codeAgentSettingsForSave: codeAgentSettingsForSave,
-      codeAgentEntryFromEditor: codeAgentEntryFromEditor,
-      state: function () { return { map: codeAgentMap, base: codeAgentBase, target: codeAgentTarget, dirty: codeAgentDirty }; },
-      markDirty: function () { codeAgentDirty = true; },
-    };`,
-  );
-
-  const api = factory(
-    document,
-    (value) => String(value),
-    segVal,
-    setSeg,
-    agents,
-    settings,
-    () => {},
-    (message) => { toasts.push(String(message)); },
-    renderCodeAgentItems,
-    () => currentGlobalItems,
-  );
-
-  return {
-    ...api,
-    segs,
-    segVal,
-    setSeg,
-    elements,
-    checks,
-    toasts,
-    setGlobalItems(items) { currentGlobalItems = items; },
-    itemCheck(id) { return checks.find((check) => check.id === id); },
-  };
-}
-
-test("页面产物：有伙伴选择器和单独编辑区，脚本能解析", () => {
-  for (const id of ["code-agent-select", "code-agent-editor", "code-agent-enabled-seg", "code-agent-mode-seg",
-    "code-agent-interval-row", "code-agent-interval-seg", "code-agent-items-override", "code-agent-items", "code-agent-reset-btn"]) {
+test("页面产物：Code 那屏是和聊天同款的勾选名单，旧编辑器彻底没了", () => {
+  for (const id of ["code-injection-agent-picker", "code-injection-items", "code-mode-seg", "code-interval-seg", "code-injection-seg"]) {
     assert.ok(PAGE_HTML.includes(`id="${id}"`), `页面里缺 ${id}`);
   }
-  assert.match(PAGE_HTML, /function switchCodeAgentTarget/);
-  assert.match(PAGE_HTML, /function codeAgentSettingsForSave/);
-  assert.match(PAGE_HTML, /codeAgentSettings/);
-  assert.match(PAGE_HTML, /总闸管所有伙伴/, "总闸该说清管所有伙伴");
+  assert.match(PAGE_HTML, /function renderCodeInjectionAgents/);
+  assert.match(PAGE_HTML, /function getCodeInjectionDisabledAgentIdsFromUI/);
+  assert.ok(
+    PAGE_HTML.includes("body.codeInjectionDisabledAgentIds = getCodeInjectionDisabledAgentIdsFromUI();"),
+    "保存时要带上新名单",
+  );
   assert.match(PAGE_HTML, /对 Code 页不起作用/, "聊天那屏的屏蔽只管聊天");
+  assert.match(PAGE_HTML, /总闸管所有伙伴/);
+
+  // 旧的逐伙伴参数编辑器：HTML、脚本、变量、事件一个都不留
+  for (const gone of [
+    'id="code-agent-select"',
+    'id="code-agent-editor"',
+    'id="code-agent-enabled-seg"',
+    'id="code-agent-mode-seg"',
+    'id="code-agent-interval-row"',
+    'id="code-agent-items-override"',
+    'id="code-agent-reset-btn"',
+    "switchCodeAgentTarget",
+    "resetCodeAgentOverride",
+    "codeAgentSettings",
+    "codeAgentMap",
+    "syncCodeAgentEditorUi",
+  ]) {
+    assert.equal(PAGE_HTML.includes(gone), false, `旧编辑器残留：${gone}`);
+  }
+
   const scripts = [...PAGE_HTML.matchAll(/<script>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
   assert.ok(scripts.length >= 3);
   scripts.forEach((script, index) => {
@@ -388,164 +316,80 @@ test("页面产物：有伙伴选择器和单独编辑区，脚本能解析", ()
   assert.equal(fs.readFileSync(path.resolve("ui/panel.html"), "utf8"), PAGE_HTML, "panel.html 与模板不一致，重跑 tools/build-page.mjs");
 });
 
-test("页面逻辑：草稿在切伙伴时不丢，恢复默认发 null，看不到的伙伴照样保留", () => {
+/** 把「Code 页：单独关闭名单」那一段脚本切出来，配上最小 DOM 假件跑一遍。 */
+function loadCodeListPage() {
+  const marker = "/* ── Code 页：单独关闭名单 ── */";
+  const start = PAGE_HTML.indexOf(marker);
+  const end = PAGE_HTML.indexOf("function toggleInjectionQuick() {", start);
+  assert.ok(start > 0 && end > start, "页面里找不到 Code 名单那一段脚本");
+  const slice = PAGE_HTML.slice(start, end);
+
+  const picker = { innerHTML: "" };
+  const document = {
+    getElementById(id) { return id === "code-injection-agent-picker" ? picker : null; },
+    querySelectorAll(selector) {
+      const rows = [...picker.innerHTML.matchAll(/<input[^>]*data-agent-id="([^"]*)"([^>]*)>/g)].map((match) => ({
+        id: match[1],
+        checked: / checked/.test(match[2]),
+        getAttribute() { return match[1]; },
+      }));
+      return selector === ".code-injection-agent-check:checked" ? rows.filter((row) => row.checked) : rows;
+    },
+  };
+
+  const factory = new Function(
+    "document", "esc",
+    `${slice}
+    return {
+      renderCodeInjectionAgents: renderCodeInjectionAgents,
+      getCodeInjectionDisabledAgentIdsFromUI: getCodeInjectionDisabledAgentIdsFromUI,
+    };`,
+  );
+  const api = factory(document, (value) => String(value));
+  return {
+    ...api,
+    html: () => picker.innerHTML,
+    setChecked(id, on) {
+      const pattern = new RegExp(`(data-agent-id="${id}")( checked)?`);
+      picker.innerHTML = picker.innerHTML.replace(pattern, (all, head) => head + (on ? " checked" : ""));
+    },
+  };
+}
+
+test("页面逻辑：勾选只改列表里看得见的伙伴，看不见的存着的 ID 留着", () => {
+  const page = loadCodeListPage();
   const agents = [{ agentId: "hanako", agentName: "花子" }, { agentId: "yumi", agentName: "悠米" }];
-  const page = loadCodeAgentPage({
-    agents,
-    appSettings: { codeInjectionItems: { time: true, peak: true, weather: false }, codeInjectMode: "balanced" },
-  });
 
-  page.applyCodeAgentSettingsFromServer({
-    hanako: { enabled: false, mode: "always" },
-    ghost: { enabled: true, intervalHours: 8 },
-  });
-  let state = page.state();
-  assert.equal(state.target, "hanako", "默认选中第一位伙伴");
-  assert.deepEqual(state.map.hanako, { enabled: false, mode: "always" });
-  assert.equal(page.segVal("code-agent-enabled-seg"), "false");
-  assert.equal(page.segVal("code-agent-mode-seg"), "always");
-  assert.equal(page.elements.get("code-agent-interval-row").classList.contains("hidden"), true, "常在档不用摆间隔");
+  page.renderCodeInjectionAgents(agents, ["hanako", "ghost"]);
+  assert.match(page.html(), /data-agent-id="hanako" checked/);
+  assert.ok(!/data-agent-id="yumi" checked/.test(page.html()), "没在名单里的不该勾上");
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost", "hanako"], "看不到的 ghost 要留着");
 
-  // 改一下再切伙伴：改动收进草稿，切回来还在
-  page.setSeg("code-agent-mode-seg", "economical");
-  page.switchCodeAgentTarget("yumi");
-  assert.deepEqual(page.state().map.hanako, { enabled: false, mode: "economical" }, "切走时把草稿收进表里");
-  assert.equal(page.segVal("code-agent-mode-seg"), "inherit", "另一位是跟随默认");
-  assert.equal(page.elements.get("code-agent-interval-row").classList.contains("hidden"), false, "跟默认的相伴档要摆间隔");
-  page.switchCodeAgentTarget("hanako");
-  assert.equal(page.segVal("code-agent-mode-seg"), "economical", "切回来草稿还在");
+  // 取消勾选 hanako：只剩 ghost，yumi 不受影响
+  page.setChecked("hanako", false);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost"]);
 
-  // 恢复跟随默认：表里删掉，保存时发 null；看不到的 ghost 原样保留
-  page.resetCodeAgentOverride();
-  state = page.state();
-  assert.equal("hanako" in state.map, false);
-  const payload = page.codeAgentSettingsForSave();
-  assert.equal(payload.hanako, null, "恢复默认要显式发 null，否则后端无从知道");
-  assert.deepEqual(payload.ghost, { enabled: true, intervalHours: 8 }, "看不到的伙伴不该被抹掉");
-  assert.equal(page.toasts.length, 1, "恢复默认要给一句回执");
+  // 重新勾上 yumi
+  page.setChecked("yumi", true);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost", "yumi"]);
+
+  // 全部取消：看得见的都解除，看不见的还在
+  page.setChecked("yumi", false);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost"]);
 });
 
-test("roundtrip：UI 发的清空标记真能把后端旧值清掉（方式 / 注入项 / 间隔）", () => {
-  const agents = [{ agentId: "hanako", agentName: "花子" }];
-  const page = loadCodeAgentPage({
-    agents,
-    appSettings: { codeInjectionItems: { time: true, peak: true, weather: false }, codeInjectMode: "balanced" },
-  });
-  // 后端已有：单独关了这位伙伴、方式常在、间隔 1 小时、只给它开了天气
-  page.applyCodeAgentSettingsFromServer({
-    hanako: { enabled: false, mode: "always", intervalHours: 1, items: { weather: true } },
-  });
-
-  // 用户在编辑区：方式切回跟随默认、取消「单独设带哪些」、间隔也回跟随默认；启用保持「关」
-  page.setSeg("code-agent-mode-seg", "inherit");
-  page.setSeg("code-agent-interval-seg", "inherit");
-  page.elements.get("code-agent-items-override").checked = false;
-  page.markDirty();
-
-  const uiPayload = page.codeAgentSettingsForSave();
-  assert.deepEqual(uiPayload, {
-    hanako: { enabled: false, mode: null, intervalHours: null, items: null },
-  }, "回到跟随默认的字段要显式发 null，只保留还改着的 enabled");
-
-  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), "sgj-code-agent-roundtrip-"));
-  const routeUrl = pathToFileURL(path.resolve("routes/ui.js")).href;
-  const codeModeUrl = pathToFileURL(path.resolve("lib/code-mode.js")).href;
-  const childCode = `
-    import registerRoutes from ${JSON.stringify(routeUrl)};
-    import { resolveCodeInjection } from ${JSON.stringify(codeModeUrl)};
-    const uiPayload = ${JSON.stringify(uiPayload)};
-    const routes = [];
-    const app = {
-      get(path, handler) { routes.push({ method: "GET", path, handler }); },
-      post(path, handler) { routes.push({ method: "POST", path, handler }); },
-      put(path, handler) { routes.push({ method: "PUT", path, handler }); },
-      delete(path, handler) { routes.push({ method: "DELETE", path, handler }); },
-    };
-    registerRoutes(app, { log: { info() {}, warn() {}, error() {} } });
-    const post = routes.find((item) => item.method === "POST" && item.path === "/api/settings");
-    const get = routes.find((item) => item.method === "GET" && item.path === "/api/settings");
-    const callPost = (body) => post.handler({ req: { async json() { return body; } }, json(value) { return value; } });
-    const callGet = async () => (await get.handler({ json(value) { return value; } })).settings;
-    const check = (cond, message) => { if (!cond) throw new Error(message); };
-
-    const seeded = await callPost({ codeAgentSettings: { hanako: { enabled: false, mode: "always", intervalHours: 1, items: { weather: true } } } });
-    check(seeded?.ok, "初始设置没存上：" + JSON.stringify(seeded));
-
-    const applied = await callPost({ codeAgentSettings: uiPayload });
-    check(applied?.ok, "清空提交被拒：" + JSON.stringify(applied));
-    let settings = await callGet();
-    check(JSON.stringify(settings.codeAgentSettings) === JSON.stringify({ hanako: { enabled: false } }),
-      "清空后只应剩下 enabled：" + JSON.stringify(settings.codeAgentSettings));
-
-    let resolved = resolveCodeInjection(settings, "hanako");
-    check(resolved.enabled === false, "这位伙伴单独关着不该被改回来");
-    check(resolved.mode === "balanced", "方式该回全局的相伴，实际：" + resolved.mode);
-    check(resolved.intervalHours === 4, "间隔该回全局的 4 小时，实际：" + resolved.intervalHours);
-    check(resolved.items.weather === false, "天气该回全局默认（不带），实际：" + resolved.items.weather);
-    check(resolved.items.peak === true, "别拿清空顺手把别的项弄丢");
-
-    // 单项清除：items 里单个 null 只拿掉那一项
-    await callPost({ codeAgentSettings: { hanako: { items: { weather: true, todos: true } } } });
-    await callPost({ codeAgentSettings: { hanako: { items: { weather: null } } } });
-    settings = await callGet();
-    check(JSON.stringify(settings.codeAgentSettings.hanako.items) === JSON.stringify({ todos: true }),
-      "单项清除不对：" + JSON.stringify(settings.codeAgentSettings.hanako.items));
-
-    // 最后一个字段也清掉：整条覆盖消失
-    await callPost({ codeAgentSettings: { hanako: { enabled: null, items: null } } });
-    settings = await callGet();
-    check(!("hanako" in settings.codeAgentSettings), "清到空要整条删掉：" + JSON.stringify(settings.codeAgentSettings));
-    resolved = resolveCodeInjection(settings, "hanako");
-    check(resolved.enabled === true && resolved.mode === "balanced" && resolved.items.todos === false,
-      "删干净后该完全跟全局：" + JSON.stringify(resolved));
-    console.log(JSON.stringify({ ok: true }));
-  `;
-  const result = spawnSync(process.execPath, ["--input-type=module", "-e", childCode], {
-    encoding: "utf8",
-    env: { ...process.env, USERPROFILE: isolatedHome, HOME: isolatedHome, HANA_HOME: path.join(isolatedHome, ".hanako") },
-  });
-  assert.equal(result.status, 0, result.stderr || result.stdout);
-  assert.match(result.stdout, /"ok":true/);
+test("页面逻辑：不可见 ID 与对象内置键同名也不会被误删", () => {
+  const page = loadCodeListPage();
+  page.renderCodeInjectionAgents([{ agentId: "hanako", agentName: "花子" }], ["toString", "hasOwnProperty"]);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["toString", "hasOwnProperty"]);
 });
 
-test("页面逻辑：切伙伴时继承展示取表单上未保存的默认勾选", () => {
-  const agents = [{ agentId: "hanako", agentName: "花子" }, { agentId: "yumi", agentName: "悠米" }];
-  // 用户在默认区刚把天气勾上，还没点保存
-  const page = loadCodeAgentPage({
-    agents,
-    appSettings: { codeInjectionItems: { time: true, peak: true, weather: false }, codeInjectMode: "balanced" },
-    globalItems: { time: true, peak: true, weather: true, todos: false },
-  });
-  page.applyCodeAgentSettingsFromServer({});
-  assert.equal(page.itemCheck("weather").checked, true, "继承展示要看表单上刚勾的天气，不是存着的旧值");
-  page.switchCodeAgentTarget("yumi");
-  assert.equal(page.itemCheck("weather").checked, true, "切到另一位也是同一份未保存默认");
+test("页面逻辑：名单没加载好就交回 undefined（保存时不发这个键）", () => {
+  const page = loadCodeListPage();
+  assert.equal(page.getCodeInjectionDisabledAgentIdsFromUI(), undefined, "没读到服务端那份就不提交空名单");
 
-  // 默认区还没渲染（没有勾选元素）时退回存着的全局值
-  const fresh = loadCodeAgentPage({
-    agents,
-    appSettings: { codeInjectionItems: { time: true, peak: true, weather: false }, codeInjectMode: "balanced" },
-    globalItems: {},
-  });
-  fresh.applyCodeAgentSettingsFromServer({});
-  assert.equal(fresh.itemCheck("weather").checked, false, "拿不到表单勾选时退回存着的默认");
-  assert.equal(fresh.itemCheck("time").checked, true);
-});
-
-test("页面逻辑：没初始化好时不拿空表盖掉已有设置，有草稿时不被服务器覆盖", () => {
-  const agents = [{ agentId: "hanako", agentName: "花子" }];
-  const page = loadCodeAgentPage({ agents, appSettings: { codeInjectionItems: {}, codeInjectMode: "balanced" } });
-
-  page.applyCodeAgentSettingsFromServer(undefined);
-  assert.deepEqual(page.state().map, {}, "没有这张表的响应不改动任何东西");
-
-  page.applyCodeAgentSettingsFromServer({ hanako: { mode: "always" } });
-  assert.deepEqual(page.state().map.hanako, { mode: "always" });
-
-  // 有未保存草稿时：服务端那份不能把草稿盖掉
-  page.markDirty();
-  page.setSeg("code-agent-mode-seg", "economical");
-  page.applyCodeAgentSettingsFromServer({ hanako: { mode: "balanced" } });
-  assert.deepEqual(page.state().map.hanako, { mode: "always" }, "草稿优先于服务器那份");
-  assert.deepEqual(page.state().base.hanako, { mode: "balanced" }, "基线还是要更新，免得下次多删一份");
+  // 一个伙伴都没有也算加载过：渲染成空列表，提交的是空名单（而不是 undefined）
+  page.renderCodeInjectionAgents([], []);
+  assert.match(page.html(), /还没有可设置的伙伴/);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), []);
 });

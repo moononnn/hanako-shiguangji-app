@@ -2022,7 +2022,12 @@
                 <button class="seg-btn" data-val="false">关</button>
               </div>
             </div>
-            <p class="set-tip hidden" id="code-injection-off-tip">一键关掉后，所有伙伴的 Code 页都不带一句话，连峰谷关照也停着；下面给单个伙伴调的那些也跟着不生效。</p>
+            <p class="set-tip hidden" id="code-injection-off-tip">一键关掉后，所有伙伴的 Code 页都不带一句话，连峰谷关照也停着。</p>
+            <div class="set-row">
+              <span class="set-label">单独关闭</span>
+              <div class="summary-agent-picker" id="code-injection-agent-picker"><span class="set-tip">读取中…</span></div>
+            </div>
+            <p class="set-tip">勾选的伙伴不会收到 Code 页情境；其他伙伴和下面的全局设置不受影响。</p>
             <div class="set-row">
               <span class="set-label">带入方式</span>
               <div class="seg" id="code-mode-seg">
@@ -2052,56 +2057,7 @@
             </div>
             <p class="set-tip">勾上的才带。时间以前每轮都带、关不掉，现在跟其它块一样可以取消；日记、生理期、做好的回顾默认都不进去。</p>
             <p class="set-tip">「适时」档一天最多带一次，那一刻的钟点很快会过期，所以只给日期不给钟点；「相伴」和「常在」才带完整时刻。</p>
-            <p class="set-tip">总闸管所有伙伴：关掉之后，下面给谁单独调过都不生效。聊天那屏的「单独关闭」只管聊天窗口，对 Code 页不起作用。</p>
-            <div class="set-row">
-              <span class="set-label">单独调一位</span>
-              <select id="code-agent-select" class="set-select" onchange="switchCodeAgentTarget(this.value)">
-                <option value="">读取中…</option>
-              </select>
-            </div>
-            <p class="set-tip">上面那套是默认值，没单独调过的伙伴都按它来。选一位单独调，只有 ta 变；没动过的格子继续跟默认。</p>
-            <div id="code-agent-editor">
-              <div class="set-row">
-                <span class="set-label">这位伙伴</span>
-                <div class="seg" id="code-agent-enabled-seg">
-                  <button class="seg-btn active" data-val="inherit">跟随默认</button>
-                  <button class="seg-btn" data-val="true">开</button>
-                  <button class="seg-btn" data-val="false">关</button>
-                </div>
-              </div>
-              <div class="set-row">
-                <span class="set-label">带入方式</span>
-                <div class="seg" id="code-agent-mode-seg">
-                  <button class="seg-btn active" data-val="inherit">跟随默认</button>
-                  <button class="seg-btn" data-val="economical">适时</button>
-                  <button class="seg-btn" data-val="balanced">相伴</button>
-                  <button class="seg-btn" data-val="always">常在</button>
-                </div>
-              </div>
-              <div class="set-row" id="code-agent-interval-row">
-                <span class="set-label">回来多久后更新</span>
-                <div class="seg" id="code-agent-interval-seg">
-                  <button class="seg-btn active" data-val="inherit">跟随默认</button>
-                  <button class="seg-btn" data-val="0.5">30 分钟</button>
-                  <button class="seg-btn" data-val="1">1 小时</button>
-                  <button class="seg-btn" data-val="4">4 小时</button>
-                  <button class="seg-btn" data-val="8">8 小时</button>
-                </div>
-              </div>
-              <div class="set-row">
-                <span class="set-label">带哪些</span>
-                <div class="summary-agent-picker">
-                  <div class="summary-agent-options">
-                    <label class="summary-agent-option"><input type="checkbox" id="code-agent-items-override"><span>单独设这位伙伴带哪些</span></label>
-                  </div>
-                  <div class="summary-agent-options hidden" id="code-agent-items"></div>
-                </div>
-              </div>
-              <div class="set-row">
-                <button class="link-btn" type="button" id="code-agent-reset-btn" onclick="resetCodeAgentOverride()">恢复跟随默认</button>
-              </div>
-              <p class="set-tip">「关」只关这位伙伴的 Code 页注入，聊天那屏照旧；总闸关着时，这里选「开」也不会生效。</p>
-            </div>
+            <p class="set-tip">总闸管所有伙伴：关掉之后，勾了「单独关闭」的也一样不带。聊天那屏的「单独关闭」只管聊天窗口，对 Code 页不起作用。</p>
           </div>
         </div>
       </div>
@@ -7482,10 +7438,6 @@ function renderCodeInjectionItems(items) {
   renderCodeItemChecks('code-injection-items', 'code-injection-check', items);
 }
 
-function renderCodeAgentItems(items) {
-  renderCodeItemChecks('code-agent-items', 'code-agent-item-check', items);
-}
-
 function codeInjectionItemsFromUI() {
   var out = {};
   document.querySelectorAll('.code-injection-check').forEach(function (check) {
@@ -7542,208 +7494,47 @@ function syncCodeModeUi(mode) {
   var intervalTip = document.getElementById('code-interval-tip');
   if (intervalTip) intervalTip.textContent = CODE_INTERVAL_TIP;
 }
-/* ── Code 页：按伙伴单独调 ── */
-// 上面那屏是全局默认，这里给单个伙伴留一份稀疏覆盖：只记动手改过的格子，
-// 没改的继续跟默认。改动先存在页面上（草稿），点「保存设置」才一起发出去；
-// 换伙伴前先把当前这屏的改动收进草稿，切回去还在。
+/* ── Code 页：单独关闭名单 ── */
+// 按伙伴能分开的只有「关不关」；带哪些、多久带一次还是上面那套全局设置。
+// 名单跟聊天那屏同一套做法：列表只来自服务端给的 summaryAgents，不去扫伙伴目录；
+// 勾选只改变列表里看得见的伙伴，存着但眼下看不到的 ID 原样留着。
 
-var codeAgentMap = {};          // 正在编辑的按伙伴覆盖：agentId -> { enabled, items, mode, intervalHours }
-var codeAgentBase = {};         // 上次从后端读回来的那份，用来发「恢复跟随默认」的删除
-var codeAgentItemsTouched = {}; // 哪位伙伴的勾选被手动动过（没动过就别把稀疏覆盖扩成全量）
-var codeAgentTarget = '';       // 当前编辑的伙伴
-var codeAgentLoaded = false;    // 后端那份读回来没有
-var codeAgentDirty = false;     // 有没有还没保存的改动
+var codeInjectionAgentLoaded = false; // 服务端那份读回来没有
+var codeInjectionDisabledIds = [];    // 服务端那份（含眼下不在列表里的伙伴）
 
-function isSafeCodeAgentId(id) {
-  return !!id && id !== '__proto__' && id !== 'constructor' && id !== 'prototype';
-}
-
-function cloneCodeAgentEntry(entry) {
-  var out = {};
-  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return out;
-  if (entry.enabled === true || entry.enabled === false) out.enabled = entry.enabled;
-  if (entry.items && typeof entry.items === 'object' && !Array.isArray(entry.items)) {
-    var items = {};
-    Object.keys(entry.items).forEach(function (id) {
-      if (typeof entry.items[id] === 'boolean') items[id] = entry.items[id];
-    });
-    if (Object.keys(items).length) out.items = items;
-  }
-  if (typeof entry.mode === 'string' && entry.mode) out.mode = entry.mode;
-  if (typeof entry.intervalHours === 'number') out.intervalHours = entry.intervalHours;
-  return out;
-}
-
-function cloneCodeAgentMap(map) {
-  var out = {};
-  if (!map || typeof map !== 'object' || Array.isArray(map)) return out;
-  Object.keys(map).forEach(function (id) {
-    if (!isSafeCodeAgentId(id)) return;
-    var entry = cloneCodeAgentEntry(map[id]);
-    if (Object.keys(entry).length) out[id] = entry;
-  });
-  return out;
-}
-
-// 后端那份到了：没带这张表就别动手里这份（异步回来的旧响应不能把已有设置抹掉）；
-// 手上有没保存的草稿时也不盖上去。
-function applyCodeAgentSettingsFromServer(map) {
-  if (!map || typeof map !== 'object' || Array.isArray(map)) return;
-  codeAgentBase = cloneCodeAgentMap(map);
-  if (codeAgentDirty) return;
-  codeAgentMap = cloneCodeAgentMap(map);
-  codeAgentLoaded = true;
-  renderCodeAgentPicker();
-  renderCodeAgentEditor();
-}
-
-// 伙伴从 summaryAgents 来：跟做册、聊天那屏同一个合法来源。
-function renderCodeAgentPicker() {
-  var sel = document.getElementById('code-agent-select');
-  if (!sel) return;
-  var available = Array.isArray(summaryAgents) ? summaryAgents.filter(function (agent) { return agent && agent.agentId; }) : [];
+function renderCodeInjectionAgents(agents, disabledIds) {
+  var picker = document.getElementById('code-injection-agent-picker');
+  codeInjectionAgentLoaded = true;
+  codeInjectionDisabledIds = Array.isArray(disabledIds)
+    ? disabledIds.map(String).filter(Boolean)
+    : [];
+  if (!picker) return;
+  var available = Array.isArray(agents) ? agents.filter(function (agent) { return agent && agent.agentId; }) : [];
   if (!available.length) {
-    codeAgentTarget = '';
-    sel.innerHTML = '<option value="">还没有可设置的伙伴</option>';
-    sel.disabled = true;
-    var emptyEditor = document.getElementById('code-agent-editor');
-    if (emptyEditor) emptyEditor.classList.toggle('hidden', true);
-    refreshOneSelect('code-agent-select');
+    picker.innerHTML = '<span class="set-tip">还没有可设置的伙伴。</span>';
     return;
   }
-  sel.disabled = false;
-  sel.innerHTML = available.map(function (agent) {
+  var disabled = new Set(codeInjectionDisabledIds);
+  var options = available.map(function (agent) {
     var id = String(agent.agentId);
     var name = String(agent.agentName || id);
-    var mark = codeAgentMap[id] ? '（单独设置）' : '';
-    return '<option value="' + esc(id) + '">' + esc(name + mark) + '</option>';
+    return '<label class="summary-agent-option"><input type="checkbox" class="code-injection-agent-check" data-agent-id="' + esc(id) + '"' + (disabled.has(id) ? ' checked' : '') + '><span title="' + esc(name) + '">' + esc(name) + '</span></label>';
   }).join('');
-  // 当前这位不在这张表里（伙伴被隐藏/暂不可见）就退到第一位；存盘里那份不被删。
-  var known = available.map(function (agent) { return String(agent.agentId); });
-  if (!codeAgentTarget || known.indexOf(codeAgentTarget) < 0) codeAgentTarget = known[0];
-  sel.value = codeAgentTarget;
-  refreshOneSelect('code-agent-select');
+  picker.innerHTML = '<div class="summary-agent-options">' + options + '</div>';
 }
 
-// 这位伙伴实际用的带入方式：编辑区里刚点的优先，其次存着的覆盖，最后是全局默认。
-function effectiveCodeAgentMode() {
-  var picked = segVal('code-agent-mode-seg');
-  if (picked && picked !== 'inherit') return picked;
-  var entry = codeAgentMap[codeAgentTarget];
-  if (!picked && entry && entry.mode) return entry.mode; // 这屏还没渲染过时的兼容
-  return segVal('code-mode-seg') || appSettings.codeInjectMode || 'balanced';
-}
-
-function renderCodeAgentEditor() {
-  var editor = document.getElementById('code-agent-editor');
-  if (editor) editor.classList.toggle('hidden', !codeAgentTarget);
-  if (!codeAgentTarget) return;
-  var entry = codeAgentMap[codeAgentTarget] || {};
-  setSeg('code-agent-enabled-seg', entry.enabled === true ? 'true' : (entry.enabled === false ? 'false' : 'inherit'));
-  setSeg('code-agent-mode-seg', entry.mode || 'inherit');
-  setSeg('code-agent-interval-seg', entry.intervalHours !== undefined ? String(entry.intervalHours) : 'inherit');
-  // 带哪些：先把「全局 + 这位伙伴改过的」摆出来；勾了「单独设」才算这位自己的。
-  // 全局那份要取表单上当前的勾选：同一张表单里刚改过默认，切伙伴时继承展示才不会发旧值。
-  var globalItems = codeInjectionItemsFromUI();
-  if (!globalItems || !Object.keys(globalItems).length) globalItems = appSettings.codeInjectionItems || {};
-  var effectiveItems = Object.assign({}, globalItems, entry.items || {});
-  renderCodeAgentItems(effectiveItems);
-  var overrideBox = document.getElementById('code-agent-items-override');
-  if (overrideBox) overrideBox.checked = !!entry.items;
-  syncCodeAgentEditorUi();
-}
-
-function syncCodeAgentEditorUi() {
-  var overrideBox = document.getElementById('code-agent-items-override');
-  var itemsBox = document.getElementById('code-agent-items');
-  var override = !!(overrideBox && overrideBox.checked);
-  if (itemsBox) itemsBox.classList.toggle('hidden', !override);
-  document.querySelectorAll('.code-agent-item-check').forEach(function (check) { check.disabled = !override; });
-  var intervalRow = document.getElementById('code-agent-interval-row');
-  if (intervalRow) intervalRow.classList.toggle('hidden', effectiveCodeAgentMode() !== 'balanced');
-  var reset = document.getElementById('code-agent-reset-btn');
-  if (reset) reset.disabled = !(codeAgentTarget && codeAgentMap[codeAgentTarget]);
-}
-
-// 把编辑区里这屏的值收敛成一份稀疏覆盖（没动的字段不写）。
-function codeAgentEntryFromEditor() {
-  var entry = {};
-  var enabled = segVal('code-agent-enabled-seg');
-  if (enabled === 'true' || enabled === 'false') entry.enabled = enabled === 'true';
-  var mode = segVal('code-agent-mode-seg');
-  if (mode && mode !== 'inherit') entry.mode = mode;
-  var interval = segVal('code-agent-interval-seg');
-  if (interval && interval !== 'inherit') entry.intervalHours = +interval;
-  var overrideBox = document.getElementById('code-agent-items-override');
-  if (overrideBox && overrideBox.checked) {
-    var existing = codeAgentMap[codeAgentTarget];
-    if (!codeAgentItemsTouched[codeAgentTarget] && existing && existing.items) {
-      // 没动过这儿：照原样留着，别把逐项的「跟默认」扩成一份全量快照
-      entry.items = Object.assign({}, existing.items);
-    } else {
-      var items = {};
-      var any = false;
-      document.querySelectorAll('.code-agent-item-check').forEach(function (check) {
-        items[check.getAttribute('data-item-id')] = !!check.checked;
-        any = true;
-      });
-      if (any) entry.items = items;
-    }
-  }
-  return entry;
-}
-
-function flushCodeAgentEditor() {
-  if (!isSafeCodeAgentId(codeAgentTarget)) return;
-  if (!document.getElementById('code-agent-editor')) return;
-  var entry = codeAgentEntryFromEditor();
-  if (Object.keys(entry).length) codeAgentMap[codeAgentTarget] = entry;
-  else delete codeAgentMap[codeAgentTarget];
-}
-
-function switchCodeAgentTarget(agentId) {
-  flushCodeAgentEditor(); // 换人前先存草稿，切回来还在
-  var next = String(agentId || '');
-  codeAgentTarget = isSafeCodeAgentId(next) ? next : '';
-  renderCodeAgentEditor();
-  renderCodeAgentPicker();
-}
-
-function resetCodeAgentOverride() {
-  if (!codeAgentTarget) return;
-  delete codeAgentMap[codeAgentTarget];
-  delete codeAgentItemsTouched[codeAgentTarget];
-  codeAgentDirty = true;
-  renderCodeAgentEditor();
-  renderCodeAgentPicker();
-  toast('这位伙伴回到跟随默认了，别忘了点保存');
-}
-
-// 要发出去的那张表：手里的全部（含看不到的伙伴）＋ 被清掉的字段补 null。
-// 后端是字段级 PATCH：省略字段 = 不动它，所以「切回跟随默认」必须显式发 null，
-// 否则原来那份 { enabled:false, mode:'always' } 里的 mode 会默默留着。
-// 一条字段都不剩就是整条恢复跟随默认，发 null 删掉这位伙伴的覆盖。
-var CODE_AGENT_OVERRIDE_FIELDS = ['enabled', 'items', 'mode', 'intervalHours'];
-function hasOwnKey(obj, key) {
-  return !!obj && Object.prototype.hasOwnProperty.call(obj, key);
-}
-function codeAgentSettingsForSave() {
-  flushCodeAgentEditor();
-  var out = {};
-  Object.keys(codeAgentMap).forEach(function (id) {
-    if (!isSafeCodeAgentId(id)) return;
-    var entry = codeAgentMap[id] || {};
-    var base = codeAgentBase[id] || {};
-    var payload = {};
-    var written = 0;
-    CODE_AGENT_OVERRIDE_FIELDS.forEach(function (field) {
-      if (hasOwnKey(entry, field)) { payload[field] = entry[field]; written += 1; }
-      else if (hasOwnKey(base, field)) { payload[field] = null; written += 1; }
-    });
-    if (written) out[id] = payload;
+// 没加载好就交回 undefined：这个键在 JSON 序列化时会被丢掉，不会把服务端那份清成空名单。
+function getCodeInjectionDisabledAgentIdsFromUI() {
+  if (!codeInjectionAgentLoaded) return undefined;
+  var shown = new Set();
+  document.querySelectorAll('.code-injection-agent-check').forEach(function (check) {
+    shown.add(check.getAttribute('data-agent-id') || '');
   });
-  Object.keys(codeAgentBase).forEach(function (id) {
-    if (!Object.prototype.hasOwnProperty.call(codeAgentMap, id)) out[id] = null;
+  // 列表里看不见、之前存过的 ID 挺着不动；看得见的以眼下勾选为准。
+  var out = codeInjectionDisabledIds.filter(function (id) { return !shown.has(id); });
+  document.querySelectorAll('.code-injection-agent-check:checked').forEach(function (check) {
+    var id = check.getAttribute('data-agent-id') || '';
+    if (id && out.indexOf(id) < 0) out.push(id);
   });
   return out;
 }
@@ -7779,7 +7570,7 @@ function toggleCodeInjectionQuick() {
   }).then(function (res) {
     if (!res.ok) { toast(res.error || 'Code 页开关没改成'); return; }
     appSettings = Object.assign(appSettings, res.settings || { codeInjectionEnabled: next });
-    applyCodeAgentSettingsFromServer(res.settings && res.settings.codeAgentSettings);
+    renderCodeInjectionAgents(res.settings && res.settings.summaryAgents, res.settings && res.settings.codeInjectionDisabledAgentIds);
     setSeg('code-injection-seg', appSettings.codeInjectionEnabled !== false);
     syncCodePanelUi(appSettings.codeInjectionEnabled !== false);
     updateQuickInjectionToggle();
@@ -8062,7 +7853,7 @@ function loadSettings() {
     setSeg('weather-alert-seg', s.weatherAlertEnabled !== false);
     renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
     renderInjectionAgents(s.summaryAgents || [], s.injectionDisabledAgentIds);
-    applyCodeAgentSettingsFromServer(s.codeAgentSettings);
+    renderCodeInjectionAgents(s.summaryAgents || [], s.codeInjectionDisabledAgentIds);
     renderWeatherRegion(s.weatherArea || null, s.weatherLocation || '');
     syncWeatherSettingsUi(s.weatherEnabled !== false);
     weatherSettingsState.location = s.weatherLocation || '';
@@ -8130,8 +7921,8 @@ function saveAllSettings() {
   }, weatherPatch);
   var summaryAgentIds = getSummaryAgentIdsFromUI();
   if (summaryAgentIds !== undefined) body.summaryAgentIds = summaryAgentIds;
-  // 按伙伴的那份只在读过或真改过时才发，免得没加载好就把服务端那份写成空表。
-  if (codeAgentLoaded || codeAgentDirty) body.codeAgentSettings = codeAgentSettingsForSave();
+  // 名单没加载好时交回 undefined，这个键会被 JSON 里丢掉，不会把服务端那份清成空。
+  body.codeInjectionDisabledAgentIds = getCodeInjectionDisabledAgentIdsFromUI();
   api('api/settings', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -8146,9 +7937,7 @@ function saveAllSettings() {
       setWeatherLegacyNote('');
       setSeg('injection-enabled-seg', appSettings.injectionEnabled !== false);
       renderInjectionAgents(appSettings.summaryAgents || [], appSettings.injectionDisabledAgentIds);
-      codeAgentDirty = false;
-      if (res.settings && res.settings.codeAgentSettings) applyCodeAgentSettingsFromServer(res.settings.codeAgentSettings);
-      else codeAgentBase = cloneCodeAgentMap(codeAgentMap);
+      renderCodeInjectionAgents(appSettings.summaryAgents || [], appSettings.codeInjectionDisabledAgentIds);
       setSeg('mood-discovery-seg', appSettings.moodDiscoveryMode || 'economical');
       syncMoodDiscoveryTip(appSettings.moodDiscoveryMode || 'economical');
       setSeg('partner-mood-seg', appSettings.partnerMoodEnabled === true);
@@ -8487,11 +8276,6 @@ document.addEventListener('click', function (e) {
       }
       if (seg.id === 'code-mode-seg') {
         syncCodeModeUi(segBtn.getAttribute('data-mode'));
-        syncCodeAgentEditorUi(); // 这位伙伴要是跟着默认走，间隔行也跟着显潜
-      }
-      if (seg.id === 'code-agent-enabled-seg' || seg.id === 'code-agent-mode-seg' || seg.id === 'code-agent-interval-seg') {
-        codeAgentDirty = true;
-        syncCodeAgentEditorUi();
       }
       if (seg.id === 'mood-discovery-seg') {
         syncMoodDiscoveryTip(segBtn.getAttribute('data-val'));
@@ -8527,12 +8311,6 @@ document.addEventListener('input', function (e) {
   }
 });
 document.addEventListener('change', function (e) {
-  if (e.target && (e.target.id === 'code-agent-items-override' || (e.target.classList && e.target.classList.contains('code-agent-item-check')))) {
-    codeAgentDirty = true;
-    if (codeAgentTarget) codeAgentItemsTouched[codeAgentTarget] = true;
-    syncCodeAgentEditorUi();
-    return;
-  }
   if (e.target && e.target.id === 'new-todo-repeat') {
     var activeTab = document.querySelector('#type-tabs .type-tab.active');
     syncTodoRepeatUI(activeTab ? activeTab.getAttribute('data-type') : 'event');

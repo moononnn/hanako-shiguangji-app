@@ -723,7 +723,7 @@ export default function registerShiguangjiInject(pi) {
 // 频率跟聊天窗口同一套：适时 / 相伴 / 常在 + 回来多久后更新，都由用户选。
 // 以前 Code 页是「每轮都带时间」的特例，那条例外已经取消——它只是块更少、状态更独立。
 //
-// 开关只认 Code 自己那一套：全局 codeInjectionEnabled + codeAgentSettings[当前伙伴] 的覆盖。
+// 开关只认 Code 自己那一套：全局 codeInjectionEnabled + 本屏的 codeInjectionDisabledAgentIds 名单。
 // 聊天那屏的 injectionDisabledAgentIds 是聊天的屏蔽名单，不往这里伸手：
 // 把聊天静音的伙伴，不代表不让她在改代码的时候拿到时间。
 function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentId, currentModel, diskPeakState }) {
@@ -898,9 +898,9 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
   };
 }
 
-// Code 页自己的设置指纹：只认 Code 这屏管的东西，而且只认当前伙伴的生效配置
-// （resolveCodeInjection 已经把 codeAgentSettings[agentId] 叠上来了）。
-// 聊天那屏改了别的设置、或者别的伙伴改了她自己的 Code 配置，都不该让这屏重刷一次。
+// Code 页自己的设置指纹：只认 Code 这屏管的东西，而且只认当前伙伴的生效结果
+// （resolveCodeInjection 已经把这位伙伴在不在这屏的屏蔽名单里算进 enabled）。
+// 聊天那屏改了别的设置、或者名单里别的伙伴变了，都不该让这屏重刷一次。
 function buildCodeContextKey(settings = {}, codeConfig = {}) {
   return JSON.stringify({
     enabled: codeConfig.enabled !== false,

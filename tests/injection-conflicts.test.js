@@ -372,6 +372,11 @@ test("Code：没勾天气或总闸关着就不去预取天气", async () => {
 
   await data.updateSettings({ codeInjectionEnabled: false });
   assert.equal(codeWeatherEnabled("hanako"), false, "Code 总闸关掉就一律不查");
+
+  // 被单独关闭的伙伴：哪怕勾了天气也不去查；名单外的人照常查
+  await data.updateSettings({ codeInjectionEnabled: true, codeInjectionDisabledAgentIds: ["agent-a"] });
+  assert.equal(codeWeatherEnabled("agent-a"), false, "被屏蔽的伙伴不该去查天气");
+  assert.equal(codeWeatherEnabled("agent-b"), true, "名单外的伙伴照常预取");
 });
 
 // ── 3. 同 hash 去重分支也要存状态 ──
@@ -516,7 +521,7 @@ test("Code：聊天的伙伴屏蔽名单不牵连 Code", async () => {
   }
 });
 
-test("Code：别的伙伴改自己的 Code 配置，不该让本窗口重刷", async () => {
+test("Code：名单里别的伙伴变了，不该让本窗口重刷", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("code-other-agent-key");
   __setInjectNowForTest(() => local(10, 0));
@@ -526,49 +531,49 @@ test("Code：别的伙伴改自己的 Code 配置，不该让本窗口重刷", a
     assert.ok(handler({}, ctx)?.message, "新会话先带一次");
     assert.equal(handler({}, ctx), undefined, "间隔没到不注入");
 
-    await data.updateSettings({
-      codeAgentSettings: { "other-partner": { items: { time: true, weather: true } } },
-    });
-    // 先把「这份覆盖真被 resolver 读到了」钉死：否则这条用例只是「什么也没发生」的空转。
+    await data.updateSettings({ codeInjectionDisabledAgentIds: ["other-partner"] });
+    // 先把「这名单真被 resolver 读到了」钉死：否则这条用例只是「什么也没发生」的空转。
     const settings = data.getSettings();
-    const other = resolveCodeInjection(settings, "other-partner");
-    assert.equal(other.items.weather, true, "other-partner 的天气项得真生效，而不是被 normalizer 丢掉");
-    assert.equal(other.items.time, true);
-    assert.equal(other.enabled, true);
+    assert.equal(resolveCodeInjection(settings, "other-partner").enabled, false, "other-partner 真被关掉了");
+    assert.equal(resolveCodeInjection(settings, "other-partner").items.weather, false, "关的是开关，内容仍跟全局");
     const mine = resolveCodeInjection(settings, "hanako");
-    assert.equal(mine.items.weather, false, "本窗口仍跟全局（全局没勾天气）");
+    assert.equal(mine.enabled, true, "本窗口没被连坐");
     assert.deepEqual(mine.items, { ...DEFAULT_CODE_INJECTION_ITEMS });
 
-    assert.equal(handler({}, ctx), undefined, "别的伙伴的配置不该动到本窗口的设置指纹");
+    assert.equal(handler({}, ctx), undefined, "别的伙伴被关掉不该动到本窗口的设置指纹");
   } finally {
     __setInjectNowForTest(null);
   }
 });
 
-test("Code：按伙伴的稀疏覆盖生效（A 关、B 开），靠 resolveCodeInjection 的 agentId 参数", async () => {
+test("Code：屏蔽 A 不连坐 B（靠 resolveCodeInjection 的 agentId 参数）", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("code-agent-overrides");
-  await data.updateSettings({
-    codeAgentSettings: {
-      "agent-a": { enabled: false },
-      "agent-b": { enabled: true },
-    },
-  });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   try {
     const handler = makeHandler();
-    // 覆盖必须先被 resolver 认下来；否则下面“A 不注入”可能只是碰巧全局也关着。
+    // 名单必须先被 resolver 认下来；否则下面“A 不注入”可能只是碰巧全局也关着。
     const settings = data.getSettings();
     assert.equal(resolveCodeInjection(settings, "agent-a").enabled, false, "A 的关闭要真被 resolver 读到");
-    assert.equal(resolveCodeInjection(settings, "agent-b").enabled, true, "B 不能被 A 的覆盖连坐");
+    assert.equal(resolveCodeInjection(settings, "agent-b").enabled, true, "B 不能被 A 连坐");
     assert.equal(resolveCodeInjection(settings).enabled, true, "全局总闸仍是开的");
 
     const off = handler({}, codeCtx("code-agent-a-session", { agentId: "agent-a" }));
-    assert.equal(off, undefined, "A 关掉自己的 Code 注入，就不该带");
+    assert.equal(off, undefined, "A 被单独关闭，就不该带");
 
     const on = handler({}, codeCtx("code-agent-b-session", { agentId: "agent-b" }));
-    assert.ok(on?.message, "B 开着就照常带");
+    assert.ok(on?.message, "B 没被关闭就照常带");
     assert.ok(on.message.content.includes("【今日时光】"));
+
+    // 重新打开总闸、名单还在：A 依旧不带，取消屏蔽后 A 回来
+    await data.updateSettings({ codeInjectionEnabled: false });
+    assert.equal(handler({}, codeCtx("code-agent-b-off-session", { agentId: "agent-b" })), undefined, "总闸关掉谁都别带");
+    await data.updateSettings({ codeInjectionEnabled: true });
+    assert.equal(handler({}, codeCtx("code-agent-a-again", { agentId: "agent-a" })), undefined, "重新开总闸，A 仍在名单里");
+    await data.updateSettings({ codeInjectionDisabledAgentIds: [] });
+    const back = handler({}, codeCtx("code-agent-a-back", { agentId: "agent-a" }));
+    assert.ok(back?.message, "取消屏蔽后 A 回来");
   } finally {
     __setInjectNowForTest(null);
   }
@@ -583,7 +588,7 @@ const PARTNER_B_PATH = "D:/hana/agents/partner-b/sessions/2026-09-07T10-00-00-00
 test("适配层：没给 sessionPath 时，payload.session.agentId 说了算（A 关了就不注入）", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("adapter-agent-payload");
-  await data.updateSettings({ codeAgentSettings: { "agent-a": { enabled: false } } });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   const { hooks, logs } = makeAdapterHost(data);
   try {
@@ -601,7 +606,7 @@ test("适配层：没给 sessionPath 时，payload.session.agentId 说了算（A
 test("适配层：路径指向 B、payload 明确是 A 时 A 优先", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("adapter-agent-precedence");
-  await data.updateSettings({ codeAgentSettings: { "agent-a": { enabled: false } } });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   const { hooks, logs } = makeAdapterHost(data);
   try {
@@ -637,7 +642,7 @@ test("适配层：路径指向 B、payload 明确是 A 时 A 优先", async () =
 test("适配层：顶层 payload.agentId 也算宿主明说", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("adapter-agent-top");
-  await data.updateSettings({ codeAgentSettings: { "agent-a": { enabled: false } } });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   const { hooks, logs } = makeAdapterHost(data);
   try {
@@ -656,7 +661,7 @@ test("适配层：顶层 payload.agentId 也算宿主明说", async () => {
 test("适配层：没有合法 id 就不要猜——agentName 不算、对象不算，退回路径", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("adapter-agent-invalid");
-  await data.updateSettings({ codeAgentSettings: { "agent-a": { enabled: false } } });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   const { hooks, logs } = makeAdapterHost(data);
   try {
@@ -681,7 +686,7 @@ test("适配层：没有合法 id 就不要猜——agentName 不算、对象不
 test("适配层：路径也没有伙伴段时用默认（全局）配置", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("adapter-agent-default");
-  await data.updateSettings({ codeAgentSettings: { "agent-a": { enabled: false } } });
+  await data.updateSettings({ codeInjectionDisabledAgentIds: ["agent-a"] });
   __setInjectNowForTest(() => local(10, 0));
   const { hooks, logs } = makeAdapterHost(data);
   try {
