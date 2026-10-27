@@ -1,4 +1,4 @@
-// 拾光记 · Code 页「单独关闭」名单测试
+// 拾光记 · Code 窗口「单独关闭」名单测试
 // 覆盖：名单归一化、resolver（总闸 / 单伙伴 / 取消关闭）、旧 codeAgentSettings 只迁 enabled:false、
 // 数据层存取与首个规范名单落地、路由校验与回读、页面产物与勾选逻辑。
 
@@ -284,7 +284,17 @@ test("页面产物：Code 那屏是和聊天同款的勾选名单，旧编辑器
     PAGE_HTML.includes("body.codeInjectionDisabledAgentIds = getCodeInjectionDisabledAgentIdsFromUI();"),
     "保存时要带上新名单",
   );
-  assert.match(PAGE_HTML, /对 Code 页不起作用/, "聊天那屏的屏蔽只管聊天");
+  assert.match(PAGE_HTML, /对 Code 窗口不起作用/, "聊天那屏的屏蔽只管聊天");
+  // 旧称呼退场，两屏标签就是「聊天窗口 / Code 窗口」
+  assert.equal(PAGE_HTML.includes("Code 页"), false, "页面里还有旧称呼「Code 页」");
+  assert.ok(
+    PAGE_HTML.includes('<button class="seg-btn active" data-mode="chat" aria-selected="true">聊天窗口</button>'),
+    "聊天那屏的标签不对",
+  );
+  assert.ok(
+    PAGE_HTML.includes('<button class="seg-btn" data-mode="code" aria-selected="false">Code 窗口</button>'),
+    "Code 那屏的标签不对",
+  );
   assert.match(PAGE_HTML, /总闸管所有伙伴/);
 
   // 旧的逐伙伴参数编辑器：HTML、脚本、变量、事件一个都不留
@@ -316,9 +326,9 @@ test("页面产物：Code 那屏是和聊天同款的勾选名单，旧编辑器
   assert.equal(fs.readFileSync(path.resolve("ui/panel.html"), "utf8"), PAGE_HTML, "panel.html 与模板不一致，重跑 tools/build-page.mjs");
 });
 
-/** 把「Code 页：单独关闭名单」那一段脚本切出来，配上最小 DOM 假件跑一遍。 */
+/** 把「Code 窗口：单独关闭名单」那一段脚本切出来，配上最小 DOM 假件跑一遍。 */
 function loadCodeListPage() {
-  const marker = "/* ── Code 页：单独关闭名单 ── */";
+  const marker = "/* ── Code 窗口：单独关闭名单 ── */";
   const start = PAGE_HTML.indexOf(marker);
   const end = PAGE_HTML.indexOf("function toggleInjectionQuick() {", start);
   assert.ok(start > 0 && end > start, "页面里找不到 Code 名单那一段脚本");

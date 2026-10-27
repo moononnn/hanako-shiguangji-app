@@ -1423,7 +1423,7 @@ export default function registerRoutes(app, ctx) {
       if (body.codeInjectionItems !== undefined) {
         const raw = body.codeInjectionItems;
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-          return c.json({ ok: false, error: "Code 页注入项格式不对" });
+          return c.json({ ok: false, error: "Code 窗口注入项格式不对" });
         }
         // 只收清单里的布尔项；没传的键保留默认（只留峰谷），不把未选的项当默认开。
         const picked = {};
@@ -1435,30 +1435,30 @@ export default function registerRoutes(app, ctx) {
       if (body.codeInjectMode !== undefined) {
         const mode = String(body.codeInjectMode || "").trim().toLowerCase();
         if (!CODE_INJECT_MODES.includes(mode)) {
-          return c.json({ ok: false, error: "Code 页带入方式只能选适时、相伴或常在" });
+          return c.json({ ok: false, error: "Code 窗口带入方式只能选适时、相伴或常在" });
         }
         patch.codeInjectMode = mode;
       }
       if (body.codeInjectIntervalHours !== undefined) {
         const hours = Number(body.codeInjectIntervalHours);
         if (!VALID_CODE_INJECT_INTERVAL_HOURS.includes(hours)) {
-          return c.json({ ok: false, error: "Code 页刷新间隔只能选 30 分钟、1 小时、4 小时或 8 小时" });
+          return c.json({ ok: false, error: "Code 窗口刷新间隔只能选 30 分钟、1 小时、4 小时或 8 小时" });
         }
         patch.codeInjectIntervalHours = hours;
       }
       if (body.codeInjectionDisabledAgentIds !== undefined) {
         const raw = body.codeInjectionDisabledAgentIds;
-        if (!Array.isArray(raw)) return c.json({ ok: false, error: "Code 页单独关闭名单格式不对" });
+        if (!Array.isArray(raw)) return c.json({ ok: false, error: "Code 窗口单独关闭名单格式不对" });
         // 只收字符串伙伴 ID；前后空白、重复、危险原型键由 normalizer 收干净。
         // 显式传 [] 就是「一个都不关」，没传这个键就不动存着的那份。
         for (const item of raw) {
-          if (typeof item !== "string") return c.json({ ok: false, error: "Code 页单独关闭名单只认伙伴 ID" });
+          if (typeof item !== "string") return c.json({ ok: false, error: "Code 窗口单独关闭名单只认伙伴 ID" });
         }
         patch.codeInjectionDisabledAgentIds = normalizeCodeInjectionDisabledAgentIds(raw);
       }
       // 逐伙伴参数那套已经撤掉：老页面再提交旧表，得让她刷新，不能默默当成功。
       if (body.codeAgentSettings !== undefined) {
-        return c.json({ ok: false, error: "Code 页现在只用「单独关闭」名单，页面还是旧的：请刷新页面再保存" });
+        return c.json({ ok: false, error: "Code 窗口现在只用「单独关闭」名单，页面还是旧的：请刷新页面再保存" });
       }
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {
