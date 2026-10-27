@@ -52,7 +52,14 @@ import {
   extractMessageText,
 } from "../lib/day-summary.js";
 import { selectRecentSummaries } from "../lib/recent-summaries.js";
-import { CODE_INJECTION_ITEMS, normalizeCodeInjectionItems } from "../lib/code-mode.js";
+import {
+  CODE_INJECTION_ITEMS,
+  CODE_INJECT_MODES,
+  VALID_CODE_INJECT_INTERVAL_HOURS,
+  normalizeCodeInjectIntervalHours,
+  normalizeCodeInjectMode,
+  normalizeCodeInjectionItems,
+} from "../lib/code-mode.js";
 import {
   MOODS,
   buildSignalAwareEvidence,
@@ -594,6 +601,9 @@ function publicSettings(s) {
     codeInjectionEnabled: s.codeInjectionEnabled !== false,
     codeInjectionItems: normalizeCodeInjectionItems(s.codeInjectionItems),
     codeInjectionItemOptions: CODE_INJECTION_ITEMS,
+    // Code 页的频率：和聊天窗口同一套语义，只是各存各的值。
+    codeInjectMode: normalizeCodeInjectMode(s.codeInjectMode),
+    codeInjectIntervalHours: normalizeCodeInjectIntervalHours(s.codeInjectIntervalHours),
     // 当前模型档关不掉思考时，页面要提醒用户「消耗明显更多，建议换一个能关思考的档」。
     thinkingUnstoppable: isThinkingUnstoppable(s),
     thinkingModelKey: currentModelKey(s),
@@ -1415,6 +1425,20 @@ export default function registerRoutes(app, ctx) {
           if (raw[item.id] !== undefined) picked[item.id] = !!raw[item.id];
         }
         patch.codeInjectionItems = normalizeCodeInjectionItems(picked);
+      }
+      if (body.codeInjectMode !== undefined) {
+        const mode = String(body.codeInjectMode || "").trim().toLowerCase();
+        if (!CODE_INJECT_MODES.includes(mode)) {
+          return c.json({ ok: false, error: "Code 页带入方式只能选适时、相伴或常在" });
+        }
+        patch.codeInjectMode = mode;
+      }
+      if (body.codeInjectIntervalHours !== undefined) {
+        const hours = Number(body.codeInjectIntervalHours);
+        if (!VALID_CODE_INJECT_INTERVAL_HOURS.includes(hours)) {
+          return c.json({ ok: false, error: "Code 页刷新间隔只能选 30 分钟、1 小时、4 小时或 8 小时" });
+        }
+        patch.codeInjectIntervalHours = hours;
       }
       if (body.weatherArea !== undefined) {
         if (body.weatherArea == null || body.weatherArea === "") {

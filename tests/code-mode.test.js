@@ -61,7 +61,7 @@ function homeCtx(sessionId) {
 
 // ── 配置归一化 ──
 
-test("Code 页注入项：缺省只留峰谷，写坏的键不认，布尔值才生效", () => {
+test("Code 页注入项：缺省带时间和峰谷，写坏的键不认，布尔值才生效", () => {
   assert.deepEqual(normalizeCodeInjectionItems(undefined), { ...DEFAULT_CODE_INJECTION_ITEMS });
   assert.deepEqual(normalizeCodeInjectionItems("坏数据"), { ...DEFAULT_CODE_INJECTION_ITEMS });
   assert.deepEqual(normalizeCodeInjectionItems([1, 2]), { ...DEFAULT_CODE_INJECTION_ITEMS });
@@ -71,6 +71,7 @@ test("Code 页注入项：缺省只留峰谷，写坏的键不认，布尔值才
   assert.equal(merged.todos, false);
   assert.equal(merged.peak, false, "亲手关掉的项不能被默认值盖回来");
   assert.equal(merged.archive, false);
+  assert.equal(merged.time, true, "时间跟其它块一样在清单里，默认带着");
   assert.equal("bogus" in merged, false, "清单外的键不该被存下去");
 
   // 字符串 "true" 不算打开：宁可少带一块，也别照着乱七八糟的值乱塞。
@@ -85,6 +86,18 @@ test("Code 页文案只留时间与一句页脚，不带历史档案的日期硬
   assert.match(text, /以上是此刻的时间与背景/);
   assert.ok(!text.includes("日期硬约束"), "Code 页不该背一套日期宪法");
   assert.ok(!text.includes("上面这些是你手上关于今天"), "也不该带普通窗口那份事实边界长句");
+});
+
+test("Code 页时间块关掉时：一个块都没有就整轮不注入", () => {
+  const text = buildInjectionText({ now: FIXED_NOW, codeMode: true, force: true, includeTimeBlock: false });
+  assert.equal(text, null, "没有任何块时不该返回半句话");
+});
+
+test("Code 页只给日期不给钟点时：页脚说清是日期", () => {
+  const text = buildInjectionText({ now: FIXED_NOW, codeMode: true, force: true, includeTime: false });
+  assert.match(text, /【今日时光】2026年10月26日星期一/);
+  assert.ok(!text.includes("09:10"), "不该带会过期的钟点");
+  assert.match(text, /以上是今天的日期与背景/);
 });
 
 test("普通窗口的页脚保持原样", () => {
@@ -169,11 +182,30 @@ test("Code 页选上天气才带窗外，选上待办才列待办", async () => 
   assert.match(result.message.content, /今日待办：查一下接口/);
 });
 
-test("同一分钟同一份内容不重复塞，换了一分钟就带新的时间", async () => {
+test("默认（相伴）不再每轮都带：间隔内不注入，间隔到了才带", async () => {
   __clearInjectTrackersForTest();
-  makeData("code-dedupe");
+  makeData("code-interval");
   const handler = makeHandler();
-  const ctx = codeCtx("code-dedupe-session", { model: { provider: "openai", id: "gpt-5.6" } });
+  const ctx = codeCtx("code-interval-session", { model: { provider: "openai", id: "gpt-5.6" } });
+  const first = handler({}, ctx);
+  assert.ok(first?.message, "新会话先带一次");
+  assert.match(first.message.content, /【今日时光】2026年10月26日星期一 09:10/);
+  assert.equal(handler({}, ctx), undefined, "间隔没到不该再带");
+
+  // 过了 4 小时（默认间隔）才再带一次
+  __setInjectNowForTest(() => new Date(2026, 9, 26, 13, 11, 0));
+  const later = handler({}, ctx);
+  assert.ok(later?.message, "间隔到了要重新带");
+  assert.match(later.message.content, /13:11/);
+  __setInjectNowForTest(() => FIXED_NOW);
+});
+
+test("选「常在」时每轮都带，同一分钟仍不重复塞", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-always");
+  await data.updateSettings({ codeInjectMode: "always" });
+  const handler = makeHandler();
+  const ctx = codeCtx("code-always-session", { model: { provider: "openai", id: "gpt-5.6" } });
   const first = handler({}, ctx);
   assert.ok(first?.message);
   assert.equal(handler({}, ctx), undefined, "同一分钟不该再塞一条一样的时间");
@@ -182,6 +214,101 @@ test("同一分钟同一份内容不重复塞，换了一分钟就带新的时�
   const later = handler({}, ctx);
   assert.ok(later?.message, "时间变了要重新带");
   assert.match(later.message.content, /09:12/);
+  __setInjectNowForTest(() => FIXED_NOW);
+});
+
+test("选「适时」时，同一天不再重复带", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-economical");
+  await data.updateSettings({ codeInjectMode: "economical" });
+  const handler = makeHandler();
+  const ctx = codeCtx("code-economical-session", { model: { provider: "openai", id: "gpt-5.6" } });
+  assert.ok(handler({}, ctx)?.message, "新会话带一次");
+  assert.equal(handler({}, ctx), undefined, "同一天不该再带");
+
+  __setInjectNowForTest(() => new Date(2026, 9, 27, 9, 12, 0));
+  assert.ok(handler({}, ctx)?.message, "跨天要再带一次");
+  __setInjectNowForTest(() => FIXED_NOW);
+});
+
+test("时间没勾选时，整行「今日时光」都不进", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-no-time");
+  await data.updateSettings({ codeInjectionItems: { time: false, peak: false } });
+  const handler = makeHandler();
+  const ctx = codeCtx("code-no-time-session", { model: { provider: "openai", id: "gpt-5.6" } });
+  const result = handler({}, ctx);
+  assert.ok(!result, "时间没勾、其它也没勾时，这轮什么都不该注入");
+  assert.ok(!result?.message?.content?.includes("【今日时光】"));
+
+  // 把别的块勾上：块进来了，时刻仍然不进
+  await data.setWeatherCache({
+    location: "四川省 成都市 武侯区",
+    fetchedAt: FIXED_NOW.getTime(),
+    result: { place: "四川省 成都市 武侯区", line: "小雨淅沥，10°C", temp: 10, code: 61, isDay: true },
+  });
+  await data.updateSettings({
+    weatherLocation: "四川省 成都市 武侯区",
+    weatherArea: { code: "510107" },
+    codeInjectionItems: { time: false, peak: false, weather: true },
+  });
+  __clearInjectTrackersForTest();
+  const handler2 = makeHandler();
+  const withWeather = handler2({}, codeCtx("code-no-time-weather", { model: { provider: "openai", id: "gpt-5.6" } }));
+  assert.ok(withWeather?.message, "勾了天气就该带");
+  assert.ok(withWeather.message.content.includes("【窗外】"));
+  assert.ok(!withWeather.message.content.includes("【今日时光】"), "时间没勾就不该出现日期与时刻");
+  assert.ok(!withWeather.message.content.includes("此刻的时间"), "页脚也不能再提时间");
+});
+
+test("「适时」档只给日期不给钟点（钟点会过期，带错的比不带更糟）", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-econ-time");
+  await data.updateSettings({ codeInjectMode: "economical" });
+  const handler = makeHandler();
+  const result = handler({}, codeCtx("code-econ-time-session", { model: { provider: "openai", id: "gpt-5.6" } }));
+  assert.ok(result?.message, "新会话该带一次");
+  assert.match(result.message.content, /【今日时光】2026年10月26日星期一/, "日期要给");
+  assert.ok(!/09:10/.test(result.message.content), "适时档不该带会过期的钟点");
+
+  // 「相伴」档就要带完整时刻了
+  __clearInjectTrackersForTest();
+  await data.updateSettings({ codeInjectMode: "balanced" });
+  const handler2 = makeHandler();
+  const withClock = handler2({}, codeCtx("code-econ-time-session-2", { model: { provider: "openai", id: "gpt-5.6" } }));
+  assert.match(withClock.message.content, /09:10/, "相伴档要带钟点");
+});
+
+test("页脚不再请她主动报时间", async () => {
+  __clearInjectTrackersForTest();
+  makeData("code-footer");
+  const handler = makeHandler();
+  const result = handler({}, codeCtx("code-footer-session", { model: { provider: "openai", id: "gpt-5.6" } }));
+  assert.ok(result?.message);
+  const text = result.message.content;
+  assert.ok(!text.includes("自然带一句"), "旧页脚在请模型主动报时间");
+  assert.ok(text.includes("不必在回复里专门报时间"), "新页脚要明说别报时间");
+});
+
+test("改了 Code 那屏的设置，下一轮立刻按新的来", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-settings-change");
+  const handler = makeHandler();
+  const ctx = codeCtx("code-settings-change-session", { model: { provider: "openai", id: "gpt-5.6" } });
+  assert.ok(handler({}, ctx)?.message, "新会话先带一次");
+  assert.equal(handler({}, ctx), undefined, "间隔没到不注入");
+
+  // 把时间关掉：设置变了，不该等间隔，下一轮就该按新设置来（结果是不注入）
+  await data.updateSettings({ codeInjectionItems: { time: false, peak: false } });
+  assert.equal(handler({}, ctx), undefined, "时间关掉后这轮不该再带时刻");
+
+  // 再把方式改成常在、并且把时间打开：下一次立刻按新设置来
+  // （推到下一分钟：同一分钟同一份内容会被去重挡掉，那是另一条规则）
+  await data.updateSettings({ codeInjectMode: "always", codeInjectionItems: { time: true, peak: false } });
+  __setInjectNowForTest(() => new Date(2026, 9, 26, 9, 11, 0));
+  const again = handler({}, ctx);
+  assert.ok(again?.message, "设置变了就该立即生效");
+  assert.match(again.message.content, /【今日时光】2026年10月26日星期一 09:11/);
   __setInjectNowForTest(() => FIXED_NOW);
 });
 
@@ -242,19 +369,31 @@ test("路由：Code 页设置能存能读，坏格式拒收", () => {
 
     const saved = await callPost({
       codeInjectionEnabled: false,
-      codeInjectionItems: { peak: true, weather: true, todos: false },
+      codeInjectionItems: { time: false, peak: true, weather: true, todos: false },
+      codeInjectMode: "always",
+      codeInjectIntervalHours: 1,
     });
     if (!saved?.ok) throw new Error("Code 页设置没存上：" + JSON.stringify(saved));
     const settings = (await callGet()).settings;
     if (settings.codeInjectionEnabled !== false) throw new Error("总闸没落盘");
     if (settings.codeInjectionItems.weather !== true) throw new Error("天气项没落盘");
     if (settings.codeInjectionItems.special !== false) throw new Error("未选的项不该被意外打开");
+    if (settings.codeInjectionItems.time !== false) throw new Error("时间项没落盘");
     if (!Array.isArray(settings.codeInjectionItemOptions) || !settings.codeInjectionItemOptions.length) {
       throw new Error("页面拿不到可选清单");
     }
+    if (!settings.codeInjectionItemOptions.some((item) => item.id === "time")) {
+      throw new Error("时间不在可选清单里");
+    }
+    if (settings.codeInjectMode !== "always") throw new Error("Code 页带入方式没落盘");
+    if (settings.codeInjectIntervalHours !== 1) throw new Error("Code 页间隔没落盘");
 
     const bad = await callPost({ codeInjectionItems: "nope" });
     if (bad?.ok) throw new Error("坏格式应当拒收");
+    const badMode = await callPost({ codeInjectMode: "乱写" });
+    if (badMode?.ok) throw new Error("坏的带入方式应当拒收");
+    const badInterval = await callPost({ codeInjectIntervalHours: 3 });
+    if (badInterval?.ok) throw new Error("坏的间隔应当拒收");
     console.log(JSON.stringify({ ok: true, weather: settings.codeInjectionItems.weather }));
   `;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", childCode], {
@@ -267,9 +406,15 @@ test("路由：Code 页设置能存能读，坏格式拒收", () => {
 
 test("页面产物：聊天 / Code 共用一组设置，靠一个切换键换屏", () => {
   const html = fs.readFileSync(path.resolve("ui/panel.html"), "utf8");
-  for (const id of ["context-mode-seg", "context-mode-note", "context-mode-panel", "context-panel-chat", "context-panel-code", "code-injection-items", "peak-seg"]) {
+  for (const id of ["context-mode-seg", "context-mode-note", "context-mode-panel", "context-panel-chat", "context-panel-code", "code-injection-items", "peak-seg",
+    "code-mode-seg", "code-interval-seg"]) {
     assert.ok(html.includes(`id="${id}"`), `页面里缺 ${id}`);
   }
+  assert.match(html, /function syncCodeModeUi/);
+  assert.match(html, /codeInjectMode: segVal\('code-mode-seg'\)/);
+  assert.match(html, /codeInjectIntervalHours: \+segVal\('code-interval-seg'\)/);
+  assert.ok(!html.includes('id="code-time-seg"'), "时间不再单独当开关，并进多选清单里了");
+  assert.match(html, /\{ id: 'time', label: '当前时间' \}/);
   assert.ok(!html.includes("这一屏配"), "切换键不再挂一个多余的标签");
   assert.ok(html.includes("聊天情境·开"), "主页第一个开关说清楚自己管聊天");
   assert.ok(html.includes('id="code-context-toggle-btn"'), "主页要有第二个开关管 Code");

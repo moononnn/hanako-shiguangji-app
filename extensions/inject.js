@@ -42,7 +42,12 @@ import {
 } from "../lib/weather-alert.js";
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
 import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
-import { resolveCodeInjection } from "../lib/code-mode.js";
+import {
+  normalizeCodeInjectIntervalHours,
+  normalizeCodeInjectMode,
+  normalizeCodeInjectionItems,
+  resolveCodeInjection,
+} from "../lib/code-mode.js";
 import { isCodeSession } from "../lib/session-kind.js";
 import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/session-model.js";
 import { schedulePublicToday } from "../lib/public-today.js";
@@ -668,14 +673,18 @@ export default function registerShiguangjiInject(pi) {
 }
 
 // ── Code 页注入 ──
-// 跟普通窗口共用一个 tracker、一份峰谷状态，区别只在「带哪些块」和「每轮都带时间」。
-// 为什么不走 shouldInject 的间隔：Code 页里「现在几点」得是这一轮的现在；
-// 同一分钟内容相同会被 hash 挡掉，所以不用节流，也不会每分钟刷一条新消息。
+// 频率跟聊天窗口同一套：适时 / 相伴 / 常在 + 回来多久后更新，都由用户选。
+// 以前 Code 页是「每轮都带时间」的特例，那条例外已经取消——它只是块更少、状态更独立。
 function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentId, currentModel, partnerInjectionDisabled, diskPeakState }) {
   const previous = tracker.get(sessionId) || data.getInjectionState(sessionId) || null;
 
   // 总闸关掉 = 那边一句话都不带，连峰谷也停。这正是「一键关掉 Code 页所有注入词」。
-  const { enabled: codeEnabled, items } = resolveCodeInjection(settings);
+  const {
+    enabled: codeEnabled,
+    items,
+    mode: codeMode,
+    intervalHours: codeIntervalHours,
+  } = resolveCodeInjection(settings);
   if (!codeEnabled || partnerInjectionDisabled) {
     const state = { ...(previous || {}), codeMode: true, injectionEnabled: false, lastInjectAt: now.getTime() };
     tracker.set(sessionId, state);
@@ -691,6 +700,29 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
   if (peakDecision.state) {
     peakTracker.set(sessionId, peakDecision.state);
     persistDeepSeekState(data, sessionId, peakDecision.state);
+  }
+
+  // 频率判定：和聊天窗口同一个 shouldInject，只是读 Code 自己那屏的设置。
+  // 改了 Code 那屏的设置（方式/间隔/带哪些/时间开关）→ 下一轮立刻按新设置来，不等间隔。
+  const contextKey = buildCodeContextKey(settings);
+  const decision = shouldInject({
+    sessionId,
+    now,
+    mode: codeMode,
+    intervalHours: codeIntervalHours,
+    lastState: previous,
+    hasSpecialDay: false,
+    dayBoundaryHour: settings.dayBoundaryHour,
+    contextKey,
+    injectionEnabled: true,
+  });
+  // 换班预告这类硬触发不吃频率：错过那几分钟就没下次了。
+  const peakForced = peakDecision.should;
+  if (!decision.should && !peakForced) {
+    const state = { ...(previous || {}), ...decision.newState, codeMode: true, injectionEnabled: true };
+    tracker.set(sessionId, state);
+    persistInjectionState(data, sessionId, state);
+    return undefined;
   }
 
   // 只收集真正要带的东西：没选的块连算都不算，省得白读一遍总结和天气。
@@ -739,30 +771,43 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
     xingjiEntries,
     weather: weatherForInjection,
     deepseekNotice: peakDecision.notice,
-    includeTime: true,
+    // 适时档只给日期不给钟点：一天最多来一次，那一刻的钟点很快就过期了，
+    // 带一个错的比不带更糟。聊天窗口的「适时」也是同一条规矩。
+    includeTime: codeMode !== "economical",
+    includeTimeBlock: items.time === true, // 时间没勾选时，整行「今日时光」都不进
     force: true, // Code 页至少要把这一轮的时间递上去
     codeMode: true,
   });
-  if (!text) return undefined;
 
-  const hash = crypto.createHash("sha1").update(text).digest("hex");
   const state = {
     ...(previous || {}),
+    ...decision.newState,
     codeMode: true,
     injectionEnabled: true,
-    lastInjectAt: now.getTime(),
-    lastDateKey: lifeDayKey(now, settings.dayBoundaryHour),
-    lastHash: hash,
   };
+  if (!text) {
+    // 一个块都没凑齐（时间关着、其它也没勾）：这轮不注入，
+    // 但也不推进间隔——用户把时间开关打开后，下一条消息就该看到。
+    state.lastInjectAt = previous?.lastInjectAt ?? now.getTime();
+    state.lastDateKey = previous?.lastDateKey || lifeDayKey(now, settings.dayBoundaryHour);
+    tracker.set(sessionId, state);
+    persistInjectionState(data, sessionId, state);
+    return undefined;
+  }
+
+  const hash = crypto.createHash("sha1").update(text).digest("hex");
+  state.lastInjectAt = now.getTime();
+  state.lastDateKey = lifeDayKey(now, settings.dayBoundaryHour);
+  state.lastHash = hash;
   if (weatherForInjection) {
     state.weatherLastMentionAt = now.getTime();
     state.weatherLastFactKey = weatherDecision.factKey;
   }
   // 换班预告这类硬触发不许被去重吃掉；其余同一分钟同一份内容就不再塞第二遍。
-  const unchanged = previous?.codeMode === true && previous?.lastHash === hash && !peakDecision.should;
+  const unchanged = previous?.codeMode === true && previous?.lastHash === hash && !peakForced;
   tracker.set(sessionId, state);
-  if (unchanged) return undefined;
   persistInjectionState(data, sessionId, state);
+  if (unchanged) return undefined;
 
   return {
     message: {
@@ -771,12 +816,29 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
       display: false,
       details: {
         injector: "shiguangji",
-        reason: peakDecision.should ? `deepseek-${peakDecision.reason}` : "code-mode",
+        reason: peakForced ? `deepseek-${peakDecision.reason}` : decision.reason,
         codeMode: true,
-        deepseekNotice: !!peakDecision.should,
+        deepseekNotice: !!peakForced,
       },
     },
   };
+}
+
+// Code 页自己的设置指纹：只认 Code 这屏管的东西。
+// 聊天那屏改了别的设置，不该让 Code 页跟着重刷一次。
+function buildCodeContextKey(settings = {}) {
+  const items = normalizeCodeInjectionItems(settings.codeInjectionItems);
+  return JSON.stringify({
+    mode: normalizeCodeInjectMode(settings.codeInjectMode),
+    intervalHours: normalizeCodeInjectIntervalHours(settings.codeInjectIntervalHours),
+    items,
+    boundaryHour: settings.dayBoundaryHour,
+    showPeriod: settings.showPeriod !== false,
+    summaryShared: settings.summaryShared === true,
+    weatherEnabled: settings.weatherEnabled !== false,
+    weatherLocation: settings.weatherLocation || "",
+    xingjiInjectionEnabled: settings.xingjiInjectionEnabled === true,
+  });
 }
 
 function buildInjectionContextKey(settings = {}) {
