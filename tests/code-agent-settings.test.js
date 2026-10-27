@@ -41,8 +41,8 @@ test("名单：只收字符串 ID，去空白、去重，对象数字不当 ID",
   assert.deepEqual(normalizeCodeInjectionDisabledAgentIds({ hanako: true }), [], "旧 map 形状不是名单");
 
   assert.deepEqual(
-    normalizeCodeInjectionDisabledAgentIds([" hanako ", "hanako", "", "  ", 42, { id: "yumi" }, "yumi"]),
-    ["hanako", "yumi"],
+    normalizeCodeInjectionDisabledAgentIds([" hanako ", "hanako", "", "  ", 42, { id: "mikan" }, "mikan"]),
+    ["hanako", "mikan"],
     "前后空白当同一个人，数字和对象不进门",
   );
 });
@@ -107,7 +107,7 @@ test("resolver：旧表里的逐伙伴参数不再生效，只认 enabled:false 
     codeInjectIntervalHours: 4,
     codeAgentSettings: {
       hanako: { enabled: false, items: { weather: true }, mode: "always", intervalHours: 0.5 },
-      yumi: { enabled: true, items: { todos: true } },
+      mikan: { enabled: true, items: { todos: true } },
     },
   };
   const hanako = resolveCodeInjection(legacy, "hanako");
@@ -116,9 +116,9 @@ test("resolver：旧表里的逐伙伴参数不再生效，只认 enabled:false 
   assert.equal(hanako.mode, "balanced", "旧 mode 不再生效");
   assert.equal(hanako.intervalHours, 4, "旧 intervalHours 不再生效");
 
-  const yumi = resolveCodeInjection(legacy, "yumi");
-  assert.equal(yumi.enabled, true, "旧 enabled:true 什么都不改");
-  assert.equal(yumi.items.todos, false, "旧 enabled:true 的 items 也不生效");
+  const mikan = resolveCodeInjection(legacy, "mikan");
+  assert.equal(mikan.enabled, true, "旧 enabled:true 什么都不改");
+  assert.equal(mikan.items.todos, false, "旧 enabled:true 的 items 也不生效");
 });
 
 test("名单读取：新字段只要是数组就以它为准，[] 解除屏蔽且不复活", () => {
@@ -134,8 +134,8 @@ test("名单读取：新字段只要是数组就以它为准，[] 解除屏蔽�
     "新 [] 优先：解除的屏蔽不能被旧表合回来",
   );
   assert.deepEqual(
-    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap, codeInjectionDisabledAgentIds: ["yumi"] }),
-    ["yumi"],
+    readCodeInjectionDisabledAgentIds({ codeAgentSettings: legacyMap, codeInjectionDisabledAgentIds: ["mikan"] }),
+    ["mikan"],
   );
   // 新字段形状写坏了等于旧配置：退回去迁一次，不至于整张名单消失
   assert.deepEqual(
@@ -153,7 +153,7 @@ test("数据层：默认空名单，旧 map 的 false 迁过来，旧其他字�
   await data.settings.update((d) => {
     d.codeAgentSettings = {
       hanako: { enabled: false, items: { weather: true }, mode: "always", intervalHours: 1 },
-      yumi: { enabled: true },
+      mikan: { enabled: true },
       "--": { mode: "always" },
     };
   });
@@ -187,13 +187,13 @@ test("数据层：新 [] 就是解除，旧 false 不会复活", async () => {
 test("数据层：名单收敛成字符串 ID，聊天名单独立", async () => {
   const data = makeData();
   const saved = await data.updateSettings({
-    codeInjectionDisabledAgentIds: [" hanako ", "hanako", "", 42, "__proto__", "yumi"],
+    codeInjectionDisabledAgentIds: [" hanako ", "hanako", "", 42, "__proto__", "mikan"],
   });
-  assert.deepEqual(saved.codeInjectionDisabledAgentIds, ["hanako", "yumi"]);
+  assert.deepEqual(saved.codeInjectionDisabledAgentIds, ["hanako", "mikan"]);
 
   // 聊天那屏的名单改了，Code 这边一个字节都不动
   await data.updateSettings({ injectionDisabledAgentIds: ["soraru"] });
-  assert.deepEqual(data.getSettings().codeInjectionDisabledAgentIds, ["hanako", "yumi"]);
+  assert.deepEqual(data.getSettings().codeInjectionDisabledAgentIds, ["hanako", "mikan"]);
   assert.deepEqual(resolveCodeInjection(data.getSettings(), "soraru").enabled, true, "聊天静音不牵连 Code");
 
   // Code 名单改了，聊天那边也不动
@@ -228,16 +228,16 @@ test("路由：GET 给新名单，POST 能存能读能清空，坏格式拒收�
     check(settings.codeInjectionDisabledAgentIds.length === 0, "旧配置应当是空名单");
     check(!("codeAgentSettings" in settings), "GET 还在暴露旧 map");
 
-    const saved = await callPost({ codeInjectionDisabledAgentIds: [" hanako ", "hanako", "yumi"] });
+    const saved = await callPost({ codeInjectionDisabledAgentIds: [" hanako ", "hanako", "mikan"] });
     check(saved?.ok, "名单没存上：" + JSON.stringify(saved));
     settings = await callGet();
-    check(JSON.stringify(settings.codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "yumi"]),
+    check(JSON.stringify(settings.codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "mikan"]),
       "落盘的名单不对：" + JSON.stringify(settings.codeInjectionDisabledAgentIds));
 
     // 省略这个键 = 不动它（顺手保存别的设置不能把名单清空）
     const partial = await callPost({ autoSummary: true });
     check(partial?.ok, "只改别的设置被拒：" + JSON.stringify(partial));
-    check(JSON.stringify((await callGet()).codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "yumi"]),
+    check(JSON.stringify((await callGet()).codeInjectionDisabledAgentIds) === JSON.stringify(["hanako", "mikan"]),
       "省略名单时不该动存着的那份");
 
     // 显式 [] = 全部解除
@@ -368,23 +368,23 @@ function loadCodeListPage() {
 
 test("页面逻辑：勾选只改列表里看得见的伙伴，看不见的存着的 ID 留着", () => {
   const page = loadCodeListPage();
-  const agents = [{ agentId: "hanako", agentName: "花子" }, { agentId: "yumi", agentName: "悠米" }];
+  const agents = [{ agentId: "hanako", agentName: "花子" }, { agentId: "mikan", agentName: "米卡" }];
 
   page.renderCodeInjectionAgents(agents, ["hanako", "ghost"]);
   assert.match(page.html(), /data-agent-id="hanako" checked/);
-  assert.ok(!/data-agent-id="yumi" checked/.test(page.html()), "没在名单里的不该勾上");
+  assert.ok(!/data-agent-id="mikan" checked/.test(page.html()), "没在名单里的不该勾上");
   assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost", "hanako"], "看不到的 ghost 要留着");
 
-  // 取消勾选 hanako：只剩 ghost，yumi 不受影响
+  // 取消勾选 hanako：只剩 ghost，mikan 不受影响
   page.setChecked("hanako", false);
   assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost"]);
 
-  // 重新勾上 yumi
-  page.setChecked("yumi", true);
-  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost", "yumi"]);
+  // 重新勾上 mikan
+  page.setChecked("mikan", true);
+  assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost", "mikan"]);
 
   // 全部取消：看得见的都解除，看不见的还在
-  page.setChecked("yumi", false);
+  page.setChecked("mikan", false);
   assert.deepEqual(page.getCodeInjectionDisabledAgentIdsFromUI(), ["ghost"]);
 });
 
