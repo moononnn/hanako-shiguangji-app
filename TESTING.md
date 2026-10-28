@@ -2,6 +2,16 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 暗色主题：跟着 Hana 的深浅色（2026-10-28，静态渲染验证，宿主内未实机切过）
+
+- **需求**：给拾光记页面加暗色主题，自适应 Hana 的深浅色。
+- **宿主机制（读宿主代码确认）**：宿主渲染层给 App iframe 的地址统一加 `hana-theme` / `hana-theme-appearance` / `hana-css` / `hana-palette-light-*` / `hana-palette-dark-*`（`desktop/dist-renderer/assets/ChatTranscript-*.js` 里的 `sme()`）；主题变更通过 `hana.theme.changed` 推给页面（主进程 side 在 `APP_WINDOW` 通道）。本 App 页面是纯静态 HTML，不引 SDK，所以只读这两条通道。
+- **实现**：`lib/page-template.js` 与 `ui/hall.html` 各在 `<style>` 前加一段内联脚本（URL 参数 → 宿主消息 → `prefers-color-scheme`），在 `html` 上写 `data-appearance`；`:root` 补 `color-scheme: light`。暗色样式集中在 `</style>` 前一块 `html[data-appearance="dark"]` 覆盖里：变量整体换一套 + 约 120 条写死颜色的选择器覆盖。**亮色规则一行未改**，所以亮色外观零风险。
+- **调色**：夜里的手帐——底 `#1a1917`、卡片 `#232220`、墨 `#e7dfd0`、线 `#37332c`；`--primary-deep` / `--accent-deep` / `--code-deep` 在暗色下换成亮色（它们主要当文字色），实底白字那几处（日历 ✓、选中的 tab、主按钮）单独覆盖成深墨字或深绿底。门厅的 `--deep` 压舱包帕色降到 `#2f4c40`。
+- **验证**：`node --check lib/page-template.js` 通过；`node tools/build-page.mjs` 生成 412.6 KB 的 `ui/panel.html`（模板与产物一致，由 `tests/code-agent-settings.test.js` 校验）；相关测试 `tests/fp-hall.test.js` + `tests/code-agent-settings.test.js` + `tests/code-mode.test.js` 共 **47/47 通过**，补跑前两个 **23/23 通过**。未跑全量。
+- **静态浏览器对照**：Edge headless 打开生成页（合成日历数据），亮/暗各截一图；日历、今日卡、设置弹窗、门厅均无白块漏出，日历 tag、今天格、开关与主按钮对比度正常。
+- **未验证**：① Hana 宿主内实际切主题（这一条要重载 App 后手动看）；② 心情线的 SVG 曲线在暗色下的观感（静态页面无数据，没渲染出曲线）；③ 亮色与暗色之间的实时切换（`hana.theme.changed` 这一路只有监听、未实测）。
+
 ## 峰谷必须说出口：Code 页也不例外（2026-10-27 23:00，已实机验证）
 
 - **需求原话**（2026-10-27 09:53）：「峰谷的意义就是必须到点提醒，所以 code 也是如此」。开峰谷提醒就是为了知道当下时段，不说就失去意义。

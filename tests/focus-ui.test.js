@@ -50,9 +50,9 @@ function harness() {
   return { context, nodes, calls, notices, document };
 }
 
-test('专注UI：准备主线、统计折叠与隐私说明保留，三段脚本解析', () => {
+test('专注UI：准备主线、统计折叠与隐私说明保留，四段脚本解析', () => {
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-  assert.equal(scripts.length, 3);
+  assert.equal(scripts.length, 4); // 主题引导脚本 + beautify-select + feedback + 主脚本
   scripts.forEach(m => new Function(m[1]));
   assert.match(html, /<details class="focus-records" id="focus-records">/);
   assert.match(html, /不进入主对话或通用情境/);

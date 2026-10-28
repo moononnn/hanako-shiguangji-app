@@ -4,8 +4,35 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>拾光记 · 门厅</title>
+<script>
+/* 深浅色跟随，跟主页面同一套：地址参数 → 宿主消息 → 系统偏好。 */
+(function () {
+  var root = document.documentElement;
+  var locked = false;
+  function apply(mode, lock) {
+    if (mode !== 'dark' && mode !== 'light') return;
+    if (lock) locked = true;
+    if (root.getAttribute('data-appearance') !== mode) root.setAttribute('data-appearance', mode);
+  }
+  var fromUrl = '';
+  try { fromUrl = new URLSearchParams(window.location.search || '').get('hana-theme-appearance') || ''; } catch (e) { fromUrl = ''; }
+  if (fromUrl) apply(fromUrl, true);
+  var media = null;
+  try { media = window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { media = null; }
+  if (!locked && media) apply(media.matches ? 'dark' : 'light', false);
+  if (media && media.addEventListener) {
+    media.addEventListener('change', function (event) { if (!locked) apply(event.matches ? 'dark' : 'light', false); });
+  }
+  window.addEventListener('message', function (event) {
+    var data = event && event.data;
+    if (!data || data.type !== 'hana.theme.changed') return;
+    apply((data.payload || {}).appearance, true);
+  });
+})();
+</script>
 <style>
   :root {
+    color-scheme: light;
     --bg: #faf6ec;
     --card: #fffdf8;
     --ink: #4a463e;
@@ -241,6 +268,55 @@
   .toast.bad { background: var(--accent-deep); }
 
   .hidden { display: none !important; }
+
+  /* ── 暗色主题（跟着 Hana 的深浅色走） ─────────────────────────
+     同主页面：亮色一字未改，这里只补一层覆盖。
+     门厅那两块深绿压舱（今日、专注）暗底上要再深一档，才跟背景分得开。 */
+  html[data-appearance="dark"] {
+    color-scheme: dark;
+    --bg: #1a1917;
+    --card: #232220;
+    --ink: #e7dfd0;
+    --muted: #9d9385;
+    --faint: #716757;
+    --primary: #6aab90;
+    --primary-deep: #93d3b6;
+    --primary-soft: #24322b;
+    --accent: #d5869f;
+    --accent-deep: #f0abc1;
+    --accent-soft: #35262c;
+    --warm-soft: #332a21;
+    --warm: #d99f72;
+    --line: #37332c;
+    --deep: #2f4c40;
+    --shadow: 0 8px 22px rgba(0, 0, 0, .38);
+  }
+  html[data-appearance="dark"] *::-webkit-scrollbar-thumb { background: #4a5f54; }
+  html[data-appearance="dark"] * { scrollbar-color: #4a5f54 transparent; }
+  html[data-appearance="dark"] .today { box-shadow: 0 10px 24px rgba(0, 0, 0, .42); }
+  /* 天气图标：色相不变，各提一档 */
+  html[data-appearance="dark"] .weather .w-icon { color: #e8a6bb; }
+  html[data-appearance="dark"] .weather.weather-moon .w-icon { color: #93a8c9; }
+  html[data-appearance="dark"] .weather.weather-partly .w-icon { color: #b4b5a2; }
+  html[data-appearance="dark"] .weather.weather-cloud .w-icon { color: #9dbcae; }
+  html[data-appearance="dark"] .weather.weather-rain .w-icon { color: #8fb8cf; }
+  html[data-appearance="dark"] .weather.weather-snow .w-icon { color: #a8c2d8; }
+  html[data-appearance="dark"] .weather.weather-fog .w-icon { color: #c0aa9e; }
+  html[data-appearance="dark"] .weather.weather-storm .w-icon { color: #a795c0; }
+  /* 待办 */
+  html[data-appearance="dark"] .todo-dot { border-color: #5a5142; background: #1f1e1b; }
+  html[data-appearance="dark"] .todo-time { color: #e3ab7d; }
+  html[data-appearance="dark"] .repeat-debt-batch { border-color: #35544a; background: #1f2722; }
+  /* 快捷入口 */
+  html[data-appearance="dark"] .tile:hover { background: #2a3b32; }
+  html[data-appearance="dark"] .focus-quick-goal,
+  html[data-appearance="dark"] .focus-quick-partner,
+  html[data-appearance="dark"] .focus-quick-link { background: #1f1e1b; }
+  html[data-appearance="dark"] .focus-quick-confirm:hover,
+  html[data-appearance="dark"] .focus-active-card:hover { background: #3a5d4d; }
+  html[data-appearance="dark"] .todo.done .todo-dot::after { border-color: #12211b; }
+  html[data-appearance="dark"] .toast { box-shadow: 0 8px 18px rgba(0, 0, 0, .45); }
+  html[data-appearance="dark"] .toast.bad { background: #7e4055; }
 </style>
 </head>
 <body>
