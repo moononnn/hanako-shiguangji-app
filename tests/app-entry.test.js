@@ -15,7 +15,8 @@ test('正式入口：登记实际贡献，不采样其他会话、不记录正�
     bus: { async request(verb) { verbs.push(verb); if (verb === 'agent:list') return {agents:[]}; throw new Error('不应采样会话'); } },
     publicData: { async publish(value) { shared.push(value); } },
   });
-  assert.deepEqual(hooks.map(h=>h.name).sort(), ['agent/before-start','messages/post-assistant']);
+  // pre-step 负责把历史里过期的峰谷提示收掉，让「必须说出口」只管一轮。
+  assert.deepEqual(hooks.map(h=>h.name).sort(), ['agent/before-start','agent/pre-step','messages/post-assistant']);
   assert.equal(tools.length, 3);
   await new Promise(resolve => setTimeout(resolve, 30));
   await flushPublicTodayPublisher();

@@ -24,6 +24,7 @@
   },
   "capabilities": [
     "app/hooks.agent-before-start",
+    "app/hooks.agent-pre-step",
     "app/hooks.messages-post-assistant",
     "app/models.read",
     "app/models.infer",
