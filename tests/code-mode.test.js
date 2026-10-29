@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url";
 import { UserData, dateKey } from "../lib/data.js";
 import { __setSharedUserDataForTest } from "../lib/shared-data.js";
 import { DEFAULT_CODE_INJECTION_ITEMS, normalizeCodeInjectionItems } from "../lib/code-mode.js";
-import { buildInjectionText } from "../lib/inject.js";
+import { buildDeepSeekContext, buildInjectionText } from "../lib/inject.js";
 import { createSessionMetaResolver, isCodeSession } from "../lib/session-kind.js";
 import registerShiguangjiInject, {
   __clearInjectTrackersForTest,
@@ -104,6 +104,59 @@ test("普通窗口的页脚保持原样", () => {
   const text = buildInjectionText({ now: FIXED_NOW, force: true });
   assert.match(text, /以上为今日时光背景/);
   assert.ok(!text.includes("以上是此刻的时间与背景"));
+});
+
+// 峰谷文案只有一份：Code 页与聊天窗口用同一个 buildDeepSeekContext，各通知场景都不另写一套。
+test("Code 页的峰谷文案与聊天窗口逐字一致（开场 / 预告 / 补报 / 周末）", () => {
+  const nextBoundary = { period: "valley", periodLabel: "谷时段", at: "12:00" };
+  const scenarios = [
+    { name: "工作日开场", notice: { kind: "detected", period: "peak", periodLabel: "高峰时段", nextBoundary } },
+    { name: "换班预告", notice: { kind: "preview", period: "peak", periodLabel: "高峰时段", nextBoundary, previewMinutes: 4 } },
+    { name: "错过预告补报", notice: { kind: "entered", period: "valley", periodLabel: "谷时段", nextBoundary: { period: "peak", periodLabel: "高峰时段", at: "14:00" } } },
+    { name: "周末全天谷", notice: { kind: "detected", period: "valley", periodLabel: "谷时段", isWeekend: true, nextBoundary: null } },
+  ];
+
+  for (const { name, notice: raw } of scenarios) {
+    // 固定语气序号，否则三句变体随机取一条，无法逐字比
+    const notice = { ...raw, toneIndex: 1 };
+    const shared = buildDeepSeekContext(notice, "小满");
+    const base = { now: FIXED_NOW, force: true, deepseekNotice: notice, recentSummaryOptions: { userName: "小满" } };
+    const pickPeak = (text) => String(text || "").split("\n").find((line) => line.startsWith("【模型峰谷关照】")) || "";
+    const chat = pickPeak(buildInjectionText(base));
+    const code = pickPeak(buildInjectionText({ ...base, codeMode: true }));
+
+    assert.ok(chat, `${name}：聊天窗口要带峰谷`);
+    assert.ok(code, `${name}：Code 页也要带峰谷`);
+    assert.equal(code, chat, `${name}：两屏那一句必须一模一样`);
+    assert.equal(code, shared, `${name}：Code 页不再有自己的写法`);
+    assert.match(code, /保持当前伙伴自己的性格/, `${name}：人格是伙伴自己的`);
+    assert.match(code, /朋友视角/, `${name}：朋友视角不分屏`);
+    assert.match(code, /只表示模型费用时段/, `${name}：费用口径在`);
+    assert.ok(code.includes("小满"), `${name}：称呼用本人的名字`);
+    assert.ok(!code.includes("这是费用信息，不是性能信息"), `${name}：Code 专用文案已删`);
+  }
+});
+
+test("Code 页没选峰谷就不带，选了就跟聊天窗口同一套话", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("code-peak-voice");
+  const handler = makeHandler();
+  const result = handler({}, codeCtx("code-peak-voice-session"));
+  assert.ok(result?.message, "新会话该带一次");
+  const peakLine = result.message.content.split("\n").find((line) => line.startsWith("【模型峰谷关照】"));
+  assert.ok(peakLine, "默认开着的峰谷关照要跟着来");
+  assert.match(peakLine, /保持当前伙伴自己的性格/, "人格用伙伴自己的");
+  assert.match(peakLine, /朋友视角/, "不把朋友视角去掉");
+  assert.match(peakLine, /梁文峰/, "梗按聊天窗口那套保留");
+  assert.match(peakLine, /费用/, "费用口径不变");
+  assert.match(peakLine, /哪怕当前只是闲聊也要自然带出一句/, "Code 页也必须说出口");
+  assert.ok(!peakLine.includes("这是费用信息，不是性能信息"), "Code 专用文案已删");
+
+  await data.updateSettings({ codeInjectionItems: { peak: false } });
+  __clearInjectTrackersForTest();
+  const off = handler({}, codeCtx("code-peak-voice-off"));
+  assert.ok(off?.message, "只关峰谷，时间和其它块还在");
+  assert.ok(!off.message.content.includes("【模型峰谷关照】"), "没勾峰谷就不带");
 });
 
 // ── 扩展：Code 页行为 ──

@@ -785,7 +785,8 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
     return {
       message: {
         customType: "shiguangji-deepseek-peak",
-        content: buildDeepSeekContext(peakDecision.notice, readHanaUserName() || "对方", { codeMode: true }),
+        // 峰谷文案与聊天窗口同一份：这屏只管什么时候带、带不带，不改措辞。
+        content: buildDeepSeekContext(peakDecision.notice, readHanaUserName() || "对方"),
         display: false,
         details: {
           injector: "shiguangji",

@@ -16,6 +16,7 @@ import { encryptJson, decryptJson, EncryptedStore, loadOrCreateKey } from "../li
 import {
   shouldInject,
   buildInjectionText,
+  buildDeepSeekContext,
   InjectionTracker,
   decideWeatherMention,
   weatherFactKey,
@@ -603,7 +604,7 @@ test("注入文本：峰谷关照拦钟点换算，不否认材料里写明的�
   assert.ok(chatText.includes("不得拿记忆里的旧规则反推") || chatText.includes("不要拿记忆里的旧规则反推"), chatText);
   assert.ok(chatText.includes("已经过了 X 点"), chatText);
 
-  // Code 页那套文案同样要拦，且仍保留技术任务优先的落点。
+  // Code 页与聊天共用同一份峰谷文案：钟点规矩一样拦，说出口的要求也一样。
   const codeText = buildInjectionText({
     now: new Date("2026-10-27T21:08:00+08:00"),
     deepseekNotice: notice,
@@ -612,8 +613,9 @@ test("注入文本：峰谷关照拦钟点换算，不否认材料里写明的�
   });
   assert.ok(codeText.includes("只认「谷时段」这个结论"), codeText);
   assert.ok(codeText.includes("不要自己再换算"), codeText);
-  // Code 页仍必须说出口（只收措辞，不收要求本身）。
-  assert.ok(codeText.includes("必须把当前时段说出口"), codeText);
+  // Code 页不另写文案：那一句应与聊天窗口逐字一致，也必须说出口。
+  assert.ok(codeText.includes(buildDeepSeekContext(notice, "对方")), codeText);
+  assert.ok(codeText.includes("哪怕当前只是闲聊也要自然带出一句"), codeText);
 });
 
 // 实机回归（2026-10-27）：那段会话只注入了 3 次峰谷关照，回复里却提了 4 次，

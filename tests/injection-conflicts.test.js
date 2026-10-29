@@ -272,6 +272,10 @@ test("Code：峰谷单独触发只发峰谷，不带时间块，也不推进刷�
     const preview = handler({}, ctx);
     assert.ok(preview?.message, "换班预告不吃频率");
     assert.ok(preview.message.content.includes("【模型峰谷关照】"));
+    // 单独发的这条也是聊天窗口同一份文案：不另起一套 Code 写法。
+    assert.match(preview.message.content, /保持当前伙伴自己的性格/, "峰谷文案与聊天同源");
+    assert.match(preview.message.content, /朋友视角/);
+    assert.ok(!preview.message.content.includes("这是费用信息，不是性能信息"), "Code 专用文案已删");
     assert.ok(!preview.message.content.includes("【今日时光】"), "只发峰谷时不该顺手带时间");
     assert.equal(preview.message.details.codeMode, true);
     assert.equal(preview.message.details.noticeOnly, true);
@@ -283,7 +287,7 @@ test("Code：峰谷单独触发只发峰谷，不带时间块，也不推进刷�
   }
 });
 
-test("Code：峰谷文案只讲费用事实，不带梗、不铺陈朋友视角", () => {
+test("Code 页与聊天窗口共用同一份峰谷文案（人格、朋友视角、费用口径都不分屏）", () => {
   const notice = {
     kind: "preview",
     period: "peak",
@@ -292,22 +296,30 @@ test("Code：峰谷文案只讲费用事实，不带梗、不铺陈朋友视角"
     previewMinutes: 4,
     toneIndex: 2,
   };
-  const code = buildDeepSeekContext(notice, "小满", { codeMode: true });
-  assert.ok(code.includes("【模型峰谷关照】"));
-  assert.match(code, /费用/, "费用事实要在");
-  assert.match(code, /第三方供应商/, "第三方不保证官方价格要写清");
-  assert.match(code, /不要把它解释成/, "禁止性能联想");
-  assert.ok(!code.includes("梁文峰") && !code.includes("梁文谷"), "Code 页不带梗");
-  assert.ok(!code.includes("我替你看着"), "不要朋友铺陈");
-  assert.match(code, /答完/, "预告是答完正题之后再说");
-  // Code 页只收措辞，不收要求本身：仍必须说出口。
-  assert.ok(!code.includes("话题合适"), "不许再留「话题合适才提」的口子");
-  assert.ok(!code.includes("专心处理问题就先不提"), "不许再写「忙就先不提」");
+  const pickPeakLine = (text) => String(text || "").split("\n").find((line) => line.startsWith("【模型峰谷关照】")) || "";
+  const shared = buildDeepSeekContext(notice, "小满");
+  const now = local(11, 56);
+  const options = { now, force: true, deepseekNotice: notice, recentSummaryOptions: { userName: "小满" } };
 
-  // 老调用方（两个参数）行为不变：聊天那屏仍是原来那份
-  const chat = buildDeepSeekContext(notice, "小满");
-  assert.ok(chat.includes("DeepSeek 系模型"));
-  assert.ok(chat.includes("梁文峰"), "聊天那屏的梗还在");
+  const chatLine = pickPeakLine(buildInjectionText(options));
+  const codeLine = pickPeakLine(buildInjectionText({ ...options, codeMode: true }));
+  assert.ok(chatLine, "聊天窗口要带峰谷关照");
+  assert.ok(codeLine, "Code 页也要带峰谷关照");
+  assert.equal(codeLine, chatLine, "Code 页那一句必须就是聊天窗口那一句");
+  assert.equal(codeLine, shared, "两屏都不该再有自己的写法");
+
+  assert.match(codeLine, /费用/, "费用事实要在");
+  assert.match(codeLine, /第三方供应商/, "第三方不保证官方价格要写清");
+  assert.match(codeLine, /不要把它解释成/, "禁止性能联想");
+  assert.match(codeLine, /保持当前伙伴自己的性格/, "人格要用伙伴自己的");
+  assert.match(codeLine, /朋友视角/, "朋友视角要保留");
+  assert.match(codeLine, /梁文峰/, "两屏一致的梗还在");
+  // 「必须说出口」这条也不分屏：开峰谷提醒就是为了知道当下时段。
+  assert.match(codeLine, /哪怕当前只是闲聊也要自然带出一句/, "Code 页也要下硬要求");
+  assert.ok(!codeLine.includes("这是费用信息，不是性能信息"), "Code 专用那份文案已经删了");
+  assert.ok(!codeLine.includes("不要铺陈"), "也不再有 Code 专用的短文案措辞");
+  assert.ok(!codeLine.includes("话题合适"), "不许再留「话题合适才提」的口子");
+  assert.ok(!codeLine.includes("专心处理问题就先不提"), "不许再写「忙就先不提」");
 });
 
 test("峰谷结尾与块同一档：开场/补报/预告一律硬要求说出口", () => {
