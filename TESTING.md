@@ -2,6 +2,15 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 闲聊：宿主回错对象时不再当成「没有这个会话」（2026-10-31，代码与自动测试通过，真机待验）
+
+- **来源**：v0.3.1 独立审包提的非阻断建议。`lib/session-kind.js` 里 `answered = true` 置位在会话身份互校之前，宿主回了一个「不是所问对象」的会话时，代码 `continue` 掉却仍算「已答」，最终落到 `status="not-found"`——而 `not-found` 正是闲聊的形状，Code 页会话就可能因此被当成闲聊放行、灌一整套不该有的生活情境。触发需要三件事同时成立（宿主返错会话 + 闲聊开关已开 + 路径像聊天），面窄，但与本版「认不出就不猜」的立意不一致。
+- **改法**：把 `answered = true` 移到 `sessionMatchesRequest` 通过之后。回错对象时既不计「已答」也不当「没有这个会话」，归 `status="unknown"`；这一轮宿主没答上来，注入直接跳过（少带一次），绝不猜它是闲聊。
+- **测试**：改 `tests/session-identity.test.js` 那条「回的是别的会话」用例，补上 `status` 必须为 `unknown` 的断言；新增 `tests/inject-casual-unknown.test.js` 一条端到端用例（宿主按 id 查回别的 sessionId、按 path 查回别的路径 → 这一轮不注入、不按聊天档放行）。注意写夹具时两条询问都要带上宿主真实会给的标识（问 id 带 sessionId、问 path 带 path），否则那条 UUID 互校根本没机会生效，测的就不是同一件事。
+- **验证**：定向 `tests/session-identity.test.js` + `tests/inject-casual-unknown.test.js` + `tests/inject-casual.test.js` 全过；全量 `node --test` **880/880 通过**，0 失败/取消/跳过。
+- **未验证**：真机上没有撞到「宿主回错对象」的真实样本，判定靠代码与回归测试。
+- **版本**：开发号 `0.3.2-dev.1`（v0.3.1 已发布；这一版是纯修复，正式号待发版时定）。
+
 ## 闲聊：宿主超时不再当成闲聊，闲聊可按伙伴单独关闭（2026-10-31，代码与自动测试通过，真机待验）
 
 - **实采事故（同一份 debug.log 里对出来的）**：12:59:59 一个 **home** 会话（manifest 里 `namespace=home`）被判成闲聊，灌了 2390 字完整聊天情境；14:55:48 一个 **code** 会话（`namespace=code`）也被判成闲聊，那次恰好去重没注入。两处的直接原因都一样：宿主忙到 `session:get` 在 1200ms 内没答上来。

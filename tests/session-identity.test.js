@@ -57,7 +57,9 @@ test("分区：按路径查回的是别的会话时，判不出分区，不进�
       return { session: { namespace: "home", sessionId: UUID_B } };
     } },
   });
-  assert.equal((await resolve({ sessionId: UUID_A, sessionPath: FILE_A })).namespace, "");
+  const out = await resolve({ sessionId: UUID_A, sessionPath: FILE_A });
+  assert.equal(out.namespace, "");
+  assert.equal(out.status, "unknown", "回的是别的会话，就该归「没答上来」；归成 not-found 会让 Code 页会话被当成闲聊放行");
   assert.equal(calls, 2, "两种参数各试一次，都对不上就判不出");
 });
 

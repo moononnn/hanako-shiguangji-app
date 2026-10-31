@@ -219,3 +219,49 @@ test("超时：按 id 查失败、按 path 查回 code 时，照旧按 Code 精�
   assert.ok(!text.includes("Code 不该看的日子"), text);
   assert.ok(text.length < 400, `Code 页该是精简块，实际 ${text.length} 字`);
 });
+
+// ── 2026-10-31 审包建议：宿主回错对象时不能当成「没有这个会话」 ──
+// 宿主回了一个「不是所问对象」的会话时，它其实没回答我们的问题。
+// 若把它算成已答，status 会落到 "not-found"——而那是闲聊的形状，
+// Code 页会话就可能因此被当成闲聊放行，灌一整套不该有的生活情境。
+// 治法：回错对象时归 unknown，这轮不知道就跳过。
+
+test("回错对象：宿主回的会话不是所问那个时，这轮不注入，也不按聊天档放行", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("foreign-session");
+  await data.addEvent({ title: "回错对象也不该被当成闲聊", type: "event", date: "2026-10-30" });
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const hooks = {};
+  const ctx = {
+    dataDir: data.dataDir,
+    resources: null,
+    bus: {
+      async request(name, payload) {
+        if (name === "session:entries") return { entries: [], leafId: null };
+        if (name === "session:get") {
+          // 宿主回的是另一个会话：按 id 查时它的 sessionId 不同，按 path 查时它的路径不同。
+          // （问 id 就得带 sessionId、问 path 就得带 path，真实宿主两边都会给，
+          //   这里不省，否则那条 UUID 互校根本没机会生效，测的就不是同一件事。）
+          const FOREIGN = "01a1ffff-9999-732c-bcae-d61fbe869e8e";
+          if (payload?.legacySessionPath) {
+            return {
+              session: {
+                namespace: "home",
+                title: "别的会话",
+                path: `C:\\hana\\agents\\hanako\\sessions\\2026-10-30T01-00-00-000Z_${FOREIGN}.jsonl`,
+              },
+            };
+          }
+          return { session: { namespace: "home", title: "别的会话", sessionId: FOREIGN } };
+        }
+        return null;
+      },
+    },
+    hooks: { onDecision(name, fn) { hooks[name] = fn; } },
+  };
+  attachInject(ctx, () => {});
+
+  const out = await hooks["agent/before-start"](casualPayload("01a18b93-6666-732c-bcae-d61fbe869e8e"));
+  assert.equal(out, undefined, "宿主回错对象时宁可不注入，也不能当成闲聊放行");
+});

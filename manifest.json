@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "shiguangji-app",
   "name": "拾光记",
-  "version": "0.3.1",
+  "version": "0.3.2-dev.1",
   "entry": "index.js",
   "description": "让伙伴自然知道当下的时间，带上当天的天气和节日问候；把和伙伴聊过的一天整理成日记：待办到点提醒，记心情和纪念日；装了茶话会，还能约一位伙伴陪你安静做完一段事，有点像《放松时光：与你共享Lo-Fi故事》那种有人陪着的感觉。用 DeepSeek 模型时，会在费用更高的时段自然提醒你一句。",
   "icon": "assets/icon.png",
