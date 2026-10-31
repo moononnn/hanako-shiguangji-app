@@ -328,6 +328,20 @@
     background-position: center top;
     background-repeat: no-repeat;
   }
+  /* ── 节日换肤：把实白换成半透明纸面 ──
+     大块用 surface（薄），小件用 surface-strong（实一点，小字才清楚）。 */
+  html[data-festival-theme] .weather,
+  html[data-festival-theme] .todos,
+  html[data-festival-theme] .focus-quick-card {
+    background: var(--fest-surface);
+  }
+  html[data-festival-theme] .wide,
+  html[data-festival-theme] .todo-dot,
+  html[data-festival-theme] .focus-quick-goal,
+  html[data-festival-theme] .focus-quick-partner,
+  html[data-festival-theme] .focus-quick-link {
+    background: var(--fest-surface-strong);
+  }
 </style>
 </head>
 <body>

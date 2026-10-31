@@ -1895,6 +1895,38 @@
     background-position: center top;
     background-repeat: no-repeat;
   }
+  /* ── 节日换肤：把实白换成半透明纸面 ──
+     平时这些块是实白，底图被压得看不见；节日当天改成半透明暖纸，让水彩透上来。
+     分两档：大块用 surface（薄），小件用 surface-strong（实一点，小字才清楚）。
+     只在节日作用域内生效，日常外观一行未动。 */
+  html[data-festival-theme] .calendar,
+  html[data-festival-theme] .detail,
+  html[data-festival-theme] .add-card,
+  html[data-festival-theme] .focus-card,
+  html[data-festival-theme] .moodline-card,
+  html[data-festival-theme] .summary-chat-panel,
+  html[data-festival-theme] .set-modal-panel,
+  html[data-festival-theme] .mood-line,
+  html[data-festival-theme] .focus-records-body {
+    background: var(--fest-surface);
+  }
+  html[data-festival-theme] .cal-day,
+  html[data-festival-theme] .icon-btn,
+  html[data-festival-theme] .go-today-btn,
+  html[data-festival-theme] .type-tab,
+  html[data-festival-theme] .btn,
+  html[data-festival-theme] .seg-btn,
+  html[data-festival-theme] .mood-cell,
+  html[data-festival-theme] .todo-check,
+  html[data-festival-theme] .period-pattern,
+  html[data-festival-theme] .archive-item,
+  html[data-festival-theme] .sum-block,
+  html[data-festival-theme] .summary-batch-chip {
+    background: var(--fest-surface-strong);
+  }
+  /* 今日概览卡：平时是绿→米，节日换成暖红→暖金 */
+  html[data-festival-theme] .today-card { background: var(--fest-today-grad); }
+  html[data-festival-theme] .cal-day.today.selected { background: var(--primary-soft); }
 </style>
 </head>
 <body>
