@@ -181,10 +181,8 @@ function recordFestivalGreetingCompletion({ data, event, ctx, festival, date, no
   try {
     const agentId = resolveAgentId(event, ctx);
     if (!data || !agentId || !festival || !date) return;
-    // 分区：日常聊天与闲聊是两扇门，各算各的（同一天各一次）。
-    const partition = isCasualSession(ctx?.sessionNamespace) ? "casual" : "chat";
     void data
-      .recordFestivalGreeting({ agentId, date, festival, partition, completedAt: now || new Date() })
+      .recordFestivalGreeting({ agentId, date, festival, completedAt: now || new Date() })
       .then(() => schedulePublicGreetings({ data, now: new Date() }))
       .catch(() => {});
   } catch {
@@ -482,35 +480,12 @@ export default function registerShiguangjiInject(pi) {
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);
       const todayKey = dateKeyOf(now);
-      // 「同一天只提一次」的口径（2026-10-31 拍板）：
-      //   闲聊窗口提过 → 今天全场不再提（日常聊天那边也不提了）；
-      //   日常聊天窗口照旧 → 每个窗口各自能问一次（按会话记账）。
-      // 台账只记「闲聊那次」：它是全局封杀的凭据。日常聊天提过一次不算封杀，
-      // 那是它自己窗口的事——不然闲聊那边就没机会说这一次了。
-      const todayFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name || "";
-      // 闲聊那边今天提过没有：两处任一为真就算「今天已经提过了」。
-      // ① 闲聊的账按伙伴记在注入状态里（键 casual:<伙伴>），跨段一直算数；
-      // ② 台账里也留一条（跨重启、跨状态轮换都在）。
-      let casualGreetedToday = false;
-      if (todayFestivalName && currentAgentId) {
-        try {
-          const casualState = data.getInjectionState?.(`casual:${currentAgentId}`);
-          if (casualState?.festivalGreetingCompleteDate === todayKey) casualGreetedToday = true;
-        } catch {
-          // 状态读不出来就当没提过
-        }
-        if (!casualGreetedToday) {
-          casualGreetedToday = !!data.hasFestivalGreeting?.({
-            agentId: currentAgentId,
-            date: todayKey,
-            festival: todayFestivalName,
-            partition: "casual",
-          });
-        }
-      }
-      // 这段对话自己说过没有：闲聊按伙伴一本账（跨段一直算数），日常聊天按会话（照旧）。
-      let festivalGreetingCompleteToday =
-        casualGreetedToday || (!!lastState && lastState.festivalGreetingCompleteDate === todayKey);
+      // 「一天一次」的口径（2026-10-31 拍板）：
+      //   聊天窗口：完全照旧——每个窗口各自能问一次，说过就不再问（按这段对话的账）。
+      //   闲聊窗口：每个伙伴就这一个窗口，一天一次就够——按伙伴那本账
+      //     （键 casual:<伙伴>，后台换段也不清账），提过就不再提。
+      // 这一行对两种窗口都够用：记账键不一样而已——聊天是这段会话，闲聊是这位伙伴。
+      let festivalGreetingCompleteToday = !!lastState && lastState.festivalGreetingCompleteDate === todayKey;
       // v0.2.135 只记“提示已注入”，升级时回看当前会话的活动分支；仅真实助手正文提过节日才迁移为完成。
       const legacyPromptDate = lastState?.festivalGreetingDate;
       const legacyFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name;
@@ -525,7 +500,11 @@ export default function registerShiguangjiInject(pi) {
       }
       const hasPendingFestivalGreeting = builtin.some((f) => !!getFestivalHintPool(f.name)) && !festivalGreetingCompleteToday;
       // 只有从已完成回复中确认问候说出口后才从后续情境中收起节日信息。
-      const builtinForInjection = festivalGreetingCompleteToday
+      // 聊天窗口照旧：说过之后连节日一起收走。
+      // 闲聊不一样：只有一个窗口，一天一次问候就够了，但「今天是万圣节」这条背景要留着——
+      // 她要是自己聊起万圣节，伙伴得接得上。
+      const keepFestivalBackground = inCasual;
+      const builtinForInjection = festivalGreetingCompleteToday && !keepFestivalBackground
         ? builtin.filter((f) => !getFestivalHintPool(f.name))
         : builtin;
       const userEvents = data.eventsOnDate(now).filter((e) => e.type !== "period");
@@ -653,15 +632,22 @@ export default function registerShiguangjiInject(pi) {
       const xingjiEntries = xingjiInjectionEnabled
         ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
         : [];
-      // 节日引导变体：读已用索引，预先 pick 一个未用过的（随机不重复）；注入成功后才回写
+      // 节日引导变体：读已用索引，预先 pick 一个未用过的（随机不重复）；注入成功后才回写。
+      // 两种形态：
+      //   done=false（还没问过）：给意象变体 + 「去提一次」的要求；
+      //   done=true（今天已经问过，只在闲聊里出现）：只留背景与分寸，不再发指令。
       let festivalHint = null;
-      for (const f of builtin) {
-        if (hasPendingFestivalGreeting && !festivalHint && getFestivalHintPool(f.name)) {
-          const used = data.getUsedFestivalHintIndexes(f.name);
-          const picked = pickFestivalHint(f.name, used);
-          if (picked) festivalHint = { name: f.name, text: picked.text, index: picked.index, nextUsed: picked.nextUsed, dayInfo: { baseName: f.baseName, holidayDay: f.holidayDay, holidayTotal: f.holidayTotal } };
+      for (const f of builtinForInjection) {
+        if (festivalHint || !getFestivalHintPool(f.name)) continue;
+        const dayInfo = { baseName: f.baseName, holidayDay: f.holidayDay, holidayTotal: f.holidayTotal };
+        if (festivalGreetingCompleteToday) {
+          festivalHint = { name: f.name, text: null, done: true, dayInfo };
           break;
         }
+        const used = data.getUsedFestivalHintIndexes(f.name);
+        const picked = pickFestivalHint(f.name, used);
+        if (picked) festivalHint = { name: f.name, text: picked.text, index: picked.index, nextUsed: picked.nextUsed, done: false, dayInfo };
+        break;
       }
 
       // 近期总结：先按当前伙伴身份做权限过滤，再取最近 3 个已结束生活日；
@@ -747,7 +733,7 @@ export default function registerShiguangjiInject(pi) {
 
       // 回写已用节日引导变体索引（随机不重复；只有确实注入且带了节日引导才回写）
       // 宿主 before_agent_start 是同步回调，这里 fire-and-forget：EncryptedStore 内部有写队列，异步落盘不阻塞主流程
-      if (festivalHint) {
+      if (festivalHint && !festivalHint.done) {
         try {
           const merged = [...new Set([...data.getUsedFestivalHintIndexes(festivalHint.name), festivalHint.index])];
           data.setUsedFestivalHintIndexes(festivalHint.name, merged).catch(() => {});
@@ -769,7 +755,7 @@ export default function registerShiguangjiInject(pi) {
       const finalState = {
         ...decisionState,
         lastHash: hash,
-        ...(festivalHint ? { festivalGreetingPromptedDate: todayKey, festivalGreetingName: festivalHint.name } : {}),
+        ...(festivalHint && !festivalHint.done ? { festivalGreetingPromptedDate: todayKey, festivalGreetingName: festivalHint.name } : {}),
       };
       tracker.set(sessionId, finalState);
       persistInjectionState(data, sessionId, finalState);

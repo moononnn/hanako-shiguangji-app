@@ -119,7 +119,7 @@ test("闲聊：换一段会话会再带一次精简情境（今天是什么日�
   assert.equal(again, undefined, "同一段内不该反复注入");
 });
 
-test("闲聊：今天问候过一次后，新的一段不再问第二次（同一天一次）", async () => {
+test("闲聊：今天问候过一次后，新的一段只留背景，不再要求提第二次", async () => {
   const data = freshData("festival-segment");
   // 万圣节当天。
   const now = new Date(2026, 9, 31, 10, 0, 0);
@@ -145,19 +145,38 @@ test("闲聊：今天问候过一次后，新的一段不再问第二次（同�
       sessionManager: { getSessionId: () => "casual:hanako" },
     }
   );
-  // 台账写入是异步的，等它落盘。
-  await data.festivalGreetings.update(() => {});
 
-  // 新的一段：同一天同一扇门，不再问第二次。
+  // 新的一段：闲聊就这一个窗口，一天一次够了。
   __setInjectNowForTest(() => new Date(now.getTime() + 30 * 60 * 1000));
   const second = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ab-fest-two" }));
-  assert.ok(second?.message, "新的一段该再带一次今天的日期");
+  assert.ok(second?.message, "新的一段该再带一次今天");
   assert.ok(second.message.content.includes("今日时光"), second.message.content);
-  assert.ok(!second.message.content.includes("【节日问候要求】"), "同一天不该再问一次");
-  assert.ok(!second.message.content.includes("万圣节"), second.message.content);
+  // 背景留着：她要是自己聊起万圣节，伙伴得接得上。
+  assert.ok(second.message.content.includes("万圣节"), second.message.content);
+  assert.ok(second.message.content.includes("【节日氛围】"), second.message.content);
+  // 但不再让她提第二次。
+  assert.ok(!second.message.content.includes("【节日问候要求】"), second.message.content);
+  assert.ok(second.message.content.includes("【节日问候】"), second.message.content);
 });
 
-test("节日：日常聊天里问候过了，闲聊那边当天还能问一次（封杀只认闲聊那次）", async () => {
+test("闲聊：还没问候过时，每一段都带着「去提一次」的要求", async () => {
+  const data = freshData("festival-pending");
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  const first = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ac-fest-p1" }));
+  assert.ok(first?.message?.content.includes("【节日问候要求】"), first?.message?.content);
+
+  __setInjectNowForTest(() => new Date(now.getTime() + 20 * 60 * 1000));
+  const second = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ad-fest-p2" }));
+  assert.ok(second?.message?.content.includes("【节日问候要求】"), "还没说出口就一直有机会说这一次");
+});
+
+test("节日：日常聊天里问候过了，闲聊那边当天还能问一次", async () => {
   const data = freshData("festival-partition");
   const now = new Date(2026, 9, 31, 10, 0, 0);
   await data.updateSettings({ casualInjectionEnabled: true });
@@ -202,31 +221,39 @@ test("节日：日常聊天里问候过了，闲聊那边当天还能问一次�
   assert.ok(casual.message.content.includes("【节日问候要求】"), "闲聊那边当天还能问一次");
 });
 
-test("节日：闲聊的账记在状态里也能封杀日常聊天（不靠台账）", async () => {
-  const data = freshData("festival-state-blocks-chat");
+test("聊天窗口：完全照旧——同一窗口说过后不再问，换个新窗口又会问一次", async () => {
+  const data = freshData("chat-unchanged");
   const now = new Date(2026, 9, 31, 10, 0, 0);
-  await data.updateSettings({ casualInjectionEnabled: true });
 
   const pi = makePi();
   registerShiguangjiInject(pi);
   __setInjectNowForTest(() => now);
 
-  // 直接把闲聊那本账置成「今天已问候」（不走观察钩子，台账里是空的）。
-  await data.setInjectionState("casual:hanako", { festivalGreetingCompleteDate: dateKey(now) });
-
-  const home = pi._handlers["before_agent_start"]({}, {
+  const chatCtx = (key) => ({
     agentId: "hanako",
     sessionNamespace: "home",
-    sessionAppKey: "home-fest-state-blocked",
-    sessionManager: { getSessionId: () => "home-fest-state-blocked" },
+    sessionAppKey: key,
+    sessionManager: { getSessionId: () => key },
   });
-  assert.ok(home?.message, "日常窗口照常带其它情境");
-  assert.ok(!home.message.content.includes("【节日问候要求】"), "闲聊提过了，今天不再问");
-  assert.ok(!home.message.content.includes("万圣节"), home.message.content);
+
+  const first = pi._handlers["before_agent_start"]({}, chatCtx("chat-window-a"));
+  assert.ok(first?.message?.content.includes("【节日问候要求】"), first?.message?.content);
+
+  pi._handlers["message_end"](
+    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
+    chatCtx("chat-window-a")
+  );
+
+  const sameWindow = pi._handlers["before_agent_start"]({}, chatCtx("chat-window-a"));
+  assert.ok(!sameWindow?.message?.content.includes("【节日问候要求】"), "同一个窗口说过就不再问");
+
+  // 换个窗口：跟以前一样，还是会问一次（这部分不能动）。
+  const otherWindow = pi._handlers["before_agent_start"]({}, chatCtx("chat-window-b"));
+  assert.ok(otherWindow?.message?.content.includes("【节日问候要求】"), "聊天窗口的行为要保持不变");
 });
 
-test("节日：闲聊里问过一次，日常聊天窗口当天也不再问（全局封杀）", async () => {
-  const data = freshData("festival-casual-blocks-chat");
+test("节日：闲聊里问过一次，日常聊天窗口照旧（各窗口各自能问）", async () => {
+  const data = freshData("festival-casual-no-block");
   const now = new Date(2026, 9, 31, 10, 0, 0);
   await data.updateSettings({ casualInjectionEnabled: true });
 
@@ -235,10 +262,8 @@ test("节日：闲聊里问过一次，日常聊天窗口当天也不再问（�
   __setInjectNowForTest(() => now);
 
   // 闲聊窗口里问了一次。
-  const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ad-fest-casual" }));
-  assert.ok(casual?.message, "闲聊该带");
-  assert.ok(casual.message.content.includes("【节日问候要求】"), casual.message.content);
-
+  const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ae-fest-casual" }));
+  assert.ok(casual?.message?.content.includes("【节日问候要求】"), casual?.message?.content);
   pi._handlers["message_end"](
     { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
     {
@@ -248,18 +273,15 @@ test("节日：闲聊里问过一次，日常聊天窗口当天也不再问（�
       sessionManager: { getSessionId: () => "casual:hanako" },
     }
   );
-  await data.festivalGreetings.update(() => {});
 
-  // 日常聊天那边：今天不再问了（连新开的窗口也不问）。
+  // 日常聊天那边：照旧，它的新窗口还是会问一次。
   const home = pi._handlers["before_agent_start"]({}, {
     agentId: "hanako",
     sessionNamespace: "home",
-    sessionAppKey: "home-fest-blocked",
-    sessionManager: { getSessionId: () => "home-fest-blocked" },
+    sessionAppKey: "home-fest-not-blocked",
+    sessionManager: { getSessionId: () => "home-fest-not-blocked" },
   });
-  assert.ok(home?.message, "日常窗口照常带其它情境");
-  assert.ok(!home.message.content.includes("【节日问候要求】"), "闲聊提过了，今天不再问");
-  assert.ok(!home.message.content.includes("万圣节"), home.message.content);
+  assert.ok(home?.message?.content.includes("【节日问候要求】"), "聊天窗口照旧，不受闲聊影响");
 });
 
 test("闲聊：节日问候那句要求在本轮带（别等下一轮），普通聊天窗口不加这句", async () => {
