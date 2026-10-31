@@ -150,6 +150,29 @@ function getAssistantVisibleText(message) {
   return content.filter((part) => part?.type === "text").map((part) => part.text || "").join("\n");
 }
 
+/**
+ * 闲聊里她真正读到的话：chat_say 气泡里写出来的那些。
+ *
+ * 为什么不用助手正文：闲聊窗口里，伙伴说给她听的是气泡（chat_say），
+ * 正文里的东西是它自己的工作交代（「发出去了」「万圣节那句等下轮再带」）——
+ * 那些她根本看不到。把工作交代当成「已经说出口」，今天的配额就被一句话提前用掉了。
+ * 气泡才是「她收到过」的凭据。
+ */
+function getCasualBubbleText(message) {
+  const content = message?.content;
+  if (!Array.isArray(content)) return "";
+  const texts = [];
+  for (const part of content) {
+    if (part?.type !== "toolCall" || part.name !== "chat_say") continue;
+    const items = Array.isArray(part.arguments?.items) ? part.arguments.items : [];
+    for (const item of items) {
+      // text 与 voice 都带文字：语音条也是说出口的话。
+      if (typeof item?.text === "string" && item.text.trim()) texts.push(item.text);
+    }
+  }
+  return texts.join("\n");
+}
+
 function getActiveBranchAssistantTexts(context, afterTimestamp) {
   const cutoff = Number(afterTimestamp);
   if (!Number.isFinite(cutoff)) return [];
@@ -194,8 +217,12 @@ function observeFestivalGreeting(pi) {
   pi.on("message_end", (event, ctx) => {
     try {
       const message = event?.message;
-      // A generation can end on toolUse/aborted as well as final text; only normal or length-limited visible answers count.
-      if (message?.role !== "assistant" || !["stop", "length"].includes(message.stopReason)) return;
+      if (message?.role !== "assistant") return;
+      // 闲聊里她说出口的话在气泡（chat_say）里，那条消息以 toolUse 结束；
+      // 普通窗口里就是助手正文，只认正常结束或长度截断的。
+      const inCasual = isCasualSession(ctx?.sessionNamespace);
+      const allowed = inCasual ? ["stop", "length", "toolUse"] : ["stop", "length"];
+      if (!allowed.includes(message.stopReason)) return;
       const sessionId = ctx?.sessionManager?.getSessionId?.() || null;
       if (!sessionId) return;
       const data = getData(ctx);
@@ -205,7 +232,9 @@ function observeFestivalGreeting(pi) {
       const name = state?.festivalGreetingName;
       const date = state?.festivalGreetingPromptedDate;
       if (!name || !date) return;
-      if (!didMentionFestival(getAssistantVisibleText(message), name)) return;
+      const visibleText = inCasual ? getCasualBubbleText(message) : getAssistantVisibleText(message);
+      if (!visibleText) return;
+      if (!didMentionFestival(visibleText, name)) return;
       const completed = { ...state, festivalGreetingCompleteDate: date };
       tracker.set(sessionId, completed);
       persistInjectionState(data, sessionId, completed);

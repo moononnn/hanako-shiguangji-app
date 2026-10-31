@@ -135,9 +135,15 @@ test("闲聊：今天问候过一次后，新的一段只留背景，不再要�
   assert.ok(first.message.content.includes("【节日氛围】"), first.message.content);
   assert.ok(first.message.content.includes("【节日问候要求】"), first.message.content);
 
-  // 伙伴在第一段里把节日说出口了（App 适配层把记账键统一成 casual:<伙伴>）。
+  // 伙伴在第一段里把节日说出口了（闲聊里说出口 = chat_say 气泡里的话）。
   pi._handlers["message_end"](
-    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
+    {
+      message: {
+        role: "assistant",
+        stopReason: "toolUse",
+        content: [{ type: "toolCall", name: "chat_say", arguments: { items: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } }],
+      },
+    },
     {
       agentId: "hanako",
       sessionNamespace: "casual",
@@ -265,7 +271,13 @@ test("节日：闲聊里问过一次，日常聊天窗口照旧（各窗口各�
   const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ae-fest-casual" }));
   assert.ok(casual?.message?.content.includes("【节日问候要求】"), casual?.message?.content);
   pi._handlers["message_end"](
-    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
+    {
+      message: {
+        role: "assistant",
+        stopReason: "toolUse",
+        content: [{ type: "toolCall", name: "chat_say", arguments: { items: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } }],
+      },
+    },
     {
       agentId: "hanako",
       sessionNamespace: "casual",
@@ -282,6 +294,51 @@ test("节日：闲聊里问过一次，日常聊天窗口照旧（各窗口各�
     sessionManager: { getSessionId: () => "home-fest-not-blocked" },
   });
   assert.ok(home?.message?.content.includes("【节日问候要求】"), "聊天窗口照旧，不受闲聊影响");
+});
+
+test("闲聊：只有气泡里说出口才算问候过，工作交代不算", async () => {
+  const data = freshData("bubble-only");
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  const casualCtxForEnd = {
+    agentId: "hanako",
+    sessionNamespace: "casual",
+    sessionAppKey: "casual:hanako",
+    sessionManager: { getSessionId: () => "casual:hanako" },
+  };
+
+  const first = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190af-bubble" }));
+  assert.ok(first?.message?.content.includes("【节日问候要求】"), first?.message?.content);
+
+  // 伙伴在工作交代里提到节日（她看不到这句）——不算说出口。
+  pi._handlers["message_end"](
+    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "发出去了。万圣节那句等下轮再带。" }] } },
+    casualCtxForEnd
+  );
+  __setInjectNowForTest(() => new Date(now.getTime() + 20 * 60 * 1000));
+  const second = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190b0-bubble2" }));
+  assert.ok(second?.message?.content.includes("【节日问候要求】"), "工作交代不算说出口，还要再问一次");
+
+  // 气泡里说出口了 → 算。
+  pi._handlers["message_end"](
+    {
+      message: {
+        role: "assistant",
+        stopReason: "toolUse",
+        content: [{ type: "toolCall", name: "chat_say", arguments: { items: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } }],
+      },
+    },
+    casualCtxForEnd
+  );
+  __setInjectNowForTest(() => new Date(now.getTime() + 40 * 60 * 1000));
+  const third = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190b1-bubble3" }));
+  assert.ok(!third?.message?.content.includes("【节日问候要求】"), "气泡里说出口了，今天不再问");
+  assert.ok(third?.message?.content.includes("万圣节"), "但背景还留着");
 });
 
 test("闲聊：节日问候那句要求在本轮带（别等下一轮），普通聊天窗口不加这句", async () => {
