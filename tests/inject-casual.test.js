@@ -157,7 +157,7 @@ test("闲聊：今天问候过一次后，新的一段不再问第二次（同�
   assert.ok(!second.message.content.includes("万圣节"), second.message.content);
 });
 
-test("节日：日常聊天里问候过了，闲聊那扇门当天还能问一次（两扇门各算一次）", async () => {
+test("节日：日常聊天里问候过了，闲聊那边当天还能问一次（封杀只认闲聊那次）", async () => {
   const data = freshData("festival-partition");
   const now = new Date(2026, 9, 31, 10, 0, 0);
   await data.updateSettings({ casualInjectionEnabled: true });
@@ -199,7 +199,67 @@ test("节日：日常聊天里问候过了，闲聊那扇门当天还能问一�
   // 闲聊是另一扇门：她在那边还没收到过，那边还能问一次。
   const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ac-fest-partition" }));
   assert.ok(casual?.message, "闲聊该带");
-  assert.ok(casual.message.content.includes("【节日问候要求】"), "闲聊那扇门当天还能问一次");
+  assert.ok(casual.message.content.includes("【节日问候要求】"), "闲聊那边当天还能问一次");
+});
+
+test("节日：闲聊的账记在状态里也能封杀日常聊天（不靠台账）", async () => {
+  const data = freshData("festival-state-blocks-chat");
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  // 直接把闲聊那本账置成「今天已问候」（不走观察钩子，台账里是空的）。
+  await data.setInjectionState("casual:hanako", { festivalGreetingCompleteDate: dateKey(now) });
+
+  const home = pi._handlers["before_agent_start"]({}, {
+    agentId: "hanako",
+    sessionNamespace: "home",
+    sessionAppKey: "home-fest-state-blocked",
+    sessionManager: { getSessionId: () => "home-fest-state-blocked" },
+  });
+  assert.ok(home?.message, "日常窗口照常带其它情境");
+  assert.ok(!home.message.content.includes("【节日问候要求】"), "闲聊提过了，今天不再问");
+  assert.ok(!home.message.content.includes("万圣节"), home.message.content);
+});
+
+test("节日：闲聊里问过一次，日常聊天窗口当天也不再问（全局封杀）", async () => {
+  const data = freshData("festival-casual-blocks-chat");
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  // 闲聊窗口里问了一次。
+  const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ad-fest-casual" }));
+  assert.ok(casual?.message, "闲聊该带");
+  assert.ok(casual.message.content.includes("【节日问候要求】"), casual.message.content);
+
+  pi._handlers["message_end"](
+    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
+    {
+      agentId: "hanako",
+      sessionNamespace: "casual",
+      sessionAppKey: "casual:hanako",
+      sessionManager: { getSessionId: () => "casual:hanako" },
+    }
+  );
+  await data.festivalGreetings.update(() => {});
+
+  // 日常聊天那边：今天不再问了（连新开的窗口也不问）。
+  const home = pi._handlers["before_agent_start"]({}, {
+    agentId: "hanako",
+    sessionNamespace: "home",
+    sessionAppKey: "home-fest-blocked",
+    sessionManager: { getSessionId: () => "home-fest-blocked" },
+  });
+  assert.ok(home?.message, "日常窗口照常带其它情境");
+  assert.ok(!home.message.content.includes("【节日问候要求】"), "闲聊提过了，今天不再问");
+  assert.ok(!home.message.content.includes("万圣节"), home.message.content);
 });
 
 test("闲聊：节日问候那句要求在本轮带（别等下一轮），普通聊天窗口不加这句", async () => {

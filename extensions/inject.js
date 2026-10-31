@@ -482,24 +482,35 @@ export default function registerShiguangjiInject(pi) {
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);
       const todayKey = dateKeyOf(now);
-      // 「同一天只说一次」按扇门算：日常聊天与闲聊各是一扇，各能说一次。
-      // 判据在台账上（伙伴 + 日期 + 节日 + 扇门），不在某个会话里——否则换个窗口就又来一遍。
-      const greetingPartition = isCasualSession(ctx?.sessionNamespace) ? "casual" : "chat";
+      // 「同一天只提一次」的口径（2026-10-31 拍板）：
+      //   闲聊窗口提过 → 今天全场不再提（日常聊天那边也不提了）；
+      //   日常聊天窗口照旧 → 每个窗口各自能问一次（按会话记账）。
+      // 台账只记「闲聊那次」：它是全局封杀的凭据。日常聊天提过一次不算封杀，
+      // 那是它自己窗口的事——不然闲聊那边就没机会说这一次了。
       const todayFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name || "";
-      let festivalGreetingCompleteToday =
-        !!todayFestivalName &&
-        !!currentAgentId &&
-        !!data.hasFestivalGreeting?.({
-          agentId: currentAgentId,
-          date: todayKey,
-          festival: todayFestivalName,
-          partition: greetingPartition,
-        });
-      // 判不出是谁的场合（老插件路径、没有 agentId）退回收会话自己的账：
-      // 台账按伙伴记，没有伙伴就记不了，只能看这段对话自己说过没有。
-      if (!currentAgentId && lastState?.festivalGreetingCompleteDate === todayKey) {
-        festivalGreetingCompleteToday = true;
+      // 闲聊那边今天提过没有：两处任一为真就算「今天已经提过了」。
+      // ① 闲聊的账按伙伴记在注入状态里（键 casual:<伙伴>），跨段一直算数；
+      // ② 台账里也留一条（跨重启、跨状态轮换都在）。
+      let casualGreetedToday = false;
+      if (todayFestivalName && currentAgentId) {
+        try {
+          const casualState = data.getInjectionState?.(`casual:${currentAgentId}`);
+          if (casualState?.festivalGreetingCompleteDate === todayKey) casualGreetedToday = true;
+        } catch {
+          // 状态读不出来就当没提过
+        }
+        if (!casualGreetedToday) {
+          casualGreetedToday = !!data.hasFestivalGreeting?.({
+            agentId: currentAgentId,
+            date: todayKey,
+            festival: todayFestivalName,
+            partition: "casual",
+          });
+        }
       }
+      // 这段对话自己说过没有：闲聊按伙伴一本账（跨段一直算数），日常聊天按会话（照旧）。
+      let festivalGreetingCompleteToday =
+        casualGreetedToday || (!!lastState && lastState.festivalGreetingCompleteDate === todayKey);
       // v0.2.135 只记“提示已注入”，升级时回看当前会话的活动分支；仅真实助手正文提过节日才迁移为完成。
       const legacyPromptDate = lastState?.festivalGreetingDate;
       const legacyFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name;
