@@ -8,7 +8,7 @@ import os from "node:os";
 import { renderPage } from "../lib/page-template.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { UserData, dateKey, filterDueTodos, isTodoOverdue, normalizeMoodDiscoveryMode } from "../lib/data.js";
+import { UserData, dateKey, filterDueTodos, isTodoOverdue, normalizeCasualInjectionDisabledAgentIds, normalizeMoodDiscoveryMode } from "../lib/data.js";
 import { configureSharedUserData, getSharedUserData } from "../lib/shared-data.js";
 import { getBuiltinFestivals, isWorkday, getMonthFestivals } from "../lib/festivals.js";
 import { ModelConfig } from "../lib/model-config/index.js";
@@ -600,6 +600,8 @@ function publicSettings(s) {
     deepseekPeakEnabled: s.deepseekPeakEnabled !== false,
     // 闲聊窗口：默认关，打开后那边也会带今日情境。
     casualInjectionEnabled: s.casualInjectionEnabled === true,
+    // 闲聊窗口里单独不带情境的伙伴（只有伙伴 ID）。
+    casualInjectionDisabledAgentIds: normalizeCasualInjectionDisabledAgentIds(s.casualInjectionDisabledAgentIds),
     // Code 页那一套：总闸与项目清单（清单直接给页面渲染用）
     codeInjectionEnabled: s.codeInjectionEnabled !== false,
     codeInjectionItems: normalizeCodeInjectionItems(s.codeInjectionItems),
@@ -1422,6 +1424,14 @@ export default function registerRoutes(app, ctx) {
       if (body.weatherAlertEnabled !== undefined) patch.weatherAlertEnabled = !!body.weatherAlertEnabled;
       if (body.deepseekPeakEnabled !== undefined) patch.deepseekPeakEnabled = !!body.deepseekPeakEnabled;
       if (body.casualInjectionEnabled !== undefined) patch.casualInjectionEnabled = !!body.casualInjectionEnabled;
+      if (body.casualInjectionDisabledAgentIds !== undefined) {
+        if (body.casualInjectionDisabledAgentIds !== null && !Array.isArray(body.casualInjectionDisabledAgentIds)) {
+          return c.json({ ok: false, error: "闲聊窗口的伙伴选择格式不对" });
+        }
+        patch.casualInjectionDisabledAgentIds = body.casualInjectionDisabledAgentIds === null
+          ? []
+          : normalizeCasualInjectionDisabledAgentIds(body.casualInjectionDisabledAgentIds);
+      }
       if (body.codeInjectionEnabled !== undefined) patch.codeInjectionEnabled = !!body.codeInjectionEnabled;
       if (body.codeInjectionItems !== undefined) {
         const raw = body.codeInjectionItems;

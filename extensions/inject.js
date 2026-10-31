@@ -318,9 +318,16 @@ export default function registerShiguangjiInject(pi) {
         : []);
       const partnerInjectionDisabled = !!currentAgentId && disabledAgentIds.has(currentAgentId);
       const injectionEnabled = settings.injectionEnabled !== false && !partnerInjectionDisabled;
+      // 闲聊窗口单独一份按伙伴屏蔽：聊天那边愿意带的伙伴，闲聊这边可以不带。
+      // 两份名单各管各的：injectionDisabledAgentIds 是全局的（连聊天一起关），
+      // 这一份只管闲聊那一扇门。
+      const casualDisabledAgentIds = new Set(Array.isArray(settings.casualInjectionDisabledAgentIds)
+        ? settings.casualInjectionDisabledAgentIds.map((id) => String(id))
+        : []);
+      const casualPartnerDisabled = !!currentAgentId && casualDisabledAgentIds.has(currentAgentId);
       // 闲聊那道门关着就一个字都不带，连峰谷也不带：随口说话的地方不该冒费用提醒，
       // 那是工作窗口的事。所以这里放在「只发峰谷」那个分支之前先退出去。
-      if (inCasual && (settings.casualInjectionEnabled !== true || !injectionEnabled)) return undefined;
+      if (inCasual && (casualPartnerDisabled || settings.casualInjectionEnabled !== true || !injectionEnabled)) return undefined;
       const currentModel = resolveCurrentModel(event, ctx, rawSessionId, currentAgentId);
       const dataRev = data.getDataRev();
       // Code 页是干活的地方：那边走另一套精简注入，别把日记、生理期和做好的回顾

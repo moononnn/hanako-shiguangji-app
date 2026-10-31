@@ -491,7 +491,7 @@ test("适配层：分区查不清就跳过，且在快照/模型/天气这些副
     assert.equal(out, undefined, "分区不明时这轮什么都不注入");
     assert.ok(!asked.includes("session:entries"), "跳过要在读会话快照之前");
     assert.deepEqual(resourcesTouched, [], "也不该去预取模型");
-    assert.ok(logs.some((line) => line.includes("注入跳过: 分区未知")), logs.join("\n"));
+    assert.ok(logs.some((line) => line.includes("注入跳过: 分区没问出结果")), logs.join("\n"));
   } finally {
     __setInjectNowForTest(null);
   }

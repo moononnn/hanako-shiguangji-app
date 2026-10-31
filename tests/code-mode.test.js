@@ -532,7 +532,7 @@ test("会话分区：只有 session:get 的 namespace 说得清 Code 页，查�
   assert.equal(calls, 1, "同一条会话不该反复问宿主");
 });
 
-test("会话分区：查不到按普通窗口算，负结果也只保鲜一分钟", async () => {
+test("会话分区：宿主没答上来（超时、报错）时，判成未知而不是「查不到」", async () => {
   let calls = 0;
   const bus = {
     async request() {
@@ -542,9 +542,26 @@ test("会话分区：查不到按普通窗口算，负结果也只保鲜一分�
   };
   const resolve = createSessionMetaResolver({ bus, negativeTtlMs: 60 * 1000 });
   const input = { sessionId: "sess_unknown", sessionPath: "D:/hana/agents/hanako/sessions/a.jsonl" };
-  assert.deepEqual(await resolve(input), { namespace: "", title: "" });
-  assert.deepEqual(await resolve(input), { namespace: "", title: "" });
-  assert.equal(calls, 2, "id 与路径各试一次就算完，负结果由缓存接着挡");
+  // 宿主压根没答上来：这轮什么都不知道，不能当成「宿主没有这个会话」（那是闲聊的形状）。
+  assert.deepEqual(await resolve(input), { namespace: "", title: "", status: "unknown" });
+  assert.deepEqual(await resolve(input), { namespace: "", title: "", status: "unknown" });
+  assert.equal(calls, 2, "id 与路径各试一次就算完，结果由缓存接着挡");
   assert.equal(isCodeSession(""), false);
   assert.equal(isCodeSession("home"), false);
+});
+
+test("会话分区：宿主答了但没有这个会话，是「查不到」不是「没答上来」", async () => {
+  let calls = 0;
+  const bus = {
+    async request() {
+      calls += 1;
+      return null; // 宿主答了，但它没有这个会话
+    },
+  };
+  const resolve = createSessionMetaResolver({ bus, negativeTtlMs: 60 * 1000 });
+  const input = { sessionId: "sess_casual", sessionPath: "D:/hana/agents/hanako/sessions/b.jsonl" };
+  const out = await resolve(input);
+  assert.equal(out.namespace, "");
+  assert.equal(out.status, "not-found", "宿主明确说没有，这才轮到「闲聊窗口」那个开关说话");
+  assert.equal(calls, 2, "id 与路径各试一次");
 });

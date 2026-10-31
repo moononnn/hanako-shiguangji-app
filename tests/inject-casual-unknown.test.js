@@ -153,3 +153,69 @@ test("放行：能查到 code 的照旧按 Code 处理，宽松判据不吃掉�
   assert.ok(!text.includes("Code 不该看的日子"), text);
   assert.ok(text.length < 400, `Code 页该是精简块，实际 ${text.length} 字`);
 });
+
+// ── 2026-10-31：宿主超时不再当成闲聊 ──────────────────────────
+// 实采事故：宿主忙到 session:get 超时，一个 Code 页会话被当成闲聊放行，灌了 2390 字
+// 完整情境（Code 那档本该只有 81 字精简块）。根因是「宿主没答上来」和「宿主没有这个会话」
+// 在老代码里长得一模一样，两者都落到空分区，于是「开关即授权」把超时也放行了。
+// 治法：把两种结果分开——宿主明确说没有这个会话（闲聊的形状）才轮到开关说话；
+// 宿主没答上来（超时、报错）这轮就跳过，宁可少带一次，也不猜它是闲聊。
+
+function makeTimeoutHost(data) {
+  const hooks = {};
+  const ctx = {
+    dataDir: data.dataDir,
+    resources: null,
+    bus: {
+      async request(name) {
+        if (name === "session:entries") return { entries: [], leafId: null };
+        throw new Error('Request "session:get" timeout after 2500ms');
+      },
+    },
+    hooks: { onDecision(name, fn) { hooks[name] = fn; } },
+  };
+  return { ctx, hooks };
+}
+
+test("超时：宿主没答上来时，这轮不注入，也不按聊天档放行", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("timeout-unknown");
+  await data.addEvent({ title: "超时也不该被当成闲聊", type: "event", date: "2026-10-30" });
+  await data.updateSettings({ casualInjectionEnabled: true });
+  const { ctx, hooks } = makeTimeoutHost(data);
+  attachInject(ctx, () => {});
+
+  const out = await hooks["agent/before-start"](casualPayload("01a18b91-4444-732c-bcae-d61fbe869e8e"));
+  assert.equal(out, undefined, "宿主没答上来时，宁可这一轮不带，也不能猜它是闲聊");
+});
+
+test("超时：按 id 查失败、按 path 查回 code 时，照旧按 Code 精简块", async () => {
+  __clearInjectTrackersForTest();
+  const data = makeData("timeout-then-code");
+  await data.addEvent({ title: "Code 不该看的日子", type: "event", date: "2026-10-30" });
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const hooks = {};
+  const ctx = {
+    dataDir: data.dataDir,
+    resources: null,
+    bus: {
+      async request(name, payload) {
+        if (name === "session:entries") return { entries: [], leafId: null };
+        if (name === "session:get") {
+          // 按 id 查：宿主报错（uuid 不在 manifest 索引里）；按 path 查：答得出分区。
+          if (!payload?.legacySessionPath) throw new Error("Session manifest not found for sessionId=");
+          return { session: { namespace: "code", title: "改代码", path: payload.legacySessionPath } };
+        }
+        return null;
+      },
+    },
+    hooks: { onDecision(name, fn) { hooks[name] = fn; } },
+  };
+  attachInject(ctx, () => {});
+
+  const out = await hooks["agent/before-start"](casualPayload("01a18b92-5555-732c-bcae-d61fbe869e8e"));
+  const text = out?.message?.content || "";
+  assert.ok(!text.includes("Code 不该看的日子"), text);
+  assert.ok(text.length < 400, `Code 页该是精简块，实际 ${text.length} 字`);
+});

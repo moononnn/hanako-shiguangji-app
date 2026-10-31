@@ -216,3 +216,31 @@ test("闲聊：开关能存能读，旧配置没有这个键时当关", async ()
   await data.updateSettings({ casualInjectionEnabled: false });
   assert.equal(data.getSettings().casualInjectionEnabled, false);
 });
+
+test("闲聊：按伙伴屏蔽名单里的人在闲聊里收不到情境，别的人照旧", async () => {
+  const data = freshData("partner-block");
+  const now = new Date(2026, 2, 4, 10, 46, 0);
+  await data.addEvent({ title: "屏蔽测试日子", type: "event", date: dateKey(now) });
+  await data.updateSettings({ casualInjectionEnabled: true, casualInjectionDisabledAgentIds: ["hanako"] });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  const blocked = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a18b2d-blocked", agentId: "hanako" }));
+  assert.equal(blocked, undefined, "名单里的伙伴在闲聊里一个字都不该收到");
+
+  const other = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a18b2e-other", agentId: "hanako-alt" }));
+  assert.ok(other?.message, "名单外的那位照旧带");
+  assert.ok(other.message.content.includes("屏蔽测试日子"), other.message.content);
+  __setInjectNowForTest(null);
+});
+
+test("闲聊：屏蔽名单能存能读，旧配置没有这个键时是空名单", async () => {
+  const data = freshData("partner-list");
+  assert.deepEqual(data.getSettings().casualInjectionDisabledAgentIds, []);
+  await data.updateSettings({ casualInjectionDisabledAgentIds: ["hanako", "  ", "hanako-alt"] });
+  assert.deepEqual(data.getSettings().casualInjectionDisabledAgentIds, ["hanako", "hanako-alt"]);
+  await data.updateSettings({ casualInjectionDisabledAgentIds: [] });
+  assert.deepEqual(data.getSettings().casualInjectionDisabledAgentIds, []);
+});
