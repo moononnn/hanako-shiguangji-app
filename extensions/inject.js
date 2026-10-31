@@ -181,8 +181,10 @@ function recordFestivalGreetingCompletion({ data, event, ctx, festival, date, no
   try {
     const agentId = resolveAgentId(event, ctx);
     if (!data || !agentId || !festival || !date) return;
+    // 分区：日常聊天与闲聊是两扇门，各算各的（同一天各一次）。
+    const partition = isCasualSession(ctx?.sessionNamespace) ? "casual" : "chat";
     void data
-      .recordFestivalGreeting({ agentId, date, festival, completedAt: now || new Date() })
+      .recordFestivalGreeting({ agentId, date, festival, partition, completedAt: now || new Date() })
       .then(() => schedulePublicGreetings({ data, now: new Date() }))
       .catch(() => {});
   } catch {
@@ -204,11 +206,12 @@ function observeFestivalGreeting(pi) {
       const state = tracker.get(sessionId) || data.getInjectionState(sessionId);
       const name = state?.festivalGreetingName;
       const date = state?.festivalGreetingPromptedDate;
-      if (!name || !date || state.festivalGreetingCompleteDate === date) return;
+      if (!name || !date) return;
       if (!didMentionFestival(getAssistantVisibleText(message), name)) return;
       const completed = { ...state, festivalGreetingCompleteDate: date };
       tracker.set(sessionId, completed);
       persistInjectionState(data, sessionId, completed);
+      // 台账那边自己判重：同一扇门里同一天同一节日只记一条。
       recordFestivalGreetingCompletion({ data, event, ctx, festival: name, date, now: nowProvider() });
     } catch {
       // 观察回复失败不影响会话；未确认时保持待提醒，下一轮再自然提示。
@@ -479,12 +482,24 @@ export default function registerShiguangjiInject(pi) {
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);
       const todayKey = dateKeyOf(now);
-      // 新的一段闲聊，本段还没问候过：把「今天已经说过」的标记摘掉，让这一段也能
-      // 自己提一次节日（上一段说过，不等于这一段说过）。
-      if (casualNewSegment && lastState?.festivalGreetingCompleteDate === todayKey) {
-        lastState = { ...lastState, festivalGreetingCompleteDate: "" };
+      // 「同一天只说一次」按扇门算：日常聊天与闲聊各是一扇，各能说一次。
+      // 判据在台账上（伙伴 + 日期 + 节日 + 扇门），不在某个会话里——否则换个窗口就又来一遍。
+      const greetingPartition = isCasualSession(ctx?.sessionNamespace) ? "casual" : "chat";
+      const todayFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name || "";
+      let festivalGreetingCompleteToday =
+        !!todayFestivalName &&
+        !!currentAgentId &&
+        !!data.hasFestivalGreeting?.({
+          agentId: currentAgentId,
+          date: todayKey,
+          festival: todayFestivalName,
+          partition: greetingPartition,
+        });
+      // 判不出是谁的场合（老插件路径、没有 agentId）退回收会话自己的账：
+      // 台账按伙伴记，没有伙伴就记不了，只能看这段对话自己说过没有。
+      if (!currentAgentId && lastState?.festivalGreetingCompleteDate === todayKey) {
+        festivalGreetingCompleteToday = true;
       }
-      let festivalGreetingCompleteToday = lastState?.festivalGreetingCompleteDate === todayKey;
       // v0.2.135 只记“提示已注入”，升级时回看当前会话的活动分支；仅真实助手正文提过节日才迁移为完成。
       const legacyPromptDate = lastState?.festivalGreetingDate;
       const legacyFestivalName = builtin.find((f) => !!getFestivalHintPool(f.name))?.name;
