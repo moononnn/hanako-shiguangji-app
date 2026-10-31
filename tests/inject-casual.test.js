@@ -88,10 +88,10 @@ test("闲聊：打开后吃全套情境，与普通聊天窗口同一份内容",
   assert.ok(out.message.content.includes("闲聊也要知道的日子"), out.message.content);
 });
 
-test("闲聊：换一段会话不重播，账记在伙伴身上", async () => {
+test("闲聊：换一段会话会再带一次精简情境（今天是什么日子），但不带档案重播", async () => {
   const data = freshData("segments");
   // 日期钉在既没节日也没节气的日子：撞上节日时会有「节日问候待发」强制注入，
-  // 本用例断的是节流，不能跟着真实「今天」漂。
+  // 本用例断的是「新段怎么带」，别跟着真实「今天」漂。
   const now = new Date(2026, 2, 4, 10, 46, 0);
   await data.addEvent({ title: "分段测试日子", type: "event", date: dateKey(now) });
   await data.updateSettings({ casualInjectionEnabled: true });
@@ -105,7 +105,56 @@ test("闲聊：换一段会话不重播，账记在伙伴身上", async () => {
   // 同一伙伴、几分钟后开了新的一段（sessionId 变了，会话键没变）
   __setInjectNowForTest(() => new Date(now.getTime() + 3 * 60 * 1000));
   const second = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a18b27-seg-two" }));
-  assert.equal(second, undefined, "间隔内换段不该重播一遍今天");
+  // 新的一段上下文是空的：不带，它连今天几号、今天什么日子都不知道。
+  assert.ok(second?.message, "新的一段该拿到今天的日期与背景");
+  assert.equal(second.message.details?.reason, "casual-new-segment");
+  assert.ok(second.message.content.includes("今日时光"), second.message.content);
+  assert.ok(second.message.content.includes("分段测试日子"), second.message.content);
+  // 但档案不重播：那才是「把今天又讲一遍」。
+  assert.ok(!second.message.content.includes("历史档案"), second.message.content);
+  assert.ok(!second.message.content.includes("近期回忆"), second.message.content);
+
+  // 同一段里再说话：不重复带（这一段已经有上下文了）。
+  const again = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a18b27-seg-two" }));
+  assert.equal(again, undefined, "同一段内不该反复注入");
+});
+
+test("闲聊：上一段已经问候过节日，新的一段仍能再拿到一次节日", async () => {
+  const data = freshData("festival-segment");
+  // 万圣节当天。
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  const first = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190aa-fest-one" }));
+  assert.ok(first?.message, "第一段该带");
+  assert.ok(first.message.content.includes("万圣节"), first.message.content);
+  assert.ok(first.message.content.includes("【节日氛围】"), first.message.content);
+  assert.ok(first.message.content.includes("【节日问候要求】"), first.message.content);
+
+  // 伙伴在第一段里把节日说出口了（App 适配层把记账键统一成 casual:<伙伴>）。
+  pi._handlers["message_end"](
+    { message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "万圣节快乐，南瓜灯真好看" }] } },
+    {
+      agentId: "hanako",
+      sessionNamespace: "casual",
+      sessionAppKey: "casual:hanako",
+      sessionManager: { getSessionId: () => "casual:hanako" },
+    }
+  );
+
+  // 新的一段：上一段说过，不等于这一段说过。
+  __setInjectNowForTest(() => new Date(now.getTime() + 30 * 60 * 1000));
+  const second = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ab-fest-two" }));
+  assert.ok(second?.message, "新的一段该再带一次今天");
+  assert.equal(second.message.details?.reason, "casual-new-segment");
+  assert.ok(second.message.content.includes("【节日氛围】"), second.message.content);
+  assert.ok(second.message.content.includes("【节日问候要求】"), second.message.content);
+  // 精简段不带档案。
+  assert.ok(!second.message.content.includes("历史档案"), second.message.content);
 });
 
 test("闲聊：不同伙伴各自记账，一位带过不影响另一位", async () => {

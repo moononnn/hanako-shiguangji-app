@@ -384,6 +384,12 @@ export default function registerShiguangjiInject(pi) {
         logContextKeyChange(sessionId, lastState.contextKey, contextKey);
       }
 
+      // 闲聊每段换一个会话（侧边栏那扇门，一段一个 sessionId）。新的一段是新的开始：
+      // 它自己的上下文是空的，得先把「今天是什么日子」交给它，否则它连今天什么节日都不知道，
+      // 自然也不会提。判据是段 id 变了没有——记账键（casual:伙伴）跨段不变。
+      const casualNewSegment =
+        inCasual && !!rawSessionId && !!lastState && lastState.lastCasualSegmentId !== rawSessionId;
+
       // 闲聊里永远不带峰谷：那是「工作窗口花了多少钱」的事，随口说话的地方不该被
       // 费用提醒插话。这里直接把闸关死，跟开关怎么设无关。
       const peakEnabled = settings.deepseekPeakEnabled !== false && !inCasual;
@@ -473,6 +479,11 @@ export default function registerShiguangjiInject(pi) {
       // 收集当天情境。预计中的生理期不作为确定事实注入。
       const builtin = getBuiltinFestivals(now);
       const todayKey = dateKeyOf(now);
+      // 新的一段闲聊，本段还没问候过：把「今天已经说过」的标记摘掉，让这一段也能
+      // 自己提一次节日（上一段说过，不等于这一段说过）。
+      if (casualNewSegment && lastState?.festivalGreetingCompleteDate === todayKey) {
+        lastState = { ...lastState, festivalGreetingCompleteDate: "" };
+      }
       let festivalGreetingCompleteToday = lastState?.festivalGreetingCompleteDate === todayKey;
       // v0.2.135 只记“提示已注入”，升级时回看当前会话的活动分支；仅真实助手正文提过节日才迁移为完成。
       const legacyPromptDate = lastState?.festivalGreetingDate;
@@ -542,6 +553,19 @@ export default function registerShiguangjiInject(pi) {
           newState: { ...lastState, lastInjectAt: now.getTime(), lastDateKey: (decision.newState && decision.newState.lastDateKey) || lastState.lastDateKey },
         };
       }
+      // 闲聊新开一段：先把今天的情境给足，不看 4 小时间隔，也不看「今天已经问候过」。
+      // 给的是精简版（日期/时刻/节日/待办/天气），不带档案——那才是「重播一遍今天」。
+      if (casualNewSegment) {
+        decision = {
+          should: true,
+          reason: "casual-new-segment",
+          newState: {
+            ...(decision.newState || lastState),
+            lastInjectAt: now.getTime(),
+            lastDateKey: (decision.newState && decision.newState.lastDateKey) || lastState?.lastDateKey,
+          },
+        };
+      }
       const scenarioDue = decision.should;
       const deepseekForced = deepseekDecision.should;
       const weatherAlertForced = weatherAlertDecision.should;
@@ -592,7 +616,14 @@ export default function registerShiguangjiInject(pi) {
       }
 
       // 情境自己到期：按原普通刷新计时，峰谷/天气提醒能带就并进来。
-      const decisionState = { ...decision.newState, contextKey, lastDataRev: dataRev, injectionEnabled: true };
+      const decisionState = {
+        ...decision.newState,
+        contextKey,
+        lastDataRev: dataRev,
+        injectionEnabled: true,
+        // 记下这是哪一段：下一轮同一段就不再当成「新段」强制注入。
+        ...(inCasual && rawSessionId ? { lastCasualSegmentId: rawSessionId } : {}),
+      };
       const xingjiEntries = xingjiInjectionEnabled
         ? pickInjectableEntries(data.getXingjiProfile(currentAgentId))
         : [];
@@ -614,14 +645,16 @@ export default function registerShiguangjiInject(pi) {
       // 这里不阻塞本轮注入：后台去读，读到了下一轮就是真名，读不到继续用「对方」。
       void resolveHanaUserName(ctx).catch(() => "");
       const userName = readHanaUserName() || "对方";
-      const recent = selectRecentSummaries(data.listSummaryEntries(), {
-        now,
-        boundaryHour: settings.dayBoundaryHour,
-        currentAgentId: summaryAgentId,
-        shared: settings.summaryShared === true,
-        userName,
-        prompt: extractPrompt(event),
-      });
+      const recent = casualNewSegment
+        ? { entries: [] }
+        : selectRecentSummaries(data.listSummaryEntries(), {
+            now,
+            boundaryHour: settings.dayBoundaryHour,
+            currentAgentId: summaryAgentId,
+            shared: settings.summaryShared === true,
+            userName,
+            prompt: extractPrompt(event),
+          });
 
       // 天气：同步读缓存（刷新由定时器/预热补，不阻塞注入）；没配置/没缓存就 null。
       const weather = readFreshWeather(data, settings, now);
@@ -664,10 +697,11 @@ export default function registerShiguangjiInject(pi) {
         xingjiEntries,
         deepseekNotice: deepseekDecision.notice,
         includeTime: settings.injectMode !== "economical",
-        force: decision.reason === "new-session" || decision.reason === "day-changed" || decision.reason === "injection-enabled",
+        force: decision.reason === "new-session" || decision.reason === "day-changed" || decision.reason === "injection-enabled" || decision.reason === "casual-new-segment",
         periodEndedYesterday,
         festivalHint,
         casualMode: inCasual,
+        liteMode: casualNewSegment,
       });
 
       // 天气提醒独立成段，附在情境后面：它有自己的判定和措辞，不混进「窗外天气」那块。
@@ -698,7 +732,7 @@ export default function registerShiguangjiInject(pi) {
 
       // 内容 hash 去重：同一会话同一内容不重复注入
       const hash = crypto.createHash("sha1").update(text).digest("hex");
-      if (lastState && lastState.lastHash === hash && !deepseekForced && !weatherAlertForced && decision.reason !== "day-changed" && decision.reason !== "settings-changed" && decision.reason !== "injection-enabled" && decision.reason !== "festival-greeting-pending") {
+      if (lastState && lastState.lastHash === hash && !deepseekForced && !weatherAlertForced && decision.reason !== "day-changed" && decision.reason !== "settings-changed" && decision.reason !== "injection-enabled" && decision.reason !== "festival-greeting-pending" && decision.reason !== "casual-new-segment") {
         // 去重只是不塞第二条一样的消息，状态照样要存档（这次 reason 带来的 lastInjectAt/上下文指纹算数）。
         const dedupedState = { ...decisionState, lastHash: hash };
         tracker.set(sessionId, dedupedState);

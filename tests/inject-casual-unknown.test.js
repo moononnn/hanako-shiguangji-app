@@ -123,7 +123,7 @@ test("放行：分区查不出，但用户开了闲聊窗口开关，就按聊�
   assert.ok(out.message.content.includes("闲聊也要知道的今天"), out.message.content);
 });
 
-test("放行：换一段闲聊不重播（账记在伙伴身上，不按会话）", async () => {
+test("放行：换一段闲聊会再带一次精简情境（今天是什么日子），但不带档案重播", async () => {
   __clearInjectTrackersForTest();
   const data = makeData("unknown-segments");
   await data.addEvent({ title: "分段也不重播", type: "event", date: "2026-10-30" });
@@ -135,7 +135,12 @@ test("放行：换一段闲聊不重播（账记在伙伴身上，不按会话�
   assert.ok(first?.message, "第一段开场该带");
   // 同一伙伴、同一分钟内又开了一段（会话 id 变了）
   const second = await hooks["agent/before-start"](casualPayload("01a18b85-2222-732c-bcae-d61fbe869e8e"));
-  assert.equal(second, undefined, "间隔内换段不该重播");
+  // 新的一段上下文是空的：不带，它连今天几号都不知道。
+  assert.ok(second?.message, "新的一段该拿到今天的日期与背景");
+  assert.ok(second.message.content.includes("今日时光"), second.message.content);
+  // 档案不重播：那才是「把今天又讲一遍」。
+  assert.ok(!second.message.content.includes("历史档案"), second.message.content);
+  assert.ok(!second.message.content.includes("近期回忆"), second.message.content);
 });
 
 test("放行：能查到 code 的照旧按 Code 处理，宽松判据不吃掉它", async () => {
