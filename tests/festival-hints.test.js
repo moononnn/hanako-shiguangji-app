@@ -18,11 +18,14 @@ test("节日问候完成检测：只认助手可见正文中的节日意象，�
   assert.equal(didMentionFestival("<mood>中秋快乐</mood>报错原因已经查清了。", "中秋节"), false);
   assert.equal(didMentionFestival("这份报错原因已经查清了。", "中秋节"), false);
   assert.equal(didMentionFestival("圣诞树很好看。", "中秋节"), false);
+  assert.equal(didMentionFestival("街上摆了个南瓜灯，挺好看的。", "万圣节"), true);
+  assert.equal(didMentionFestival("万圣节快乐！", "万圣节"), true);
+  assert.equal(didMentionFestival("十月天黑得早了。", "万圣节"), false);
 });
 
 // ── 引导表完整性 ──
-test("节日引导表：12 个节日都有引导池，每池 5-8 个变体", () => {
-  const names = ["中秋节", "春节", "元宵节", "端午节", "七夕", "情人节", "儿童节", "元旦", "国庆节", "平安夜", "跨年夜", "重阳节"];
+test("节日引导表：13 个节日都有引导池，每池 5-8 个变体", () => {
+  const names = ["中秋节", "春节", "元宵节", "端午节", "七夕", "情人节", "儿童节", "元旦", "国庆节", "平安夜", "跨年夜", "重阳节", "万圣节"];
   for (const name of names) {
     assert.ok(FESTIVAL_HINTS[name], `缺少 ${name} 引导`);
     const pool = FESTIVAL_HINTS[name].pool;

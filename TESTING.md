@@ -2,6 +2,19 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 闲聊窗口也能带今日情境（2026-10-30，代码与自动测试通过，真机待验）
+
+- **需求原话**（2026-10-30）：「这个功能我想做成拾光记能开关的功能，就是这个功能做好了之后别的用户装了拾光记，开了开关后，就能让闲聊里能有这些天气，节日啥的注入」。
+- **为什么之前一个字都进不去**：闲聊（HanaAgent 1.5.7 起，桌面侧栏那扇门）的会话是 `createDetachedSession({ namespace: "casual", visibleInSessionList: false })` 建出来的，`session-manifest.db` 里 `domain`/`namespace` 都记 `casual`。而 `lib/session-kind.js` 的白名单只有 `home/code/app`，认不得就 fail-closed 整轮跳过。实测日志（2026-10-30 04:49:47Z，会话 `01a18b24`＝`sess_0mvuhtpcc`）：「会话分区判断失败：Session manifest not found」「注入跳过: 分区未知「-」」，跳两次；同一时段 home 窗口注入命中 2541 字。
+- **改法四处**：① `KNOWN_SESSION_NAMESPACES` 加 `casual`，新增导出的 `isCasualSession()`；② `settings` 加 `casualInjectionEnabled`（**默认关**，旧配置无此键也当关，不升级完就悄悄开始带）；③ `extensions/inject.js` 入口：闲聊且开关关着时直接返回 `undefined`（连峰谷也不带，随口说话的地方不该冒费用提醒）；④ **记账键**：闲聊几段就换一个 `sessionId`，按会话记账会每段判成 `new-session`、每段重播一遍今天。所以由 `lib/inject-app.js` 统一算出 `sessionAppKey`（闲聊用 `casual:<agentId>`，其余用 `sessionId`），`before-start` 与 `post-assistant` 共用同一个键——否则节日问候在说出口那侧记不回来，注入侧会一直当成「还没问候过」反复催。
+- **UI**：`lib/page-template.js` 设置弹窗「聊天情境」块里加「闲聊窗口」开关（默认关）＋说明；`routes/ui.js` 的 `publicSettings` 与 POST 白名单各加一项。改模板后必须 `node tools/build-page.mjs` 重生成 `ui/panel.html`（`tests/code-agent-settings.test.js` 会校验两者一致）。
+- **迭代（同日，按明确反馈）**：闲聊里**不要峰谷提醒**（「闲聊里不需要峰谷提示哈，这条删掉」），所以 `peakEnabled` 收成 `settings.deepseekPeakEnabled !== false && !inCasual`——闲聊里闸关死，与开关怎么设无关；设置页说明也补一句。补测一条：周一 11:57 换班窗口 + DeepSeek 模型 + 闲聊开关开着，注入正文里不能出现「【模型峰谷关照】」或「峰谷」，`details.deepseekNotice` 也不得为 true。
+- **测试**：新增 `tests/inject-casual.test.js` **9/9 通过**（分区认得 casual 且不当 Code；默认关时一个字不带；打开后与普通窗口同一份内容；换一段会话不重播；不同伙伴各自记账；跨天重新带；闲聊不带峰谷；全局总闸关时也不带；开关能存能读、旧配置当关）。全量 `node --test --test-concurrency=1 "tests/*.test.js"` **830/830 通过**，0 失败/取消/跳过。
+- **真机实测后改道（2026-10-30 14:33、14:45）**：两次实机闲聊都没通。日志拆开看：按 id 查一律「Session manifest not found」，按 path 查回 `namespace="-" title="-"`（其实是 null）。接着读宿主实现，找到根因：`session:get` 内部走 `listSessions({ includePluginPrivate: true, namespace: "all" })`，而 `listSessions` 的 all 白名单是 `Gkt = Object.freeze(["home", "code", "app"])`，**宿主的 all 里本来就没有 casual**；`session:list` 对 v2 应用 `scope: "all"` 时更是把 namespace 硬编码成 `["home", "app"]`。所以这不是拾光记没认出 casual，而是宿主任何会话通道都不向应用公开闲聊的身份（`namespace` 过滤器 `Lvr` 里 `r === "all" ? Gkt.includes(t.namespace) : ...`）。
+- **因此改成「开关即授权」**：`lib/inject-app.js` 分区查不出时不再无条件 fail-closed——若设置里 `casualInjectionEnabled === true`（用户主动打开了「闲聊窗口」），就按聊天档放行并按 `casual:<agentId>` 记账；开关没开则保持原样一个字不塞。能查到分区的（home / code / app）仍按真凭据走，Code 窗口不会被宽松判据吃掉。post-assistant 用同一判定，节日问候两侧同键。
+- **测试**：新增 `tests/inject-casual-unknown.test.js` **4/4 通过**（分区查不出且开关关→一句不注入；开关开→按聊天档带；换一段不重播；能查到 code 的仍按 Code 精简块）。全量 `node --test --test-concurrency=1 "tests/*.test.js"` **834/834 通过**。
+- **仍未验证**：① 打开开关后真机闲聊是否真拿到注入（下一轮实机日志应出现 `注入放行: 分区未知，但用户开了闲聊窗口开关` 与 `注入命中 … 窗口=casual`）；② 闲聊实际节奏下的间隔观感。
+
 ## 暗色主题：跟着 Hana 的深浅色（2026-10-28，静态渲染验证，宿主内未实机切过）
 
 - **需求**：给拾光记页面加暗色主题，自适应 Hana 的深浅色。

@@ -598,6 +598,8 @@ function publicSettings(s) {
     weatherIntervalHours: s.weatherIntervalHours || 3,
     weatherAlertEnabled: s.weatherAlertEnabled !== false,
     deepseekPeakEnabled: s.deepseekPeakEnabled !== false,
+    // 闲聊窗口：默认关，打开后那边也会带今日情境。
+    casualInjectionEnabled: s.casualInjectionEnabled === true,
     // Code 页那一套：总闸与项目清单（清单直接给页面渲染用）
     codeInjectionEnabled: s.codeInjectionEnabled !== false,
     codeInjectionItems: normalizeCodeInjectionItems(s.codeInjectionItems),
@@ -1419,6 +1421,7 @@ export default function registerRoutes(app, ctx) {
       if (body.weatherEnabled !== undefined) patch.weatherEnabled = !!body.weatherEnabled;
       if (body.weatherAlertEnabled !== undefined) patch.weatherAlertEnabled = !!body.weatherAlertEnabled;
       if (body.deepseekPeakEnabled !== undefined) patch.deepseekPeakEnabled = !!body.deepseekPeakEnabled;
+      if (body.casualInjectionEnabled !== undefined) patch.casualInjectionEnabled = !!body.casualInjectionEnabled;
       if (body.codeInjectionEnabled !== undefined) patch.codeInjectionEnabled = !!body.codeInjectionEnabled;
       if (body.codeInjectionItems !== undefined) {
         const raw = body.codeInjectionItems;

@@ -13,8 +13,8 @@ import { conversationRunsDeepSeek, stripPeakForForeignModel } from "../lib/injec
 
 const UUID_A = "01a187b8-9987-7e12-9199-ab96f57c9b3b";
 const UUID_B = "01a18a0f-6bab-711a-94a9-4a0a6e5e274c";
-const FILE_A = `C:/Users/laotv/.hanako/agents/hanako/sessions/2026-10-29T12-53-04-519Z_${UUID_A}.jsonl`;
-const FILE_B = `C:/Users/laotv/.hanako/agents/hanako/sessions/2026-10-29T23-47-08-843Z_${UUID_B}.jsonl`;
+const FILE_A = `D:/appdata/.hanako/agents/hanako/sessions/2026-10-29T12-53-04-519Z_${UUID_A}.jsonl`;
+const FILE_B = `D:/appdata/.hanako/agents/hanako/sessions/2026-10-29T23-47-08-843Z_${UUID_B}.jsonl`;
 
 const PEAK_LINE =
   "【模型峰谷关照】DeepSeek 现在在谷时段。这一轮回复里必须把当前时段说出口，一句话就够。";

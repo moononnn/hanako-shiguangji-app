@@ -45,7 +45,7 @@ import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
 import {
   resolveCodeInjection,
 } from "../lib/code-mode.js";
-import { isCodeSession } from "../lib/session-kind.js";
+import { isCasualSession, isCodeSession } from "../lib/session-kind.js";
 import { readLatestModelChange, findSessionFile, getPrimedModel } from "../lib/session-model.js";
 import { schedulePublicToday } from "../lib/public-today.js";
 import { schedulePublicGreetings } from "../lib/public-greetings.js";
@@ -299,23 +299,34 @@ export default function registerShiguangjiInject(pi) {
 
   pi.on("before_agent_start", (event, ctx) => {
     try {
-      const sessionId = ctx?.sessionManager?.getSessionId?.() || null;
-      if (!sessionId) return undefined;
+      const rawSessionId = ctx?.sessionManager?.getSessionId?.() || null;
+      if (!rawSessionId) return undefined;
 
       const data = getData(ctx);
       const settings = data.getSettings();
       const now = nowProvider();
       const currentAgentId = resolveAgentId(event, ctx);
+      // 闲聊是宿主的另一扇门（侧边栏那扇）：它默认不带今日情境，得用户在拾光记里
+      // 显式打开 casualInjectionEnabled。闲聊几段就换一个会话（一段一个 sessionId），
+      // 按会话记账会每段判成「新会话」、每段重播一遍今天。所以那边按伙伴记一本账，
+      // 跨段连续，隔多久再说一次由同一个间隔和跨天规则决定。键由适配层统一算好递进来
+      // （post-assistant 要用同一个，否则节日问候在那边记不回来，会一直催）。
+      const inCasual = isCasualSession(ctx?.sessionNamespace);
+      const sessionId = ctx?.sessionAppKey || rawSessionId;
       const disabledAgentIds = new Set(Array.isArray(settings.injectionDisabledAgentIds)
         ? settings.injectionDisabledAgentIds.map((id) => String(id))
         : []);
       const partnerInjectionDisabled = !!currentAgentId && disabledAgentIds.has(currentAgentId);
       const injectionEnabled = settings.injectionEnabled !== false && !partnerInjectionDisabled;
-      const currentModel = resolveCurrentModel(event, ctx, sessionId, currentAgentId);
+      // 闲聊那道门关着就一个字都不带，连峰谷也不带：随口说话的地方不该冒费用提醒，
+      // 那是工作窗口的事。所以这里放在「只发峰谷」那个分支之前先退出去。
+      if (inCasual && (settings.casualInjectionEnabled !== true || !injectionEnabled)) return undefined;
+      const currentModel = resolveCurrentModel(event, ctx, rawSessionId, currentAgentId);
       const dataRev = data.getDataRev();
       // Code 页是干活的地方：那边走另一套精简注入，别把日记、生理期和做好的回顾
       // 塞进改代码的那一轮。分区查不清时适配层已经跳过本轮（见 lib/session-kind.js），
-      // 走到这里的分区只有 home / app / code 三种，这里只需分「是不是 Code」。
+      // 走到这里的分区只有 home / app / casual / code 四种，这里只需分「是不是 Code」，
+      // casual 与 home 同一档（都是聊天）。
       const inCode = isCodeSession(ctx?.sessionNamespace);
       // 对外快照独立于「情境注入」开关：那个开关只管往 Hana 会话里注入，
       // 这份快照是给别的消费方读的，关掉注入也照常维护。
@@ -366,7 +377,9 @@ export default function registerShiguangjiInject(pi) {
         logContextKeyChange(sessionId, lastState.contextKey, contextKey);
       }
 
-      const peakEnabled = settings.deepseekPeakEnabled !== false;
+      // 闲聊里永远不带峰谷：那是「工作窗口花了多少钱」的事，随口说话的地方不该被
+      // 费用提醒插话。这里直接把闸关死，跟开关怎么设无关。
+      const peakEnabled = settings.deepseekPeakEnabled !== false && !inCasual;
 
       // 全局关闭或当前伙伴单独关闭时，只阻断对话注入，不影响日历与时光册；
       // 峰谷关照有自己的开关，不跟着这个开关一起被关。
@@ -647,6 +660,7 @@ export default function registerShiguangjiInject(pi) {
         force: decision.reason === "new-session" || decision.reason === "day-changed" || decision.reason === "injection-enabled",
         periodEndedYesterday,
         festivalHint,
+        casualMode: inCasual,
       });
 
       // 天气提醒独立成段，附在情境后面：它有自己的判定和措辞，不混进「窗外天气」那块。
