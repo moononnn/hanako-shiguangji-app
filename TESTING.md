@@ -10,7 +10,7 @@
 - **闲聊按伙伴单独关闭**：新增 `casualInjectionDisabledAgentIds`（默认空名单）。聊天那边的 `injectionDisabledAgentIds` 是全局的（连聊天一起关），这一份只管闲聊那一扇门，两份各管各的。设置页在「聊天情境」块的「闲聊窗口」开关下面加了「单独关闭」名单；`lib/data.js` 导出 `normalizeCasualInjectionDisabledAgentIds()`，`routes/ui.js` 的 `publicSettings` 与 POST 白名单各加一项。
 - **测试**：新增 4 条（`tests/inject-casual.test.js` 2 条：按伙伴屏蔽、名单存读；`tests/inject-casual-unknown.test.js` 2 条：超时不注入、按 id 失败按 path 回 code 仍走 Code 精简块）。改写 `tests/code-mode.test.js` 里那条分区用例（老断言把「查不到」当成一种，现按 `status` 分三种），改 `tests/injection-conflicts.test.js` 的日志断言。全量 `node --test --test-concurrency=1 "tests/*.test.js"` **841/841 通过**，0 失败/取消/跳过。语法检查（`node --check`）过 `lib/page-template.js`、`lib/session-kind.js`、`lib/inject-app.js`、`lib/data.js`、`routes/ui.js`、`extensions/inject.js`；`node tools/build-page.mjs` 重建 `ui/panel.html`（416.3 KB）。
 - **未验证**：真机没跑一整段：① 宿主忙到超时时，Code 页这轮是否确实不注入（只是代码层判定）；② 闲聊里被屏蔽的那位伙伴是否确实收不到情境；③ 新加的「单独关闭」名单在设置页的实点与回读。
-- **版本**：`0.4.0-dev.1`（开发号）。新能力兼修复，按 minor 档预留给下个正式号。
+- **版本**：本版正式号 `0.3.1`（开发期用的是 `0.4.0-dev.1`，发版定档为 patch：修复 + 加选项，没有让用户多做一件以前做不到的事）。
 
 ## 闲聊窗口也能带今日情境（2026-10-30，代码与自动测试通过，真机待验）
 
