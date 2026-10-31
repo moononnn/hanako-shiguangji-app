@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { UserData, dateKey, filterDueTodos, isTodoOverdue, normalizeCasualInjectionDisabledAgentIds, normalizeMoodDiscoveryMode } from "../lib/data.js";
 import { configureSharedUserData, getSharedUserData } from "../lib/shared-data.js";
 import { getBuiltinFestivals, isWorkday, getMonthFestivals } from "../lib/festivals.js";
+import { getFestivalTheme } from "../lib/festival-themes.js";
 import { ModelConfig } from "../lib/model-config/index.js";
 import { buildInjectionText } from "../lib/inject.js";
 import { probeLegacyMigration, runLegacyMigration } from "../lib/migrate-legacy.js";
@@ -1023,6 +1024,8 @@ export default function registerRoutes(app, ctx) {
       ok: true,
       day: {
         builtin,
+        // 节日换肤：只在当天给。翻历史日期不换，否则页面颜色会随着翻日历乱跳。
+        festivalTheme: dk === today ? getFestivalTheme(d) : null,
         userEvents,
         periods: periods.map((p) => ({ ...p.event, day: p.day, predicted: p.predicted })),
         prevPeriods: prevPeriods.map((p) => ({ ...p.event, day: p.day, predicted: p.predicted })),

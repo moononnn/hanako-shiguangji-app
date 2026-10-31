@@ -1885,6 +1885,16 @@
   /* 滚动条 */
   html[data-appearance="dark"] *::-webkit-scrollbar-thumb { background: #4a5f54; }
   html[data-appearance="dark"] * { scrollbar-color: #4a5f54 transparent; }
+  /* ── 节日换肤：背景那层纸 ──
+     变量值由脚本按当天节日写成 html 上的内联样式（内联优先级最高，能盖住暗色块里的同名变量）。
+     这里只管把平时那张横线纸纹换成节日背景图。
+     这条规则必须放在暗色块之后：两条选择器特异性相同，靠源码顺序决胜。 */
+  html[data-festival-theme] body::before {
+    background-image: var(--fest-bg);
+    background-size: cover;
+    background-position: center top;
+    background-repeat: no-repeat;
+  }
 </style>
 </head>
 <body>
@@ -4307,6 +4317,65 @@ function focusOpenMood() {
   });
 }
 
+/* ── 节日换肤 ──
+   后端在 /api/events/<今天> 的 day.festivalTheme 里给出当天节日的主题（当天不是节日就是 null）。
+   这里把主题写成 html 上的内联 CSS 变量：内联样式优先级高于样式表，
+   所以暗色块里的同名变量会被盖住；明暗切换时重刷一次就行。 */
+var festivalTheme = null;
+var festivalThemeVars = [];
+
+function clearFestivalTheme() {
+  var root = document.documentElement;
+  root.removeAttribute('data-festival-theme');
+  festivalThemeVars.forEach(function (name) { root.style.removeProperty(name); });
+  festivalThemeVars = [];
+}
+
+function paintFestivalTheme() {
+  var theme = festivalTheme;
+  if (!theme) return;
+  var root = document.documentElement;
+  var mode = root.getAttribute('data-appearance') === 'dark' ? 'dark' : 'light';
+  var palette = (theme.palette && theme.palette[mode]) || (theme.palette && theme.palette.light) || {};
+  Object.keys(palette).forEach(function (name) {
+    root.style.setProperty(name, palette[name]);
+    if (festivalThemeVars.indexOf(name) < 0) festivalThemeVars.push(name);
+  });
+  var bg = theme.background && theme.background[mode];
+  if (bg) {
+    root.style.setProperty('--fest-bg', 'url("' + bg + '")');
+    if (festivalThemeVars.indexOf('--fest-bg') < 0) festivalThemeVars.push('--fest-bg');
+  }
+}
+
+function applyFestivalTheme(theme) {
+  var next = theme || null;
+  var nextKey = next ? next.key : '';
+  var curKey = festivalTheme ? festivalTheme.key : '';
+  if (nextKey === curKey) { paintFestivalTheme(); return; }
+  clearFestivalTheme();
+  festivalTheme = next;
+  if (next) document.documentElement.setAttribute('data-festival-theme', next.key);
+  paintFestivalTheme();
+}
+
+// 深浅色切换：data-appearance 由页头那段脚本改，这里等它改完再重刷背景图和配色。
+// 页面脚本也会被测试在 vm 沙箱里跑（那里没有 window），所以先问一句再挂监听。
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('message', function (event) {
+    var data = event && event.data;
+    if (!data || data.type !== 'hana.theme.changed') return;
+    setTimeout(paintFestivalTheme, 0);
+  });
+}
+try {
+  var festMedia = typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  if (festMedia && festMedia.addEventListener) {
+    festMedia.addEventListener('change', function () { setTimeout(paintFestivalTheme, 0); });
+  }
+} catch (e) {}
+
 /* ── 今日概览 ── */
 function loadToday() {
   var requestId = ++todayRequestSeq;
@@ -4328,6 +4397,7 @@ function loadToday() {
     fest.innerHTML = '';
     evs.innerHTML = '';
     var has = false;
+    applyFestivalTheme(day.festivalTheme || null);
     (day.builtin || []).forEach(function (f) {
       fest.innerHTML += '<span class="chip">' + esc(f.emoji) + ' ' + esc(f.name) + '</span>';
       has = true;

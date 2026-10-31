@@ -2,6 +2,19 @@
 
 当前版本以 manifest.json 为准；开发期间不修改版本号。
 
+## 节日当天整页换肤（2026-10-31，代码与自动测试通过，真机待验）
+
+- **需求原话**（2026-10-31）：「给拾光记做不同节日当天页面不同的配色，贴合当天节日氛围；重大传统节日做得再精致点、更有氛围感」。中间试过纯 SVG 画灯笼、窗花、鞭炮——她自己看着说「不太好看」，最后改走生图做背景图。
+- **做法三处**：① 新增 `lib/festival-themes.js`：主题表（节日名 → 明暗两套 CSS 变量 + 两张背景图路径）与 `getFestivalTheme(date)`。判定复用现成的 `lib/festivals.js`，**不另造节日表**。② `routes/ui.js` 的 `GET /api/events/:date` 在 `day` 里多带一个 `festivalTheme` 字段，**只在当天给**（翻历史日期不给，否则翻日历颜色乱跳）。③ `lib/page-template.js`（主页面）与 `ui/hall.html`（门厅）各加一段换肤脚本：把主题写成 `html` 上的**内联 CSS 变量**（内联优先级高于样式表，能盖住暗色块里的同名变量），背景层加 `html[data-festival-theme] body::before` 规则。
+- **只认真节日当天**：法定假期区间里的非正日子（「春节假期」第 3 天）不换肤，否则整个长假页面天天变色，用户会以为 App 坏了。
+- **背景图资源必须放 `ui/` 下**：静态资源的根是 App 的 `ui/` 目录（宿主把 manifest 的 `/panel.html` 映射到 `ui/panel.html`，页面 URL 形如 `/api/apps/<appId>/ui/_surface/<token>/panel.html`），放在 App 根的 `assets/` 里页面引用不到。亮/暗各一张 WebP，2172px 宽，共 246 KB（原 PNG 各 2.5 MB）。
+- **配色**：主色胭脂红 `#c0574d`、强调镏金 `#d8a43f`、纸底转暖 `#fbf1e7`；暗色另配一套（`--primary-deep` / `--accent-deep` 这些当文字色用的，亮色下换成亮一档的值）。结构、字号、圆角、纸纹密度一律不动——是「换纸」不是「换皮」。
+- **测试**：新增 `tests/festival-theme.test.js` **5 条**（只认真节日当天、主题表结构与背景图文件确实存在、主页面换肤/切暗色/撤销、门厅换肤、后端当天才给字段）。
+- **验证**：全量 `node --test --test-concurrency=1 "tests/*.test.js"` **846/846 通过**，0 失败/取消/跳过；`node --check` 过 `lib/festival-themes.js`、`lib/page-template.js`、`routes/ui.js`；`node tools/build-page.mjs` 生成 418.8 KB 的 `ui/panel.html`（模板与产物一致）。
+- **踩坑**：页面内联脚本会被测试在 vm 沙箱里跑，**那里没有 `window`**。挂 `window.addEventListener` 前必须 `typeof window !== 'undefined'` 守卫，否则 focus-ui 等一批用例会整片报错（第一版就踩了，846 条里 focus-ui 那片全红）。
+- **未验证**：① **真机**：需在宿主里重载 App，背景图能否加载、亮暗两套是否都对，都还没验；宿主对 UI 静态资源走快照，新增文件后已开的 iframe 不一定立刻看到。② 深浅色实时切换时背景图是否跟着换（`hana.theme.changed` 这一路只有监听、未实测）。③ 农历表只到 2030，2031 年起的春节要补映射。
+- **版本**：开发号 `0.3.2-dev.2`。
+
 ## 闲聊：宿主回错对象时不再当成「没有这个会话」（2026-10-31，代码与自动测试通过，真机待验）
 
 - **来源**：v0.3.1 独立审包提的非阻断建议。`lib/session-kind.js` 里 `answered = true` 置位在会话身份互校之前，宿主回了一个「不是所问对象」的会话时，代码 `continue` 掉却仍算「已答」，最终落到 `status="not-found"`——而 `not-found` 正是闲聊的形状，Code 页会话就可能因此被当成闲聊放行、灌一整套不该有的生活情境。触发需要三件事同时成立（宿主返错会话 + 闲聊开关已开 + 路径像聊天），面窄，但与本版「认不出就不猜」的立意不一致。
