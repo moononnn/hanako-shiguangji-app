@@ -155,6 +155,35 @@ test("闲聊：上一段已经问候过节日，新的一段仍能再拿到一�
   assert.ok(second.message.content.includes("【节日问候要求】"), second.message.content);
   // 精简段不带档案。
   assert.ok(!second.message.content.includes("历史档案"), second.message.content);
+  // 闲聊常常没有下一轮：节日那句得在本轮带，不能推到「下一轮再说」。
+  assert.ok(second.message.content.includes("别推到「下一轮再说」"), second.message.content);
+});
+
+test("闲聊：节日问候那句要求在本轮带（别等下一轮），普通聊天窗口不加这句", async () => {
+  const data = freshData("festival-now");
+  const now = new Date(2026, 9, 31, 10, 0, 0);
+  await data.updateSettings({ casualInjectionEnabled: true });
+
+  const pi = makePi();
+  registerShiguangjiInject(pi);
+  __setInjectNowForTest(() => now);
+
+  const casual = pi._handlers["before_agent_start"]({}, casualCtx({ sessionId: "01a190ac-fest-now" }));
+  assert.ok(casual?.message, "闲聊该带");
+  assert.ok(casual.message.content.includes("别推到「下一轮再说」"), casual.message.content);
+
+  // 普通聊天窗口：原样保留「不抢正题」的规矩，不塞闲聊那句。
+  __clearInjectTrackersForTest();
+  const home = pi._handlers["before_agent_start"]({}, {
+    agentId: "hanako",
+    sessionNamespace: "home",
+    sessionAppKey: "home-session-fest-now",
+    sessionManager: { getSessionId: () => "home-session-fest-now" },
+  });
+  assert.ok(home?.message, "普通窗口也该带");
+  assert.ok(home.message.content.includes("【节日问候要求】"), home.message.content);
+  assert.ok(!home.message.content.includes("别推到「下一轮再说」"), home.message.content);
+  __setInjectNowForTest(null);
 });
 
 test("闲聊：不同伙伴各自记账，一位带过不影响另一位", async () => {
