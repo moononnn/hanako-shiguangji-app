@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-import { getFestivalTheme, listFestivalThemeNames } from "../lib/festival-themes.js";
+import { getFestivalTheme, getFestivalThemeByKey, listFestivalThemeNames } from "../lib/festival-themes.js";
 
 const APP_DIR = path.resolve(".");
 
@@ -124,6 +124,23 @@ test("门厅：跟主页面一样认主题", () => {
 
 test("后端：当天接口带上主题字段，翻历史日期不带", () => {
   const src = fs.readFileSync(path.join(APP_DIR, "routes", "ui.js"), "utf8");
-  assert.match(src, /festivalTheme: dk === today \? getFestivalTheme\(d\) : null/,
+  assert.match(src, /festivalTheme: dk === today \? getFestivalTheme\(d\) : null|dk === today\s*\n?\s*\? \(settings\.festivalThemePreview/,
     "只有当天才给主题，翻历史不改配色");
+});
+
+test("预览：能按 key 强制预览某个节日，不看今天是哪天", () => {
+  const preview = getFestivalThemeByKey("chunjie");
+  assert.ok(preview, "春节该能被预览");
+  assert.equal(preview.key, "chunjie");
+  assert.equal(preview.kind, "preview");
+  assert.equal(preview.palette.light["--primary"], "#c0574d");
+  assert.equal(getFestivalThemeByKey("nonexistent"), null, "没有的主题返回 null");
+
+  const src = fs.readFileSync(path.join(APP_DIR, "routes", "ui.js"), "utf8");
+  assert.match(src, /festivalThemePreview: s\.festivalThemePreview === "chunjie"/, "设置里要能读出预览选择");
+  assert.match(src, /body\.festivalThemePreview !== undefined/, "保存设置时要收下预览选择");
+
+  const page = fs.readFileSync(path.join(APP_DIR, "ui", "panel.html"), "utf8");
+  assert.match(page, /id="festival-theme-seg"/, "设置页要有节日配色这一项");
+  assert.match(page, /data-val="chunjie"/, "要有春节预览这一档");
 });

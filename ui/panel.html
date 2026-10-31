@@ -2410,6 +2410,18 @@
       </div>
 
       <div class="set-group">
+        <h3>节日配色</h3>
+        <p class="set-desc">当天正好是传统节日时，整页会换成那个节日的配色和背景图（主页面与门厅都换）。选「春节」是随时能看的预览，不是真过节。</p>
+        <div class="set-row">
+          <span class="set-label">节日配色</span>
+          <div class="seg" id="festival-theme-seg">
+            <button class="seg-btn active" data-val="">跟随当天</button>
+            <button class="seg-btn" data-val="chunjie">春节（预览）</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-group">
         <h3>今日天气</h3>
         <p class="set-desc">打开后，主页今日卡会显示天气；情境注入也打开时，天气会成为伙伴收到的今日情境。关掉后不查询，已选地点会保留。</p>
         <div class="set-row">
@@ -8225,6 +8237,7 @@ function loadSettings() {
       irow.classList.toggle('hidden', s.injectMode !== 'balanced');
     }
     setSeg('period-seg', s.showPeriod !== false);
+    setSeg('festival-theme-seg', s.festivalThemePreview || '');
     setSeg('weather-seg', s.weatherEnabled !== false);
     setSeg('weather-alert-seg', s.weatherAlertEnabled !== false);
     renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
@@ -8295,6 +8308,7 @@ function saveAllSettings() {
     dayBoundaryHour: +document.getElementById('boundary-select').value,
     summaryShared: segVal('summary-shared-seg') === 'true',
     showPeriod: segVal('period-seg') === 'true',
+    festivalThemePreview: segVal('festival-theme-seg') || '',
     weatherEnabled: segVal('weather-seg') !== 'false',
     weatherAlertEnabled: segVal('weather-alert-seg') !== 'false',
   }, weatherPatch);
