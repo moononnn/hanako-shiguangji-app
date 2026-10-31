@@ -45,16 +45,22 @@ function loadThemeScript(html, startMarker, endMarker) {
   return { root, api: run(sandbox.document, undefined, sandbox.setTimeout) };
 }
 
-test("主题判定：只认真节日当天，假期里的其余日子不换肤", () => {
+test("主题判定：整个假期都是这个节日的样子，只有正日子才叫节日名", () => {
   const festivalDay = getFestivalTheme(new Date("2026-02-17T00:00:00"));
   assert.ok(festivalDay, "2026 春节正日子该有主题");
   assert.equal(festivalDay.key, "chunjie");
   assert.equal(festivalDay.festivalName, "春节");
   assert.equal(festivalDay.kind, "legal");
 
-  // 春节假期区间内的非正日子：名字是「春节假期」，不换肤
+  // 假期区间里的其余日子：名字是「春节假期」，但换肤按本节日算，整段都是春节的样子
   const holiday = getFestivalTheme(new Date("2026-02-18T00:00:00"));
-  assert.equal(holiday, null, "假期第二天不该换肤，否则整个长假天天变色");
+  assert.ok(holiday, "假期第二天也该是春节的样子");
+  assert.equal(holiday.key, "chunjie");
+  assert.equal(holiday.festivalName, "春节假期");
+
+  // 假期前后：还没到 / 已经过，不该有主题
+  assert.equal(getFestivalTheme(new Date("2026-02-14T00:00:00")), null, "节前不该换肤");
+  assert.equal(getFestivalTheme(new Date("2026-02-24T00:00:00")), null, "节后不该换肤");
 
   // 农历春节（没有法定安排的那一年）也要认
   const lunar = getFestivalTheme(new Date("2027-02-06T00:00:00"));
