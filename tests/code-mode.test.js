@@ -100,6 +100,16 @@ test("Code 页只给日期不给钟点时：页脚说清是日期", () => {
   assert.match(text, /以上是今天的日期与背景/);
 });
 
+test("时间行带上当前峰谷时段：模型一睁眼就知道这会儿贵不贵", () => {
+  // 峰谷那句播报只管一轮，下一轮就被 pre-step 拆掉；时间行带时段是给它一个不会过期的底线。
+  const code = buildInjectionText({ now: FIXED_NOW, codeMode: true, force: true, periodLabel: "谷时段" });
+  assert.match(code, /【今日时光】2026年10月26日星期一 09:10（谷时段）/);
+  const chat = buildInjectionText({ now: FIXED_NOW, force: true, periodLabel: "高峰时段" });
+  assert.match(chat, /【今日时光】2026年10月26日星期一 09:10（高峰时段）/);
+  const plain = buildInjectionText({ now: FIXED_NOW, codeMode: true, force: true });
+  assert.ok(!plain.includes("（谷时段）") && !plain.includes("（高峰时段）"), "不传时段就不带括号");
+});
+
 test("普通窗口的页脚保持原样", () => {
   const text = buildInjectionText({ now: FIXED_NOW, force: true });
   assert.match(text, /以上为今日时光背景/);

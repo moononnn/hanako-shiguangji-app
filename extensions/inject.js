@@ -41,7 +41,7 @@ import {
   markWeatherEventReported,
 } from "../lib/weather-alert.js";
 import { configureDebugLog, logInfo, logWarn } from "../lib/debug-log.js";
-import { decideDeepSeekNotice } from "../lib/deepseek-peak.js";
+import { decideDeepSeekNotice, getDeepSeekTimeInfo, isDeepSeekModel } from "../lib/deepseek-peak.js";
 import {
   resolveCodeInjection,
 } from "../lib/code-mode.js";
@@ -737,6 +737,9 @@ export default function registerShiguangjiInject(pi) {
         weather: weatherForInjection,
         xingjiEntries,
         deepseekNotice: deepseekDecision.notice,
+        // 播报只在开场/换班那几轮说一句，其余轮次靠时间行里的「（谷时段）」让模型自己看得见；
+        // 否则预告过的那段峰谷提示只管一轮、下一轮就被拆掉，窗口里就再没人提费不费钱。
+        periodLabel: peakEnabled && isDeepSeekModel(currentModel) ? getDeepSeekTimeInfo(now).periodLabel : "",
         includeTime: settings.injectMode !== "economical",
         force: decision.reason === "new-session" || decision.reason === "day-changed" || decision.reason === "injection-enabled" || decision.reason === "casual-new-segment",
         periodEndedYesterday,
@@ -942,6 +945,8 @@ function decideCodeModeInjection({ data, settings, now, sessionId, currentAgentI
     xingjiEntries,
     weather: weatherForInjection,
     deepseekNotice: peakDecision.notice,
+    // Code 页本来就是「现在几点、这会儿贵不贵」：时段跟着时间行走，不靠播报那几轮。
+    periodLabel: peakEnabled && isDeepSeekModel(currentModel) ? getDeepSeekTimeInfo(now).periodLabel : "",
     // 适时档只给日期不给钟点：一天最多来一次，那一刻的钟点很快就过期了，
     // 带一个错的比不带更糟。聊天窗口的「适时」也是同一条规矩。
     includeTime: codeMode !== "economical",
