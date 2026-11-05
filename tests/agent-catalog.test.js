@@ -76,3 +76,52 @@ test('设置接口：读到的是刚刷新过的名单', () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /brand-new/);
 });
+
+test('页面产物：设置里有个手动刷名单的按钮', () => {
+  const html = fs.readFileSync(path.resolve('ui/panel.html'), 'utf8');
+  assert.ok(html.includes('id="refresh-agent-list-btn"'), '设置里缺手动刷名单的按钮');
+  assert.match(html, /function refreshAgentLists/);
+  assert.match(html, /api\('api\/settings\?refresh=agents'\)/);
+});
+
+test('设置接口：手动刷名单会强制再问一遍宿主', () => {
+  const isolatedHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sgj-agent-catalog-force-'));
+  const routeUrl = pathToFileURL(path.resolve('routes/ui.js')).href;
+  const childCode = `
+    import path from 'node:path';
+    import registerRoutes from ${JSON.stringify(routeUrl)};
+    const routes = [];
+    const app = {
+      get(p, handler) { routes.push({ method: 'GET', path: p, handler }); },
+      post() {}, put() {}, delete() {},
+    };
+    let asked = 0;
+    registerRoutes(app, {
+      log: { info() {}, warn() {}, error() {} },
+      bus: { async request(verb) {
+        if (verb !== 'agent:list') throw new Error('不该问别的：' + verb);
+        asked += 1;
+        return { agents: asked === 1
+          ? [{ id: 'first', name: '第一位' }]
+          : [{ id: 'first', name: '第一位' }, { id: 'second', name: '第二位' }] };
+      } },
+    });
+    const get = routes.find((item) => item.method === 'GET' && item.path === '/api/settings');
+    const call = async (url) => {
+      const res = await get.handler({ req: { url }, json(value) { return value; } });
+      return (res.settings.summaryAgents || []).map((row) => row.agentId);
+    };
+    const first = await call('http://localhost/api/settings');
+    const forced = await call('http://localhost/api/settings?refresh=agents');
+    if (first.length !== 1) throw new Error('第一次读到的名单不对：' + JSON.stringify(first));
+    if (forced.length !== 2) throw new Error('手动刷新没拉到新名单：' + JSON.stringify(forced));
+    console.log(JSON.stringify({ first, forced }));
+  `;
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', childCode], {
+    encoding: 'utf8',
+    env: { ...process.env, USERPROFILE: isolatedHome, HOME: isolatedHome, HANA_HOME: path.join(isolatedHome, '.hanako') },
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /"first":\["first"\]/);
+  assert.match(result.stdout, /"forced":\["(first|second)","(first|second)"\]/);
+});

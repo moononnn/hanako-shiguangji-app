@@ -1266,6 +1266,7 @@
     border-bottom: 1px solid var(--line);
   }
   .set-modal-title { font-size: 16px; font-weight: 600; letter-spacing: 2px; }
+  .set-modal-head-left { display: flex; align-items: center; gap: 12px; }
   .set-modal-close {
     border: none; background: none; font-size: 22px; line-height: 1;
     color: var(--muted); cursor: pointer; padding: 2px 8px; border-radius: 99px; transition: all .15s;
@@ -2240,7 +2241,10 @@
   <div class="set-modal-mask" onclick="closeSettingsModal()"></div>
   <div class="set-modal-panel">
     <div class="set-modal-head">
-      <span class="set-modal-title">设置</span>
+      <div class="set-modal-head-left">
+        <span class="set-modal-title">设置</span>
+        <button type="button" class="link-btn" id="refresh-agent-list-btn" onclick="refreshAgentLists()" title="在 Hana 里新建或删掉伙伴后，点这里重新拉一遍名单">刷新伙伴名单</button>
+      </div>
       <button class="set-modal-close" onclick="closeSettingsModal()" title="关闭">×</button>
     </div>
     <div class="set-modal-body">
@@ -7759,6 +7763,26 @@ function renderAgentPickers(s) {
 
 function stopAgentListPolling() {
   if (agentListTimer) { clearInterval(agentListTimer); agentListTimer = null; }
+}
+
+// 手动刷名单：在 Hana 里新建或删掉伙伴后，点一下就重新问宿主要一遍。
+// 带上 refresh=agents，服务端就不看上一次什么时候对过，直接重新拉。
+function refreshAgentLists() {
+  var btn = document.getElementById('refresh-agent-list-btn');
+  if (btn) btn.disabled = true;
+  return api('api/settings?refresh=agents').then(function (res) {
+    if (!res || !res.ok) { toast('名单没刷出来，再点一下试试'); return; }
+    var s = res.settings || {};
+    lastAgentListSignature = agentListSignature(s.summaryAgents);
+    renderAgentPickers(s);
+    syncCasualInjectionUi(segVal('casual-injection-seg') === 'true');
+    var count = (s.summaryAgents || []).length;
+    toast(count ? ('伙伴名单刷好了，现在 ' + count + ' 位') : '伙伴名单刷好了');
+  }).catch(function () {
+    toast('名单没刷出来，再点一下试试');
+  }).finally(function () {
+    if (btn) btn.disabled = false;
+  });
 }
 
 function startAgentListPolling() {

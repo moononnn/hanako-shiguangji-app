@@ -1380,7 +1380,10 @@ export default function registerRoutes(app, ctx) {
   // ── 注入配置 ──
   app.get("/api/settings", async (c) => {
     // 名单先对一次：用户刚在 Hana 新建的伙伴，这次打开设置就该看得见。
-    await refreshAgentCatalog({ ttlMs: 2000 });
+    // 带 refresh=agents 的是手动点刷新：不管上一次什么时候对过，都重新问一遍宿主。
+    const requestUrl = c.req && c.req.url ? c.req.url : "http://localhost/api/settings";
+    const url = new URL(requestUrl, "http://localhost");
+    await refreshAgentCatalog({ ttlMs: 2000, force: url.searchParams.get("refresh") === "agents" });
     const s = getData().getSettings();
     return c.json({ ok: true, settings: publicSettings(s) });
   });
