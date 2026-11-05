@@ -1889,17 +1889,33 @@
   /* ── 节日换肤：背景那层纸 ──
      变量值由脚本按当天节日写成 html 上的内联样式（内联优先级最高，能盖住暗色块里的同名变量）。
      这里只管把平时那张横线纸纹换成节日背景图。
-     这条规则必须放在暗色块之后：两条选择器特异性相同，靠源码顺序决胜。 */
+     这条规则必须放在暗色块之后：两条选择器特异性相同，靠源码顺序决胜。
+     底图是横幅构图（1916×704）。原来用 cover 往竖长页面里塞，被放大又裁掉两侧，
+     灯笼顶到内容上、花枝全被切走。改成「宽度铺满、贴顶」：图按原比例停在页面上缘，
+     当一条横披。横披下缘以前用一层 33.4vw 高的渐变溶进纸色，那是水彩的语法；
+     换成木版年画的做法：一条墨线收口，墨线上侧跟一条细朱线，线以下就是纸，中间不留过渡。
+     图是 1916×704（比 2.72），铺满宽度时高 = 视口宽 / 2.72 ≈ 36.76vw。 */
   html[data-festival-theme] body::before {
     background-image: var(--fest-bg);
-    background-size: cover;
+    background-size: 100% auto;
     background-position: center top;
     background-repeat: no-repeat;
+    background-color: var(--fest-paper);
+    /* 两道 inset：先写的那道落在最外侧。墨线贴图的下缘，朱线在它上侧 1.5px。 */
+    box-shadow:
+      inset 0 -1.5px 0 var(--fest-rule),
+      inset 0 -3px 0 var(--fest-rule-thin);
   }
-  /* ── 节日换肤：把实白换成半透明纸面 ──
-     平时这些块是实白，底图被压得看不见；节日当天改成半透明暖纸，让水彩透上来。
-     分两档：大块用 surface（薄），小件用 surface-strong（实一点，小字才清楚）。
-     只在节日作用域内生效，日常外观一行未动。 */
+  /* 顶栏下面让出一条「门楣」：内容整体下移，卡片不再把灯笼切成两半、穗子也不往内容里钻。
+     留白按图高的 38% 走，窗口越宽留得越多，窄窗口自然收窄。 */
+  html[data-festival-theme] .header {
+    margin-bottom: calc(36.76vw * .38);
+  }
+  /* ── 节日换肤：把实白换成手帐纸面 ──
+     平时这些块是实白，底图被压得看不见；节日当天改成半透明纸面，让底图透上来。
+     分两档：大块用 surface（满一些），小件用 surface-strong（更实，小字才清楚）。
+     年画不留柔边：卡片不再叠背景模糊，边框一律走墨线（--fest-line），
+     形被线包住，才是版刻的看家本领。只在节日作用域内生效，日常外观一行未动。 */
   html[data-festival-theme] .calendar,
   html[data-festival-theme] .detail,
   html[data-festival-theme] .add-card,
@@ -1910,6 +1926,7 @@
   html[data-festival-theme] .mood-line,
   html[data-festival-theme] .focus-records-body {
     background: var(--fest-surface);
+    border-color: var(--fest-line);
   }
   html[data-festival-theme] .cal-day,
   html[data-festival-theme] .icon-btn,
@@ -1926,12 +1943,49 @@
     background: var(--fest-surface-strong);
   }
   /* 今日概览卡：平时是绿→米，节日换成暖红→暖金 */
-  html[data-festival-theme] .today-card { background: var(--fest-today-grad); }
-  html[data-festival-theme] .cal-day.today.selected { background: var(--primary-soft); }
-  /* 日历卡：一道金边 + 一层暖红内晕，像贴了春联红光的手帐页 */
+  html[data-festival-theme] .today-card {
+    background: var(--fest-today-grad);
+    border-color: var(--fest-line);
+  }
+  /* 今天那格：年画的斗方。红底、描一道金线、四角收成方的。
+     格子尺寸与字号一概不动，只换这格的底与边。 */
+  html[data-festival-theme] .cal-day.today {
+    background: var(--fest-today-cell);
+    border-color: var(--fest-today-line);
+    border-radius: 2px;
+    box-shadow: inset 0 0 0 1px var(--accent-light);
+  }
+  html[data-festival-theme] .cal-day.today .num,
+  html[data-festival-theme] .cal-day.today .num .weekend-num { color: #fff6e2; }
+  html[data-festival-theme] .cal-day.today .today-tag { color: #fff6e2; }
+  html[data-festival-theme] .cal-day.today .sum-tag { color: rgba(255, 246, 226, .9); }
+  html[data-festival-theme] .cal-day.today.selected { background: var(--primary-deep); }
+  /* 选中态：日常是淡绿底 + 绿框，暗色下更是一整块墨绿；节日下一律换成暖纸与脂红 */
+  html[data-festival-theme] .cal-day.selected {
+    background: var(--fest-today-cell);
+    border-color: var(--primary-deep);
+  }
+  /* 导航那一格实底：暗色块把白字改成了墨绿字，红底上会发脏，这里改回白字 */
+  html[data-festival-theme] .nav-tabs button.active {
+    background: var(--primary);
+    color: #fff;
+  }
+  /* 头部几个按钮压在花枝上也要站得住：统一半透纸底 + 轻模糊 */
+  html[data-festival-theme] .go-today-btn,
+  html[data-festival-theme] .settings-btn,
+  html[data-festival-theme] .context-toggle-btn {
+    background: var(--fest-chip);
+    border-color: var(--fest-line);
+    backdrop-filter: blur(8px);
+  }
+  html[data-festival-theme] .brand .sub { color: var(--fest-sub-ink); }
+  /* 日历卡：外圈墨线（卡片自己的 border）+ 内一圈细朱线，像一幅装裱过的画心 */
   html[data-festival-theme] .calendar {
     border-color: var(--fest-line);
-    box-shadow: inset 0 0 44px rgba(192, 87, 77, .06);
+    box-shadow:
+      inset 0 0 0 1px var(--fest-rule-thin),
+      inset 0 0 0 6px var(--fest-frame-soft),
+      0 8px 20px rgba(90, 66, 46, .08);
   }
 </style>
 </head>
@@ -7755,7 +7809,8 @@ function renderAgentPickers(s) {
   renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
   renderInjectionAgents(s.summaryAgents || [], s.injectionDisabledAgentIds);
   renderCasualInjectionAgents(s.summaryAgents || [], s.casualInjectionDisabledAgentIds);
-  renderCodeInjectionAgents(s.summaryAgents || [], s.codeInjectionDisabledAgentIds);  applyCheckedState('.injection-agent-check', picked.injection);
+  renderCodeInjectionAgents(s.summaryAgents || [], s.codeInjectionDisabledAgentIds);
+  applyCheckedState('.injection-agent-check', picked.injection);
   applyCheckedState('.casual-injection-agent-check', picked.casual);
   applyCheckedState('.code-injection-agent-check', picked.code);
   applyCheckedState('.summary-agent-check', picked.summary);

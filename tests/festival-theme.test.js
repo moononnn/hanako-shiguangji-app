@@ -92,6 +92,20 @@ test("主题表：每个节日都要有明暗两套配色和两张背景图，�
   }
 });
 
+test("门厅用竖版图：主题表单开一档 hall，门厅脚本优先读它", () => {
+  const theme = getFestivalTheme(new Date("2026-02-17T00:00:00"));
+  assert.ok(theme.background.hall, "春节要配门厅竖版");
+  for (const mode of ["light", "dark"]) {
+    const rel = theme.background.hall[mode];
+    assert.ok(rel, `门厅缺 ${mode} 竖版图`);
+    const file = path.join(APP_DIR, "ui", rel);
+    assert.ok(fs.existsSync(file), `门厅 ${mode} 图不在 ui/ 下：${file}`);
+    assert.ok(fs.statSync(file).size > 0, `门厅 ${mode} 图是空的`);
+  }
+  const hall = fs.readFileSync(path.join(APP_DIR, "ui", "hall.html"), "utf8");
+  assert.match(hall, /bgSet\.hall && bgSet\.hall\[mode\]/, "门厅要先读 hall 那一档");
+});
+
 test("主页面：有节日就上色上背景，没节日就干净退回", () => {
   const html = fs.readFileSync(path.join(APP_DIR, "ui", "panel.html"), "utf8");
   const { root, api } = loadThemeScript(html, "var festivalTheme = null;", "/* ── 今日概览 ── */");
@@ -102,14 +116,14 @@ test("主页面：有节日就上色上背景，没节日就干净退回", () =>
   const theme = getFestivalTheme(new Date("2026-02-17T00:00:00"));
   api.applyFestivalTheme(theme);
   assert.equal(root.getAttribute("data-festival-theme"), "chunjie");
-  assert.equal(root.vars.get("--primary"), "#c0574d", "亮色主色要写进内联变量");
+  assert.equal(root.vars.get("--primary"), "#c8402f", "亮色主色要写进内联变量");
   assert.match(String(root.vars.get("--fest-bg")), /assets\/festivals\/chunjie\/light\.webp/);
   assert.match(html, /html\[data-festival-theme\] body::before/, "背景那层纸要有节日规则");
 
   // 切到暗色：同一套主题要换成暗色那一份
   root.setAttribute("data-appearance", "dark");
   api.paintFestivalTheme();
-  assert.equal(root.vars.get("--primary"), "#cf6b5f", "暗色主色要跟上");
+  assert.equal(root.vars.get("--primary"), "#d1584a", "暗色主色要跟上");
   assert.match(String(root.vars.get("--fest-bg")), /dark\.webp/);
 
   // 节日过了：清干净，别留着上一次的变量
@@ -139,7 +153,7 @@ test("预览：能按 key 强制预览某个节日，不看今天是哪天", () 
   assert.ok(preview, "春节该能被预览");
   assert.equal(preview.key, "chunjie");
   assert.equal(preview.kind, "preview");
-  assert.equal(preview.palette.light["--primary"], "#c0574d");
+  assert.equal(preview.palette.light["--primary"], "#c8402f");
   assert.equal(getFestivalThemeByKey("nonexistent"), null, "没有的主题返回 null");
 
   const src = fs.readFileSync(path.join(APP_DIR, "routes", "ui.js"), "utf8");

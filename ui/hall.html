@@ -328,12 +328,15 @@
     background-position: center top;
     background-repeat: no-repeat;
   }
-  /* ── 节日换肤：把实白换成半透明纸面 ──
-     大块用 surface（薄），小件用 surface-strong（实一点，小字才清楚）。 */
+  /* ── 节日换肤：把实白换成手帐纸面 ──
+     大块用 surface，小件用 surface-strong（更实，小字才清楚）。
+     门厅窗口窄，底图是 cover 裁过的中部；纸面提到 .88 上下已经够实，
+     不再叠背景模糊——年画不留柔边，形被线包住才算数。 */
   html[data-festival-theme] .weather,
   html[data-festival-theme] .todos,
   html[data-festival-theme] .focus-quick-card {
     background: var(--fest-surface);
+    border-color: var(--fest-line);
   }
   html[data-festival-theme] .wide,
   html[data-festival-theme] .todo-dot,
@@ -499,7 +502,9 @@
       root.style.setProperty(name, palette[name]);
       if (festivalThemeVars.indexOf(name) < 0) festivalThemeVars.push(name);
     });
-    var bg = theme.background && theme.background[mode];
+    // 门厅另有竖版图（background.hall）；没配就退回主页面那张横披。
+    var bgSet = theme.background || {};
+    var bg = (bgSet.hall && bgSet.hall[mode]) || bgSet[mode];
     if (bg) {
       root.style.setProperty('--fest-bg', 'url("' + bg + '")');
       if (festivalThemeVars.indexOf('--fest-bg') < 0) festivalThemeVars.push('--fest-bg');
