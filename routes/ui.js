@@ -114,6 +114,7 @@ import { configureDebugLog, logInfo, logWarn, logError } from "../lib/debug-log.
 import { Feedback } from "../lib/feedback/index.js";
 import { getFocusCompanions, resolveFocusCompanion, fetchFocusAvatar, syncFocusCompanion } from "../lib/focus-companion.js";
 import { getFocusReminderScheduler } from "../lib/focus-reminder-scheduler.js";
+import { configureAgentCatalog, refreshAgentCatalog } from "../lib/agent-catalog.js";
 
 // 反馈提交的目标仓库；App 更新由宿主应用市场管理。
 const REPO = "moononnn/hanako-shiguangji-app";
@@ -730,6 +731,8 @@ function normalizeSummaryOutput(value, userName) {
 export default function registerRoutes(app, ctx) {
   const sharedData = configureSharedUserData(ctx?.dataDir);
   configureDebugLog(ctx?.dataDir);
+  // 路由这边也拿得到宿主总线：设置页读名单前能当场问宿主要最新的一遍。
+  configureAgentCatalog(ctx);
   // 页面路由拿得到插件 ctx；把宿主网络能力交给扩展的后台天气刷新复用。
   const weatherFetcher = configureWeatherNetwork(ctx?.network);
   // 路由注册晚于扩展注册，而天气刷新器是在扩展注册时启动的——那一轮往往还拿不到网络能力，
@@ -1376,6 +1379,8 @@ export default function registerRoutes(app, ctx) {
 
   // ── 注入配置 ──
   app.get("/api/settings", async (c) => {
+    // 名单先对一次：用户刚在 Hana 新建的伙伴，这次打开设置就该看得见。
+    await refreshAgentCatalog({ ttlMs: 2000 });
     const s = getData().getSettings();
     return c.json({ ok: true, settings: publicSettings(s) });
   });

@@ -3,7 +3,7 @@
 import { configureDebugLog, logInfo, logWarn } from './lib/debug-log.js';
 import { configureSharedUserData } from './lib/shared-data.js';
 import { configureUserNameStore } from './lib/user-name.js';
-import { setAgentCatalog } from './lib/day-summary.js';
+import { configureAgentCatalog, refreshAgentCatalog } from './lib/agent-catalog.js';
 import { attachInject } from './lib/inject-app.js';
 import { registerDaybookTools } from './lib/app-tools.js';
 import { configurePublicTodayPublisher, writePublicToday } from './lib/public-today.js';
@@ -39,6 +39,8 @@ export async function apply(ctx) {
   };
   // 先把宿主的 resources 句柄递给扩展：扩展自己的 ctx 里没有它，但两者同进程。
   setHostResources(ctx.resources);
+  // 伙伴名单目录：宿主接口随时能问，名单随时能刷新，不必等重新装载。
+  configureAgentCatalog(ctx);
   attachInject(ctx, message => logInfo(message));
   // 她最近在哪个会话开口：subscribe 第二个参数就是会话路径，到点的横幅要挂到那儿。
   try {
@@ -81,12 +83,7 @@ export async function apply(ctx) {
     publishPublicAlerts({ data, force: true });
     void reminder.restoreAppSchedules();
     void focusReminder.restore();
-    try {
-      const rows = await ctx.bus.request('agent:list', { scope: 'all' });
-      logInfo(`伙伴名称目录就绪：${setAgentCatalog(rows)} 个`);
-    } catch (error) {
-      logWarn(`伙伴名称目录未就绪：${error?.code || ''} ${error?.message || error}`);
-    }
+    await refreshAgentCatalog({ force: true });
   }, 0);
   timer.unref?.();
   // 茶话会单独聊天时也要跨天更新；内容指纹会跳过没变化的写盘和发布。
@@ -101,6 +98,8 @@ export async function apply(ctx) {
     catch (error) { logWarn(`天气提醒共享刷新失败：${error?.message || error}`); }
     void reminder.restoreAppSchedules(); // 补排已过期的失败重试；未知结果只对账，不盲目重建。
     void focusReminder.restore();
+    // 名单每分钟对一次：新建的伙伴不用重启应用才进得来。
+    void refreshAgentCatalog({ force: true });
   }, 60 * 1000);
   refresh.unref?.();
 }

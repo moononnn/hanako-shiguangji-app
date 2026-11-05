@@ -7702,9 +7702,80 @@ function openSettingsModal() {
   loadSettings();
   // 设置里那块「从插件版搬数据」每次打开都对一次现状
   checkLegacyMigration();
+  // 开着设置的这段时间里，伙伴名单自己对一遍：她新建的伙伴不用重开应用才出现。
+  startAgentListPolling();
 }
 function closeSettingsModal() {
   document.getElementById('set-modal').hidden = true;
+  stopAgentListPolling();
+}
+
+/* ── 伙伴名单：开着设置时轮询刷新 ── */
+var AGENT_LIST_POLL_MS = 15000;
+var agentListTimer = null;
+var lastAgentListSignature = '';
+
+function agentListSignature(agents) {
+  return (Array.isArray(agents) ? agents : [])
+    .map(function (agent) {
+      return String((agent && agent.agentId) || '') + '|' + String((agent && agent.agentName) || '');
+    })
+    .join(';');
+}
+
+function checkedStateOf(selector) {
+  var state = {};
+  document.querySelectorAll(selector).forEach(function (check) {
+    var id = check.getAttribute('data-agent-id') || '';
+    if (id) state[id] = check.checked;
+  });
+  return state;
+}
+
+function applyCheckedState(selector, state) {
+  document.querySelectorAll(selector).forEach(function (check) {
+    var id = check.getAttribute('data-agent-id') || '';
+    if (id && Object.prototype.hasOwnProperty.call(state, id)) check.checked = state[id];
+  });
+}
+
+// 四处名单（做册 / 聊天情境 / 闲聊情境 / Code 情境）共用同一份名单，一起重画。
+// 重画前先把勾选状态按伙伴 ID 存下来，画完还回去——名单变了不等于人家刚才的勾选作废。
+function renderAgentPickers(s) {
+  var picked = {
+    injection: checkedStateOf('.injection-agent-check'),
+    casual: checkedStateOf('.casual-injection-agent-check'),
+    code: checkedStateOf('.code-injection-agent-check'),
+    summary: checkedStateOf('.summary-agent-check')
+  };
+  renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
+  renderInjectionAgents(s.summaryAgents || [], s.injectionDisabledAgentIds);
+  renderCasualInjectionAgents(s.summaryAgents || [], s.casualInjectionDisabledAgentIds);
+  renderCodeInjectionAgents(s.summaryAgents || [], s.codeInjectionDisabledAgentIds);  applyCheckedState('.injection-agent-check', picked.injection);
+  applyCheckedState('.casual-injection-agent-check', picked.casual);
+  applyCheckedState('.code-injection-agent-check', picked.code);
+  applyCheckedState('.summary-agent-check', picked.summary);
+}
+
+function stopAgentListPolling() {
+  if (agentListTimer) { clearInterval(agentListTimer); agentListTimer = null; }
+}
+
+function startAgentListPolling() {
+  stopAgentListPolling();
+  agentListTimer = setInterval(function () {
+    var modal = document.getElementById('set-modal');
+    if (!modal || modal.hidden) { stopAgentListPolling(); return; }
+    api('api/settings').then(function (res) {
+      if (!res || !res.ok) return;
+      var s = res.settings || {};
+      var signature = agentListSignature(s.summaryAgents);
+      if (signature === lastAgentListSignature) return;
+      lastAgentListSignature = signature;
+      renderAgentPickers(s);
+      syncCasualInjectionUi(segVal('casual-injection-seg') === 'true');
+    }).catch(function () {});
+  }, AGENT_LIST_POLL_MS);
 }
 document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
@@ -8277,11 +8348,9 @@ function loadSettings() {
     setSeg('festival-theme-seg', s.festivalThemePreview || '');
     setSeg('weather-seg', s.weatherEnabled !== false);
     setSeg('weather-alert-seg', s.weatherAlertEnabled !== false);
-    renderSummaryAgents(s.summaryAgents || [], s.summaryAgentIds);
-    renderInjectionAgents(s.summaryAgents || [], s.injectionDisabledAgentIds);
-    renderCasualInjectionAgents(s.summaryAgents || [], s.casualInjectionDisabledAgentIds);
+    renderAgentPickers(s);
+    lastAgentListSignature = agentListSignature(s.summaryAgents);
     syncCasualInjectionUi(s.casualInjectionEnabled === true);
-    renderCodeInjectionAgents(s.summaryAgents || [], s.codeInjectionDisabledAgentIds);
     renderWeatherRegion(s.weatherArea || null, s.weatherLocation || '');
     syncWeatherSettingsUi(s.weatherEnabled !== false);
     weatherSettingsState.location = s.weatherLocation || '';
