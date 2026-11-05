@@ -33,7 +33,7 @@
       "out"
     ],
     "excludeFiles": [
-      "PENDING_CHANGES.md",
+      "AGENTS.md",      "PENDING_CHANGES.md",
       "PUBLISHING.md",
       "PROJECT_LOG.md",
       "TESTING.md",
