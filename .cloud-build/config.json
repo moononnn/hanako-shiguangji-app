@@ -4,7 +4,7 @@
     "id": "shiguangji-app",
     "name": "拾光记",
     "kind": "app",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "repoUrl": "moononnn/hanako-shiguangji-app"
   },
   "publisher": "moononnn & 小花",
@@ -33,7 +33,8 @@
       "out"
     ],
     "excludeFiles": [
-      "AGENTS.md",      "PENDING_CHANGES.md",
+      "AGENTS.md",
+      "PENDING_CHANGES.md",
       "PUBLISHING.md",
       "PROJECT_LOG.md",
       "TESTING.md",
@@ -113,14 +114,16 @@
     "pin": {
       "channel": "beta",
       "channelManifest": "https://dl.openhanako.com/channels/beta.json",
-      "version": "1.5.70-beta",
+      "version": "1.5.118-beta",
       "platform": "win32-x64",
-      "file": "server-1.5.70-beta-win32-x64.tar.gz",
-      "sha256": "09196a5a467f7e8a906d36179ae619b87c76080c78e522063a5501431a461209",
-      "size": 276737844,
+      "file": "server-1.5.118-beta-win32-x64.tar.gz",
+      "sha256": "4348a3a88efb93130b7de0c2375777288796faad189959c605b56aca6ea8b358",
+      "size": 276858819,
       "mirrors": [
-        "https://github.com/liliMozi/openhanako/releases/download/train-beta-45",
-        "https://dl.openhanako.com"
+        "https://github.com/liliMozi/openhanako/releases/download/train-beta-47",
+        "https://dl.openhanako.com",
+        "https://github.com/liliMozi/openhanako/releases/download/train-beta-40",
+        "https://github.com/liliMozi/openhanako/releases/download/train-beta-37"
       ]
     }
   }
