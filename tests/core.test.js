@@ -925,6 +925,19 @@ test("行政区：内置有效区县和 WGS84 中心点", () => {
   assert.equal(formatAdministrativeRegion(wuhou), "四川省 成都市 武侯区");
 });
 
+test("行政区：台湾省与港澳一样是省级单条（710000）", () => {
+  const taiwan = getAdministrativeRegion("710000");
+  assert.ok(taiwan, "表里该有 710000 台湾省");
+  assert.equal(taiwan.province, "台湾省");
+  assert.ok(Number.isFinite(taiwan.latitude) && Number.isFinite(taiwan.longitude));
+  const provinces = new Set(ADMIN_REGIONS.map((region) => region.province));
+  assert.ok(provinces.has("台湾省"), "省份下拉里该有台湾省");
+  assert.ok(provinces.has("香港特别行政区") && provinces.has("澳门特别行政区"));
+  // 省市县同名不能拼成「台湾省 台湾省 台湾省」
+  assert.equal(formatAdministrativeRegion(taiwan), "台湾省");
+  assert.equal(formatAdministrativeRegion(getAdministrativeRegion("810000")), "香港特别行政区");
+});
+
 test("行政区：旧版地点文字能回填唯一区县", () => {
   assert.equal(findAdministrativeRegion("成都 武侯区").code, "510107");
   assert.equal(findAdministrativeRegion("四川省 成都市 武侯区").code, "510107");
