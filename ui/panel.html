@@ -1323,6 +1323,8 @@
   }
   .weather-region-field .dd { width: 100%; max-width: none; }
   .weather-region-field .dd-trigger { width: 100%; }
+  /* 省市同名（直辖市、港澳、台湾省这类省级直筒）时，多余那一层直接收起，不留一个只有一个选项的下拉 */
+  .weather-region-field.weather-field-hidden { display: none; }
   .weather-region-field .dd-trigger:disabled,
   .weather-region-field .dd.disabled .dd-trigger { opacity: .52; cursor: not-allowed; }
   .weather-clear-btn { flex: none; align-self: flex-end; }
@@ -2529,17 +2531,17 @@
         <div class="set-row">
           <span class="set-label">居住地</span>
           <div class="weather-region-selects" id="weather-region-selects">
-            <label class="weather-region-field">省份
+            <label class="weather-region-field" id="weather-province-field">省份
               <select id="weather-province" class="set-select">
                 <option value="">选择省份</option>
               </select>
             </label>
-            <label class="weather-region-field">城市
+            <label class="weather-region-field" id="weather-city-field">城市
               <select id="weather-city" class="set-select" disabled>
                 <option value="">先选省份</option>
               </select>
             </label>
-            <label class="weather-region-field">区县
+            <label class="weather-region-field" id="weather-district-field">区县
               <select id="weather-district" class="set-select" disabled>
                 <option value="">先选城市</option>
               </select>
@@ -8202,12 +8204,22 @@ function populateWeatherProvinces(selectedProvince) {
   populateWeatherCities(provinceSelect.value, '', '');
 }
 
+function setWeatherFieldVisible(fieldId, visible) {
+  var field = document.getElementById(fieldId);
+  if (field) field.classList.toggle('weather-field-hidden', !visible);
+}
+
 function populateWeatherCities(province, selectedCity, selectedCode) {
   var citySelect = document.getElementById('weather-city');
   var regions = weatherRegions.filter(function (region) { return region.province === province; });
   var options = uniqueWeatherOptions(regions, 'city');
+  // 省里只挂着一个城市、而且跟省同名（直辖市与港澳台这类）：城市这层没有可挑的，收起来，跟着省走。
+  var impliedByProvince = !!province && options.length === 1 && String(options[0].value) === String(province);
+  setWeatherFieldVisible('weather-city-field', !impliedByProvince);
   setWeatherSelectOptions('weather-city', province ? '选择城市' : '先选省份', options, !province);
-  if (selectedCity && options.some(function (item) { return item.value === selectedCity; })) {
+  if (impliedByProvince) {
+    citySelect.value = options[0].value;
+  } else if (selectedCity && options.some(function (item) { return item.value === selectedCity; })) {
     citySelect.value = selectedCity;
   } else {
     citySelect.value = '';
@@ -8224,8 +8236,13 @@ function populateWeatherDistricts(province, city, selectedCode) {
   var options = regions.map(function (region) {
     return { value: String(region.code), label: region.district };
   });
+  // 整块地方只挂着一个区县、而且跟城市同名（港澳台）：区县这层也收起来，不为一个项再点一次。
+  var impliedByCity = !!city && options.length === 1 && String(options[0].label) === String(city);
+  setWeatherFieldVisible('weather-district-field', !impliedByCity);
   setWeatherSelectOptions('weather-district', city ? '选择区县' : '先选城市', options, !city);
-  if (selectedCode && options.some(function (item) { return item.value === String(selectedCode); })) {
+  if (impliedByCity) {
+    districtSelect.value = options[0].value;
+  } else if (selectedCode && options.some(function (item) { return item.value === String(selectedCode); })) {
     districtSelect.value = String(selectedCode);
   } else {
     districtSelect.value = '';
@@ -8389,7 +8406,9 @@ function getSummaryAgentIdsFromUI() {
 function loadSettings() {
   Promise.all([api('api/settings'), loadWeatherRegions()]).then(function (parts) {
     var res = parts[0];
-    if (!res.ok) return;
+    // 读不到就别让面板停在一副“什么都没改”的默认样子：开关、地点都应显示服务端真实状态，
+    // 否则用户以为天气开着、其实存的是关，点测试只会得到一句“没查到”。
+    if (!res.ok) { toast('设置没读出来，关掉设置面板再打开一次嘛'); return; }
     var s = res.settings;
     appSettings = Object.assign(appSettings, s);
     setSeg('injection-enabled-seg', s.injectionEnabled !== false);
@@ -8441,6 +8460,8 @@ function loadSettings() {
     weatherSettingsState.location = s.weatherLocation || '';
     renderThinkingWarn(s.thinkingUnstoppable, s.thinkingModelKey);
     loadModelConfig();
+  }).catch(function () {
+    toast('设置没读出来，检查一下连接，再打开一次设置嘛');
   });
 }
 
@@ -8575,7 +8596,8 @@ function testWeather() {
     return;
   }
   msg.textContent = '查天气中…';
-  api('api/weather/test?code=' + encodeURIComponent(region.code)).then(function (res) {
+  // 带上 enabled=true：这一下测的是眼前这个开关的状态，不用先把设置存盘。
+  api('api/weather/test?code=' + encodeURIComponent(region.code) + '&enabled=true').then(function (res) {
     if (res.ok && res.weather) {
       msg.textContent = '✓ ' + res.weather.place + '：' + res.weather.line;
     } else {

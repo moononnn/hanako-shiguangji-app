@@ -61,6 +61,23 @@ test("路由：日期详情接口能正常读取当天数据", () => {
     if (!regions.regions.some((item) => item.code === "510107" && item.district === "武侯区")) {
       throw new Error("武侯区行政区数据缺失");
     }
+    const settingsPost = routes.find((item) => item.method === "POST" && item.path === "/api/settings");
+    if (!settingsPost) throw new Error("设置保存路由未注册");
+    await settingsPost.handler({ req: { json: async () => ({ weatherEnabled: false }) }, json(value) { return value; } });
+    const weatherTestRoute = routes.find((item) => item.method === "GET" && item.path === "/api/weather/test");
+    if (!weatherTestRoute) throw new Error("天气测试路由未注册");
+    const callWeatherTest = (qs) => weatherTestRoute.handler({
+      req: { url: "http://localhost/api/weather/test" + qs },
+      json(value) { return value; },
+    });
+    const offResult = await callWeatherTest("?code=710000");
+    if (offResult?.ok !== false || !/还关着/.test(String(offResult?.error || ""))) {
+      throw new Error("天气关着时测试应当明说关闭，实际：" + JSON.stringify(offResult));
+    }
+    const onResult = await callWeatherTest("?code=710000&enabled=true");
+    if (/还关着/.test(String(onResult?.error || ""))) {
+      throw new Error("页面开关打开时，测试不该被已保存的关闭状态拦住");
+    }
     console.log(JSON.stringify({ ok: result.ok, hasDay: !!result.day, pastTodo: past.day.canAddTodo, futureTodo: future.day.canAddTodo, canBatch: typeof month.days[0].canBatchSummary === "boolean", regionCount: regions.regions.length }));
   `;
   const result = spawnSync(process.execPath, ["--input-type=module", "-e", childCode], {
@@ -319,8 +336,8 @@ test("路由：情境注入与天气开关独立保存，关闭天气不查询�
       req: { url: "http://localhost/api/weather/test?code=510107" },
       json(value) { return value; },
     });
-    if (!disabledWeatherTest.ok || disabledWeatherTest.weather !== null || !disabledWeatherTest.disabled || fetches !== 0) {
-      throw new Error("关闭天气后测试接口仍查询：" + JSON.stringify({ disabledWeatherTest, fetches }));
+    if (disabledWeatherTest.ok !== false || !/还关着/.test(String(disabledWeatherTest.error || "")) || fetches !== 0) {
+      throw new Error("关闭天气后测试接口没有明说关闭或仍查询：" + JSON.stringify({ disabledWeatherTest, fetches }));
     }
     const disabledFetches = fetches;
     const today = new Date();
@@ -346,11 +363,22 @@ test("路由：情境注入与天气开关独立保存，关闭天气不查询�
     if (!enabledWeather.ok || !enabledWeather.weather || enabledWeather.weather.temp !== 28 || fetches !== 1) {
       throw new Error("天气重新打开后没有立即查最新结果：" + JSON.stringify({ enabledWeather, fetches }));
     }
+    const restoredFetches = fetches;
+    // 页面上把开关点开、还没保存的时候，测试也该按界面状态真的去查一次，不该被存盘的关闭状态拦住。
+    await callSettings({ weatherEnabled: false });
+    const fetchesBeforeOverride = fetches;
+    const overrideTest = await weatherTest.handler({
+      req: { url: "http://localhost/api/weather/test?code=510107&enabled=true" },
+      json(value) { return value; },
+    });
+    if (fetches !== fetchesBeforeOverride + 1) {
+      throw new Error("界面开关打开时，测试没有真的去查：" + JSON.stringify({ overrideTest, fetches }));
+    }
     console.log(JSON.stringify({
       injectionEnabled: restored.settings.injectionEnabled,
       weatherEnabled: restored.settings.weatherEnabled,
       disabledFetches,
-      restoredFetches: fetches,
+      restoredFetches,
       restoredTemp: enabledWeather.weather.temp,
     }));
   `;

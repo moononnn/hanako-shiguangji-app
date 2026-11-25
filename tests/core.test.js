@@ -2108,3 +2108,35 @@ test("生理期：预计日期与确认日期分开", async () => {
   assert.equal(ud.periodsWithDayOn(new Date(2026, 7, 28))[0].predicted, false);
   assert.equal(ud.periodsWithDayOn(new Date(2026, 7, 29))[0].predicted, true);
 });
+
+test("行政区分级：省=市=县同名只占一层，直辖市只并市级", () => {
+  const byProvince = new Map();
+  for (const region of ADMIN_REGIONS) {
+    if (!byProvince.has(region.province)) byProvince.set(region.province, []);
+    byProvince.get(region.province).push(region);
+  }
+  // 台湾省与港澳是同一种形状：省下只有一条，三级同名
+  for (const name of ["台湾省", "香港特别行政区", "澳门特别行政区"]) {
+    const rows = byProvince.get(name);
+    assert.ok(rows && rows.length === 1, `${name} 应当只有一条`);
+    assert.equal(rows[0].city, name);
+    assert.equal(rows[0].district, name);
+    assert.equal(new Set(rows.map((row) => row.city)).size, 1, `${name} 的城市只有一个且与省同名`);
+    assert.equal(new Set(rows.map((row) => row.district)).size, 1, `${name} 的区县只有一个且与城市同名`);
+  }
+  // 直辖市：城市只有一个且与省同名，区县有多条——只该收起城市那一层
+  const beijing = byProvince.get("北京市");
+  assert.deepEqual([...new Set(beijing.map((row) => row.city))], ["北京市"]);
+  assert.ok(beijing.length > 1, "北京市应当有多个区县");
+});
+
+test("页面产物：同级收起与天气测试带开关状态", () => {
+  const html = fs.readFileSync(path.resolve("ui/panel.html"), "utf8");
+  const template = fs.readFileSync(path.resolve("lib/page-template.js"), "utf8");
+  for (const [name, source] of [["panel.html", html], ["page-template.js", template]]) {
+    assert.match(source, /weather-field-hidden/, `${name} 缺少同名层级收起的样式`);
+    assert.match(source, /weather-city-field/, `${name} 缺少城市层的容器 id`);
+    assert.match(source, /weather-district-field/, `${name} 缺少区县层的容器 id`);
+    assert.match(source, /enabled=true/, `${name} 的天气测试没有把开关状态带过去`);
+  }
+});

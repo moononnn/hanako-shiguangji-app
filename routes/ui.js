@@ -1237,8 +1237,11 @@ export default function registerRoutes(app, ctx) {
   app.get("/api/weather/test", async (c) => {
     try {
       const settings = getData().getSettings();
-      if (settings.weatherEnabled === false) return c.json({ ok: true, weather: null, disabled: true });
       const url = new URL(c.req.url, "http://localhost");
+      // 测试跟着页面上的开关走：传了 enabled 就以界面当前状态为准，不必先把设置存盘。
+      const enabledParam = url.searchParams.get("enabled");
+      const enabled = enabledParam === null ? settings.weatherEnabled !== false : enabledParam !== "false";
+      if (!enabled) return c.json({ ok: false, error: "今日天气还关着，先把上面的开关切到「开」再测试嘛" });
       const code = String(url.searchParams.get("code") || "").trim();
       const rawLocation = String(url.searchParams.get("location") || "").trim();
       const area = code ? getAdministrativeRegion(code) : null;
